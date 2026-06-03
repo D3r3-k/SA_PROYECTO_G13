@@ -1,0 +1,643 @@
+Sí, lo que tienes pensado **sí es coherente con lo solicitado**, pero para que no se escape nada conviene aterrizar tus tareas como **bloque crítico de arranque**: tú no solo haces código, también debes dejar reglas, contratos y documentación base para que Josue, Johan y PersonaX no se bloqueen.
+
+Según el reparto que ya veníamos manejando, Tomas queda como responsable principal de **Gateway, Auth, perfiles, Git/PR, contratos iniciales y documentación de seguridad/login**. Eso encaja porque Gateway/Auth desbloquean al frontend y a los demás servicios.  También se definió que PersonaX no debe recibir tareas que bloqueen el arranque, por lo que tú debes dejar listo `profile_id`, JWT y contratos mínimos para que engagement/historial pueda avanzar después. 
+
+## Decisión importante: sin OAuth
+
+Correcto: **no usaremos OAuth**.
+
+Para desarrollo ágil, tu autenticación debe ser:
+
+```txt
+email + password
+cookie segura de sesión
+JWT interno para comunicación Gateway -> servicios
+```
+
+No pierdas tiempo con proveedores externos, refresh tokens sofisticados, recuperación de contraseña compleja o rendimiento avanzado. El objetivo es cubrir lo solicitado de forma funcional, demostrable y documentada.
+
+---
+
+# Tus tareas como Tomas, en orden correcto
+
+## Punto 0 — Alinear ramas existentes
+
+Como ya existen `main` y `dev`, no debes perder tiempo recreándolas.
+
+Tu primera decisión debe ser:
+
+```txt
+main = producción / entrega final
+dev = integración del equipo
+feature/* = trabajo individual
+docs/* = documentación
+infra/* = infraestructura
+release/v1.0.0 = cierre de entrega
+```
+
+Ambigüedad importante: en el plan anterior aparecía `develop`, pero tú indicas que ya existe `dev`. Entonces usen `dev` como rama equivalente a `develop`. Lo único crítico es que **nadie haga commits directos a `main` ni a `dev`**, porque el flujo debe ser por PR aprobado. El reparto anterior también marcaba los PRs aprobados y el tag `v1.0.0` como entregables/evidencia. 
+
+Tu primer checklist:
+
+```txt
+☐ Confirmar que main existe
+☐ Confirmar que dev existe
+☐ Proteger main si GitHub lo permite
+☐ Proteger dev si GitHub lo permite
+☐ Crear plantilla de Pull Request
+☐ Confirmar que todos trabajan desde ramas feature/docs/infra
+☐ Documentar el flujo Git en README.md
+```
+
+Rama sugerida:
+
+```txt
+docs/git-workflow
+```
+
+---
+
+# Punto 1 — Estructura base del repositorio
+
+Aunque el repo ya exista, tú debes validar que tenga una estructura profesional y fácil de integrar.
+
+Estructura mínima recomendada:
+
+```txt
+SA_PROYECTO/
+├── apps/
+│   ├── web/
+│   └── api-gateway/
+├── services/
+│   ├── identity-service/
+│   ├── catalog-service/
+│   ├── engagement-service/
+│   ├── subscription-service/
+│   ├── fx-service/
+│   └── notification-service/
+├── proto/
+│   ├── identity.proto
+│   ├── catalog.proto
+│   ├── engagement.proto
+│   ├── subscription.proto
+│   ├── fx.proto
+│   └── notification.proto
+├── infra/
+│   ├── docker-compose.local.yml
+│   └── docker-compose.cloud.yml
+├── docs/
+│   ├── README.md
+│   ├── arquitectura.md
+│   ├── casos-uso.md
+│   ├── requerimientos.md
+│   ├── pruebas.md
+│   └── diagramas/
+└── .github/
+    └── pull_request_template.md
+```
+
+Tu responsabilidad directa aquí:
+
+```txt
+☐ apps/api-gateway/
+☐ services/identity-service/
+☐ proto/identity.proto
+☐ docs/auth-security.md
+☐ docs/diagramas/login-jwt.*
+☐ .github/pull_request_template.md
+```
+
+Ramas sugeridas:
+
+```txt
+chore/project-structure
+docs/git-workflow
+```
+
+---
+
+# Punto 2 — Contrato inicial de Auth/Profile
+
+Este punto es crítico porque los demás necesitan saber cómo obtener `user_id`, `profile_id` y validar sesión.
+
+Tu `identity.proto` debería cubrir mínimo:
+
+```proto
+syntax = "proto3";
+
+package identity;
+
+service IdentityService {
+  rpc RegisterUser(RegisterUserRequest) returns (AuthResponse);
+  rpc Login(LoginRequest) returns (AuthResponse);
+  rpc ValidateToken(ValidateTokenRequest) returns (ValidateTokenResponse);
+
+  rpc CreateProfile(CreateProfileRequest) returns (ProfileResponse);
+  rpc ListProfiles(ListProfilesRequest) returns (ListProfilesResponse);
+  rpc SelectProfile(SelectProfileRequest) returns (ProfileResponse);
+  rpc UpdateCredentials(UpdateCredentialsRequest) returns (BasicResponse);
+}
+
+message RegisterUserRequest {
+  string email = 1;
+  string password = 2;
+  string full_name = 3;
+}
+
+message LoginRequest {
+  string email = 1;
+  string password = 2;
+}
+
+message AuthResponse {
+  string user_id = 1;
+  string token = 2;
+  string message = 3;
+}
+
+message ValidateTokenRequest {
+  string token = 1;
+}
+
+message ValidateTokenResponse {
+  bool valid = 1;
+  string user_id = 2;
+}
+
+message CreateProfileRequest {
+  string user_id = 1;
+  string name = 2;
+  string avatar_url = 3;
+}
+
+message ProfileResponse {
+  string profile_id = 1;
+  string user_id = 2;
+  string name = 3;
+  string avatar_url = 4;
+}
+
+message ListProfilesRequest {
+  string user_id = 1;
+}
+
+message ListProfilesResponse {
+  repeated ProfileResponse profiles = 1;
+}
+
+message SelectProfileRequest {
+  string user_id = 1;
+  string profile_id = 2;
+}
+
+message UpdateCredentialsRequest {
+  string user_id = 1;
+  string current_password = 2;
+  string new_password = 3;
+}
+
+message BasicResponse {
+  bool success = 1;
+  string message = 2;
+}
+```
+
+Criterio de terminado:
+
+```txt
+☐ identity.proto creado
+☐ Métodos mínimos definidos
+☐ user_id y profile_id definidos como strings
+☐ Contrato compartido con Josue/Johan/PersonaX
+☐ Documento breve explicando cómo consumir el contrato
+```
+
+Rama sugerida:
+
+```txt
+feat/identity-proto
+```
+
+---
+
+# Punto 3 — API Gateway en TypeScript
+
+Tu Gateway debe ser el único punto de entrada del frontend. No debe tener toda la lógica de negocio; solo valida, traduce HTTP a gRPC y responde al frontend.
+
+Endpoints mínimos tuyos:
+
+```txt
+POST /api/auth/register
+POST /api/auth/login
+POST /api/auth/logout
+GET  /api/auth/me
+
+POST /api/profiles
+GET  /api/profiles
+POST /api/profiles/:id/select
+
+PUT  /api/users/credentials
+GET  /api/health
+```
+
+Después, también ayudarás a exponer rutas hacia otros servicios, pero no necesariamente implementarás la lógica de esos módulos:
+
+```txt
+GET  /api/catalog
+GET  /api/catalog/:id
+GET  /api/plans
+POST /api/subscriptions
+POST /api/content/:id/rating
+POST /api/content/:id/progress
+GET  /api/profiles/:id/history
+```
+
+Tu criterio de terminado para Gateway:
+
+```txt
+☐ Proyecto TypeScript levanta
+☐ Tiene endpoint /api/health
+☐ Conecta con identity-service por gRPC
+☐ Maneja errores básicos
+☐ Lee variables desde .env
+☐ Tiene Dockerfile
+☐ Está documentado en README
+```
+
+Rama sugerida:
+
+```txt
+feat/api-gateway-ts
+```
+
+---
+
+# Punto 4 — Identity Service en TypeScript
+
+Este es tu servicio de autenticación y perfiles.
+
+Funcionalidad mínima obligatoria:
+
+```txt
+☐ Registrar usuario
+☐ Login con email/password
+☐ Generar JWT interno
+☐ Validar JWT
+☐ Crear perfil
+☐ Listar perfiles
+☐ Seleccionar perfil
+☐ Máximo 5 perfiles por usuario
+☐ Actualizar credenciales
+```
+
+Modelo de base de datos mínimo:
+
+```sql
+users
+- id
+- email
+- password_hash
+- full_name
+- created_at
+- updated_at
+
+profiles
+- id
+- user_id
+- name
+- avatar_url
+- created_at
+- updated_at
+
+credential_audit
+- id
+- user_id
+- changed_at
+- reason
+```
+
+Objetos programables mínimos para cubrir calificación:
+
+```txt
+☐ Procedure: sp_register_user
+☐ Procedure: sp_create_profile
+☐ Function: fn_can_create_profile(user_id)
+☐ View: vw_user_profiles
+☐ Trigger: trg_audit_credential_update
+```
+
+No lo hagas perfecto. Hazlo funcional y documentado.
+
+Rama sugerida:
+
+```txt
+feat/auth-profile-ts
+```
+
+---
+
+# Punto 5 — Cookies y JWT sin OAuth
+
+Implementación ágil recomendada:
+
+```txt
+Frontend hace login
+Gateway recibe email/password
+Gateway llama IdentityService.Login por gRPC
+IdentityService valida credenciales
+IdentityService devuelve JWT
+Gateway guarda JWT en cookie httpOnly
+Frontend usa cookie automáticamente
+Gateway valida cookie en rutas protegidas
+Gateway manda user_id/profile_id a servicios internos
+```
+
+Para demo, esto es suficiente.
+
+No inviertas tiempo en:
+
+```txt
+✕ OAuth
+✕ Login con Google
+✕ 2FA
+✕ refresh token complejo
+✕ roles avanzados
+✕ rendimiento de sesiones
+```
+
+Sí debes cubrir:
+
+```txt
+☐ Hash de contraseña
+☐ JWT firmado
+☐ Cookie httpOnly
+☐ Logout limpiando cookie
+☐ Middleware de autenticación
+☐ Middleware para profile_id cuando aplique
+```
+
+---
+
+# Punto 6 — Stubs para no bloquear al equipo
+
+Aquí ayudas mucho al grupo.
+
+Aunque no estén listos los otros servicios, el Gateway debería poder responder temporalmente con mocks o dejar rutas preparadas.
+
+Ejemplo:
+
+```txt
+GET /api/catalog -> si catalog-service no responde, devolver error controlado
+GET /api/plans -> ruta creada, aunque Johan conecte después
+POST /api/content/:id/rating -> ruta preparada para PersonaX
+```
+
+Esto evita que el frontend se quede esperando estructura.
+
+Checklist:
+
+```txt
+☐ Rutas base creadas
+☐ Errores controlados
+☐ Healthcheck del Gateway
+☐ Healthcheck del Identity Service
+☐ Documentar qué rutas ya son reales y cuáles son stub
+```
+
+Rama sugerida:
+
+```txt
+feat/gateway-base-routes
+```
+
+---
+
+# Punto 7 — Documentación que tú debes entregar
+
+Tu parte documental no es opcional. Para que no se escape, tú debes entregar como mínimo:
+
+```txt
+☐ Caso de uso: Registrar usuario
+☐ Caso de uso: Iniciar sesión
+☐ Caso de uso: Crear perfil
+☐ Caso de uso: Seleccionar perfil
+☐ Caso de uso: Actualizar credenciales
+☐ Diagrama de secuencia: Login/JWT
+☐ Diagrama de actividad: Login
+☐ Descripción de seguridad sin OAuth
+☐ Explicación del JWT interno
+☐ Tabla de endpoints de Auth/Profile
+☐ Tabla de objetos programables de BD
+```
+
+Ramas sugeridas:
+
+```txt
+docs/auth-usecases
+docs/login-jwt-sequence
+docs/auth-db-objects
+```
+
+---
+
+# Punto 8 — Tu primer bloque de trabajo real
+
+Yo empezaría exactamente así:
+
+## PR 1 — Git y estructura
+
+```txt
+Rama: docs/git-workflow
+```
+
+Entregables:
+
+```txt
+☐ README con flujo de ramas
+☐ Plantilla de PR
+☐ Reglas de trabajo
+☐ Checklist por PR
+```
+
+## PR 2 — Proto de identidad
+
+```txt
+Rama: feat/identity-proto
+```
+
+Entregables:
+
+```txt
+☐ proto/identity.proto
+☐ README corto de IdentityService
+☐ Definición de user_id/profile_id
+```
+
+## PR 3 — Gateway base
+
+```txt
+Rama: feat/api-gateway-ts
+```
+
+Entregables:
+
+```txt
+☐ Proyecto TypeScript
+☐ /api/health
+☐ Configuración .env.example
+☐ Dockerfile
+☐ README de ejecución
+```
+
+## PR 4 — Identity Service base
+
+```txt
+Rama: feat/auth-profile-ts
+```
+
+Entregables:
+
+```txt
+☐ Proyecto TypeScript
+☐ gRPC server
+☐ Register/Login básico
+☐ JWT
+☐ Dockerfile
+☐ Migraciones iniciales
+```
+
+## PR 5 — Perfiles
+
+```txt
+Rama: feat/user-profiles
+```
+
+Entregables:
+
+```txt
+☐ Crear perfil
+☐ Listar perfiles
+☐ Validar máximo 5
+☐ Seleccionar perfil
+☐ Documentación del flujo
+```
+
+---
+
+# Ambigüedades que debes resolver rápido
+
+Estas son las decisiones que sí pueden bloquear si no las definen:
+
+| Ambigüedad                                  | Decisión recomendada                                                   |
+| ------------------------------------------- | ---------------------------------------------------------------------- |
+| ¿La rama se llama `dev` o `develop`?        | Usar `dev` porque ya existe. Documentar que es la rama de integración. |
+| ¿Base de datos por servicio?                | Sí. Identity debe tener su propia BD.                                  |
+| ¿OAuth?                                     | No. Email/password + cookie + JWT interno.                             |
+| ¿JWT lo genera Gateway o Identity?          | Identity lo genera; Gateway lo guarda y valida.                        |
+| ¿Dónde vive `profile_id`?                   | En Identity. Los demás servicios solo lo consumen.                     |
+| ¿Frontend consume servicios directos?       | No. Solo consume API Gateway.                                          |
+| ¿PersonaX espera a que todo esté terminado? | No. Le dejas stub y contrato de engagement desde antes.                |
+| ¿Documentación al final?                    | No. Cada PR debe traer su parte documental.                            |
+
+---
+
+# Tu checklist personal maestro
+
+Copia esto como tablero para Tomas:
+
+```txt
+## Tomas — Gateway/Auth/Profile/Git/Docs
+
+### Git y coordinación
+☐ Confirmar main y dev
+☐ Documentar flujo Git
+☐ Crear plantilla de PR
+☐ Definir reglas de revisión
+☐ Asegurar que nadie haga commit directo a main/dev
+
+### Contratos
+☐ Crear proto/identity.proto
+☐ Definir RegisterUser
+☐ Definir Login
+☐ Definir ValidateToken
+☐ Definir CreateProfile
+☐ Definir ListProfiles
+☐ Definir SelectProfile
+☐ Compartir user_id/profile_id con el equipo
+
+### API Gateway
+☐ Crear proyecto TypeScript
+☐ Crear /api/health
+☐ Configurar variables .env
+☐ Conectar Gateway -> Identity por gRPC
+☐ Crear rutas /api/auth/register
+☐ Crear rutas /api/auth/login
+☐ Crear rutas /api/auth/logout
+☐ Crear rutas /api/auth/me
+☐ Crear rutas /api/profiles
+☐ Manejar errores básicos
+☐ Crear Dockerfile
+
+### Identity Service
+☐ Crear proyecto TypeScript
+☐ Crear servidor gRPC
+☐ Crear conexión a BD
+☐ Crear tabla users
+☐ Crear tabla profiles
+☐ Crear tabla credential_audit
+☐ Implementar registro
+☐ Implementar login
+☐ Hash de contraseña
+☐ Generar JWT
+☐ Validar JWT
+☐ Crear perfil
+☐ Listar perfiles
+☐ Validar máximo 5 perfiles
+☐ Actualizar credenciales
+
+### Objetos programables BD
+☐ sp_register_user
+☐ sp_create_profile
+☐ fn_can_create_profile
+☐ vw_user_profiles
+☐ trg_audit_credential_update
+
+### Seguridad sin OAuth
+☐ Cookie httpOnly
+☐ JWT interno
+☐ Middleware de autenticación
+☐ Logout limpia cookie
+☐ Documentar decisión de no OAuth
+
+### Documentación
+☐ Caso de uso registrar usuario
+☐ Caso de uso iniciar sesión
+☐ Caso de uso crear perfil
+☐ Caso de uso seleccionar perfil
+☐ Caso de uso actualizar credenciales
+☐ Diagrama de secuencia login/JWT
+☐ Diagrama de actividad login
+☐ Tabla de endpoints Auth/Profile
+☐ Tabla de objetos BD
+☐ Evidencia de PRs
+```
+
+---
+
+# Conclusión operativa
+
+Tu prioridad no debe ser “hacer muchas pantallas” ni “hacer auth perfecto”. Tu prioridad es dejar una base que desbloquee al grupo:
+
+```txt
+1. dev/main ordenadas
+2. PR template
+3. identity.proto
+4. Gateway TypeScript funcionando
+5. Identity Service funcionando
+6. Login/register/perfiles
+7. profile_id disponible para los demás
+8. JWT/cookie sin OAuth
+9. Documentación y diagramas de tu módulo
+```
+
+Con eso cubres tu parte crítica y reduces el riesgo de que Josue, Johan o PersonaX se queden bloqueados por falta de contratos, sesión, perfil o rutas base.
