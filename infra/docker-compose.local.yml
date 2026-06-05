@@ -6,8 +6,6 @@ services:
       POSTGRES_DB: identity_db
       POSTGRES_USER: identity_user
       POSTGRES_PASSWORD: identity_password
-    ports:
-      - "5432:5432"
     volumes:
       - identity_db_data:/var/lib/postgresql/data
       - ../services/identity-service/migrations:/docker-entrypoint-initdb.d
@@ -26,8 +24,6 @@ services:
     container_name: identity-service
     env_file:
       - ../services/identity-service/.env
-    ports:
-      - "50051:50051"
     depends_on:
       identity-db:
         condition: service_healthy
