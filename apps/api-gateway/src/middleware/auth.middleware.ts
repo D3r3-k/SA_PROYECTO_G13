@@ -6,6 +6,7 @@ export interface AuthenticatedRequest extends Request {
   user?: {
     user_id: string;
     email: string;
+    profile_id: string;
   };
 }
 
@@ -13,6 +14,7 @@ type ValidateTokenResponse = {
   valid: boolean;
   user_id: string;
   email: string;
+  profile_id: string;
 };
 
 export async function authMiddleware(
@@ -44,7 +46,8 @@ export async function authMiddleware(
 
     req.user = {
       user_id: response.user_id,
-      email: response.email
+      email: response.email,
+      profile_id: response.profile_id || ""
     };
 
     return next();

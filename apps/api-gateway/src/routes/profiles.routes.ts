@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { env } from "../config/env";
 import {
   AuthenticatedRequest,
   authMiddleware
@@ -16,9 +17,22 @@ type ProfileResponse = {
   avatar_url: string;
 };
 
+type SelectProfileResponse = ProfileResponse & {
+  token: string;
+};
+
 type ListProfilesResponse = {
   profiles: ProfileResponse[];
 };
+
+function setAuthCookie(res: any, token: string) {
+  res.cookie(env.cookieName, token, {
+    httpOnly: true,
+    secure: env.cookieSecure,
+    sameSite: env.cookieSameSite,
+    path: "/"
+  });
+}
 
 function getBusinessStatus(message: string): number {
   const normalizedMessage = message.toLowerCase();
@@ -84,6 +98,7 @@ profileRoutes.get(
 
       return res.json({
         success: true,
+        selected_profile_id: req.user?.profile_id || "",
         profiles: response.profiles
       });
     } catch (error) {
@@ -116,7 +131,7 @@ profileRoutes.post(
           user_id: string;
           profile_id: string;
         },
-        ProfileResponse
+        SelectProfileResponse
       >("SelectProfile", {
         user_id: req.user?.user_id || "",
         profile_id: profileId
@@ -126,7 +141,16 @@ profileRoutes.post(
         return res.status(getBusinessStatus(response.message)).json(response);
       }
 
-      return res.json(response);
+      setAuthCookie(res, response.token);
+
+      return res.json({
+        success: true,
+        message: response.message,
+        profile_id: response.profile_id,
+        user_id: response.user_id,
+        name: response.name,
+        avatar_url: response.avatar_url
+      });
     } catch (error) {
       console.error("Select profile failed", error);
 

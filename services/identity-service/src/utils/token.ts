@@ -4,6 +4,7 @@ import { env } from "../config/env";
 export type IdentityTokenPayload = {
   user_id: string;
   email: string;
+  profile_id?: string;
 };
 
 export function signIdentityToken(payload: IdentityTokenPayload): string {
@@ -24,7 +25,8 @@ export function verifyIdentityToken(token: string): IdentityTokenPayload | null 
 
     return {
       user_id: decoded.user_id,
-      email: decoded.email
+      email: decoded.email,
+      profile_id: decoded.profile_id || ""
     };
   } catch {
     return null;

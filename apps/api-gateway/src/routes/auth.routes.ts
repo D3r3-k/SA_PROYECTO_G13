@@ -145,7 +145,8 @@ authRoutes.get("/me", authMiddleware, async (req: AuthenticatedRequest, res) => 
     success: true,
     user: {
       user_id: req.user?.user_id,
-      email: req.user?.email
+      email: req.user?.email,
+      profile_id: req.user?.profile_id || ""
     }
   });
 });

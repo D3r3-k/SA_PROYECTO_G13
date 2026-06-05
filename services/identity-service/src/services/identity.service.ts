@@ -72,6 +72,18 @@ function emptyProfileResponse(message: string) {
   };
 }
 
+function emptySelectProfileResponse(message: string) {
+  return {
+    success: false,
+    message,
+    profile_id: "",
+    user_id: "",
+    name: "",
+    avatar_url: "",
+    token: ""
+  };
+}
+
 function handleUnexpectedError(
   callback: any,
   error: unknown,
@@ -217,7 +229,8 @@ export const identityService = {
     return callback(null, {
       valid: true,
       user_id: payload.user_id,
-      email: payload.email
+      email: payload.email,
+      profile_id: payload.profile_id || ""
     });
   },
 
@@ -310,8 +323,14 @@ export const identityService = {
       if (!userId || !profileId) {
         return callback(
           null,
-          emptyProfileResponse("user_id and profile_id are required")
+          emptySelectProfileResponse("user_id and profile_id are required")
         );
+      }
+
+      const user = await findUserById(userId);
+
+      if (!user) {
+        return callback(null, emptySelectProfileResponse("User not found"));
       }
 
       const profile = await findProfileByUserAndProfileId({
@@ -322,11 +341,20 @@ export const identityService = {
       if (!profile) {
         return callback(
           null,
-          emptyProfileResponse("Profile not found for this user")
+          emptySelectProfileResponse("Profile not found for this user")
         );
       }
 
-      return callback(null, toProfileResponse(profile, "Profile selected"));
+      const token = signIdentityToken({
+        user_id: user.id,
+        email: user.email,
+        profile_id: profile.profile_id
+      });
+
+      return callback(null, {
+        ...toProfileResponse(profile, "Profile selected"),
+        token
+      });
     } catch (error) {
       return handleUnexpectedError(
         callback,
