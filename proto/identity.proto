@@ -14,6 +14,9 @@ service IdentityService {
 
   rpc UpdateCredentials(UpdateCredentialsRequest) returns (BasicResponse);
 
+  rpc UpdateProfile(UpdateProfileRequest) returns (ProfileResponse);
+  rpc DeleteProfile(DeleteProfileRequest) returns (BasicResponse);
+
 }
 
 message RegisterUserRequest {
@@ -81,6 +84,18 @@ message SelectProfileResponse {
   string name = 5;
   string avatar_url = 6;
   string token = 7;
+}
+
+message UpdateProfileRequest {
+  string user_id = 1;
+  string profile_id = 2;
+  string name = 3;
+  string avatar_url = 4;
+}
+
+message DeleteProfileRequest {
+  string user_id = 1;
+  string profile_id = 2;
 }
 
 message UpdateCredentialsRequest {
