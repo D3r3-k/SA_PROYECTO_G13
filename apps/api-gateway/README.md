@@ -28,3 +28,16 @@ Instalar dependencias:
 
 ```bash
 npm install
+```
+
+## Integración con Identity Service
+
+El API Gateway expone endpoints HTTP para autenticación y perfiles, pero la lógica de negocio vive en `identity-service`.
+
+Comunicación:
+
+```txt
+Frontend -> API Gateway -> gRPC -> Identity Service -> Identity DB
+```
+
+

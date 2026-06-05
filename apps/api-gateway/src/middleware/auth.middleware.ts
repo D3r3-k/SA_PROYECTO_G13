@@ -1,15 +1,21 @@
 import { NextFunction, Request, Response } from "express";
-import jwt from "jsonwebtoken";
 import { env } from "../config/env";
+import { callIdentityMethod } from "../grpc/identity.client";
 
 export interface AuthenticatedRequest extends Request {
   user?: {
     user_id: string;
-    email?: string;
+    email: string;
   };
 }
 
-export function authMiddleware(
+type ValidateTokenResponse = {
+  valid: boolean;
+  user_id: string;
+  email: string;
+};
+
+export async function authMiddleware(
   req: AuthenticatedRequest,
   res: Response,
   next: NextFunction
@@ -24,21 +30,30 @@ export function authMiddleware(
   }
 
   try {
-    const payload = jwt.verify(token, env.jwtSecret) as {
-      user_id: string;
-      email?: string;
-    };
+    const response = await callIdentityMethod<
+      { token: string },
+      ValidateTokenResponse
+    >("ValidateToken", { token });
+
+    if (!response.valid) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid or expired token"
+      });
+    }
 
     req.user = {
-      user_id: payload.user_id,
-      email: payload.email
+      user_id: response.user_id,
+      email: response.email
     };
 
     return next();
-  } catch {
-    return res.status(401).json({
+  } catch (error) {
+    console.error("Failed to validate token with Identity Service", error);
+
+    return res.status(503).json({
       success: false,
-      message: "Invalid or expired token"
+      message: "Identity Service unavailable"
     });
   }
 }
