@@ -20,9 +20,11 @@ import {
 
 import {
   createProfile,
+  deleteProfileByUserAndProfileId,
   findProfileByUserAndProfileId,
   findProfilesByUserId,
-  ProfileRecord
+  ProfileRecord,
+  updateProfileByUserAndProfileId
 } from "../repositories/profile.repository";
 
 function normalizeEmail(email: string): string {
@@ -360,6 +362,71 @@ export const identityService = {
         callback,
         error,
         "Failed to select profile"
+      );
+    }
+  },
+
+  UpdateProfile: async (call: any, callback: any) => {
+    try {
+      const userId = normalizeText(call.request.user_id || "");
+      const profileId = normalizeText(call.request.profile_id || "");
+      const name = normalizeText(call.request.name || "");
+      const avatarUrl = normalizeText(call.request.avatar_url || "");
+
+      if (!userId || !profileId || !name) {
+        return callback(
+          null,
+          emptyProfileResponse("user_id, profile_id and name are required")
+        );
+      }
+
+      const profile = await updateProfileByUserAndProfileId({
+        userId,
+        profileId,
+        name,
+        avatarUrl
+      });
+
+      if (!profile) {
+        return callback(
+          null,
+          emptyProfileResponse("Profile not found for this user")
+        );
+      }
+
+      return callback(null, toProfileResponse(profile, "Profile updated"));
+    } catch (error) {
+      return handleUnexpectedError(
+        callback,
+        error,
+        "Failed to update profile"
+      );
+    }
+  },
+
+  DeleteProfile: async (call: any, callback: any) => {
+    try {
+      const userId = normalizeText(call.request.user_id || "");
+      const profileId = normalizeText(call.request.profile_id || "");
+
+      if (!userId || !profileId) {
+        return callback(null, {
+          success: false,
+          message: "user_id and profile_id are required"
+        });
+      }
+
+      const response = await deleteProfileByUserAndProfileId({
+        userId,
+        profileId
+      });
+
+      return callback(null, response);
+    } catch (error) {
+      return handleUnexpectedError(
+        callback,
+        error,
+        "Failed to delete profile"
       );
     }
   },

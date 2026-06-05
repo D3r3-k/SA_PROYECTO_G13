@@ -9,6 +9,11 @@ export type ProfileRecord = {
   updated_at?: Date;
 };
 
+export type BasicDbResponse = {
+  success: boolean;
+  message: string;
+};
+
 export async function createProfile(params: {
   id: string;
   userId: string;
@@ -33,16 +38,8 @@ export async function findProfilesByUserId(
 ): Promise<ProfileRecord[]> {
   const result = await pool.query<ProfileRecord>(
     `
-    SELECT
-      profile_id,
-      user_id,
-      name,
-      avatar_url,
-      created_at,
-      updated_at
-    FROM vw_user_profiles
-    WHERE user_id = $1
-    ORDER BY created_at ASC
+    SELECT *
+    FROM sp_list_profiles_by_user($1::uuid)
     `,
     [userId]
   );
@@ -56,20 +53,59 @@ export async function findProfileByUserAndProfileId(params: {
 }): Promise<ProfileRecord | null> {
   const result = await pool.query<ProfileRecord>(
     `
-    SELECT
-      profile_id,
-      user_id,
-      name,
-      avatar_url,
-      created_at,
-      updated_at
-    FROM vw_user_profiles
-    WHERE user_id = $1
-      AND profile_id = $2
-    LIMIT 1
+    SELECT *
+    FROM sp_find_profile_by_user_and_profile(
+      $1::uuid,
+      $2::uuid
+    )
     `,
     [params.userId, params.profileId]
   );
 
   return result.rows[0] ?? null;
+}
+
+export async function updateProfileByUserAndProfileId(params: {
+  userId: string;
+  profileId: string;
+  name: string;
+  avatarUrl: string;
+}): Promise<ProfileRecord | null> {
+  const result = await pool.query<ProfileRecord>(
+    `
+    SELECT *
+    FROM sp_update_profile(
+      $1::uuid,
+      $2::uuid,
+      $3::varchar,
+      $4::text
+    )
+    `,
+    [params.userId, params.profileId, params.name, params.avatarUrl]
+  );
+
+  return result.rows[0] ?? null;
+}
+
+export async function deleteProfileByUserAndProfileId(params: {
+  userId: string;
+  profileId: string;
+}): Promise<BasicDbResponse> {
+  const result = await pool.query<BasicDbResponse>(
+    `
+    SELECT *
+    FROM sp_delete_profile(
+      $1::uuid,
+      $2::uuid
+    )
+    `,
+    [params.userId, params.profileId]
+  );
+
+  return (
+    result.rows[0] || {
+      success: false,
+      message: "Profile not found for this user"
+    }
+  );
 }

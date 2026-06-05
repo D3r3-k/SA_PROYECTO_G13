@@ -14,16 +14,8 @@ export async function findUserByEmail(
 ): Promise<UserRecord | null> {
   const result = await pool.query<UserRecord>(
     `
-    SELECT
-      id,
-      email,
-      password_hash,
-      full_name,
-      created_at,
-      updated_at
-    FROM users
-    WHERE email = LOWER(TRIM($1))
-    LIMIT 1
+    SELECT *
+    FROM sp_find_user_by_email($1::varchar)
     `,
     [email]
   );
@@ -34,16 +26,8 @@ export async function findUserByEmail(
 export async function findUserById(userId: string): Promise<UserRecord | null> {
   const result = await pool.query<UserRecord>(
     `
-    SELECT
-      id,
-      email,
-      password_hash,
-      full_name,
-      created_at,
-      updated_at
-    FROM users
-    WHERE id = $1
-    LIMIT 1
+    SELECT *
+    FROM sp_find_user_by_id($1::uuid)
     `,
     [userId]
   );
@@ -76,11 +60,10 @@ export async function updatePasswordHash(params: {
 }): Promise<void> {
   await pool.query(
     `
-    UPDATE users
-    SET
-      password_hash = $2,
-      updated_at = CURRENT_TIMESTAMP
-    WHERE id = $1
+    CALL sp_update_user_password(
+      $1::uuid,
+      $2::text
+    )
     `,
     [params.userId, params.passwordHash]
   );

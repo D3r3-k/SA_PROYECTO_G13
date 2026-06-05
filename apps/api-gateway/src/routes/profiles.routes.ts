@@ -25,8 +25,22 @@ type ListProfilesResponse = {
   profiles: ProfileResponse[];
 };
 
+type BasicResponse = {
+  success: boolean;
+  message: string;
+};
+
 function setAuthCookie(res: any, token: string) {
   res.cookie(env.cookieName, token, {
+    httpOnly: true,
+    secure: env.cookieSecure,
+    sameSite: env.cookieSameSite,
+    path: "/"
+  });
+}
+
+function clearAuthCookie(res: any) {
+  res.clearCookie(env.cookieName, {
     httpOnly: true,
     secure: env.cookieSecure,
     sameSite: env.cookieSameSite,
@@ -119,7 +133,7 @@ profileRoutes.post(
     try {
       const { profileId } = req.params;
 
-      if (typeof profileId !== "string") {
+      if (typeof profileId !== "string" || !profileId.trim()) {
         return res.status(400).json({
           success: false,
           message: "Invalid profile id"
@@ -160,6 +174,102 @@ profileRoutes.post(
       });
     } catch (error) {
       console.error("Select profile failed", error);
+
+      return res.status(503).json({
+        success: false,
+        message: "Identity Service unavailable"
+      });
+    }
+  }
+);
+
+profileRoutes.put(
+  "/:profileId",
+  authMiddleware,
+  async (req: AuthenticatedRequest, res) => {
+    try {
+      const { profileId } = req.params;
+
+      if (typeof profileId !== "string" || !profileId.trim()) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid profile id"
+        });
+      }
+
+      const response = await callIdentityMethod<
+        {
+          user_id: string;
+          profile_id: string;
+          name: string;
+          avatar_url: string;
+        },
+        ProfileResponse
+      >("UpdateProfile", {
+        user_id: req.user?.user_id || "",
+        profile_id: profileId,
+        name: req.body.name,
+        avatar_url: req.body.avatar_url || ""
+      });
+
+      if (!response.success) {
+        return res.status(getBusinessStatus(response.message)).json(response);
+      }
+
+      return res.json(response);
+    } catch (error) {
+      console.error("Update profile failed", error);
+
+      return res.status(503).json({
+        success: false,
+        message: "Identity Service unavailable"
+      });
+    }
+  }
+);
+
+profileRoutes.delete(
+  "/:profileId",
+  authMiddleware,
+  async (req: AuthenticatedRequest, res) => {
+    try {
+      const { profileId } = req.params;
+
+      if (typeof profileId !== "string" || !profileId.trim()) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid profile id"
+        });
+      }
+
+      const response = await callIdentityMethod<
+        {
+          user_id: string;
+          profile_id: string;
+        },
+        BasicResponse
+      >("DeleteProfile", {
+        user_id: req.user?.user_id || "",
+        profile_id: profileId
+      });
+
+      if (!response.success) {
+        return res.status(getBusinessStatus(response.message)).json(response);
+      }
+
+      if (req.user?.profile_id === profileId) {
+        clearAuthCookie(res);
+
+        return res.json({
+          success: true,
+          message:
+            "Profile deleted. Active session was closed because the selected profile was deleted."
+        });
+      }
+
+      return res.json(response);
+    } catch (error) {
+      console.error("Delete profile failed", error);
 
       return res.status(503).json({
         success: false,
