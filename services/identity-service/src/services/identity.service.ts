@@ -451,6 +451,13 @@ export const identityService = {
         });
       }
 
+      if (currentPassword === newPassword) {
+        return callback(null, {
+          success: false,
+          message: "New password must be different from current password"
+        });
+      }
+
       const user = await findUserById(userId);
 
       if (!user) {

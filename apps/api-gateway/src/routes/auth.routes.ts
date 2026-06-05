@@ -173,7 +173,13 @@ authRoutes.put(
         return res.status(getBusinessStatus(response.message)).json(response);
       }
 
-      return res.json(response);
+      clearAuthCookie(res);
+
+      return res.json({
+        success: true,
+        message: "Credentials updated successfully. Please login again."
+      });
+    
     } catch (error) {
       console.error("Update credentials failed", error);
 
