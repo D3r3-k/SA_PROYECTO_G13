@@ -141,6 +141,13 @@ profileRoutes.post(
         return res.status(getBusinessStatus(response.message)).json(response);
       }
 
+      if (!response.token) {
+        return res.status(502).json({
+          success: false,
+          message: "Identity Service did not return a session token"
+        });
+      }
+
       setAuthCookie(res, response.token);
 
       return res.json({
