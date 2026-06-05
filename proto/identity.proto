@@ -10,10 +10,13 @@ service IdentityService {
 
   rpc CreateProfile(CreateProfileRequest) returns (ProfileResponse);
   rpc ListProfiles(ListProfilesRequest) returns (ListProfilesResponse);
-  rpc SelectProfile(SelectProfileRequest) returns (ProfileResponse);
+  rpc SelectProfile(SelectProfileRequest) returns (SelectProfileResponse);
 
   rpc UpdateCredentials(UpdateCredentialsRequest) returns (BasicResponse);
-  
+
+  rpc UpdateProfile(UpdateProfileRequest) returns (ProfileResponse);
+  rpc DeleteProfile(DeleteProfileRequest) returns (BasicResponse);
+
 }
 
 message RegisterUserRequest {
@@ -42,6 +45,7 @@ message ValidateTokenResponse {
   bool valid = 1;
   string user_id = 2;
   string email = 3;
+  string profile_id = 4;
 }
 
 message CreateProfileRequest {
@@ -70,6 +74,28 @@ message ProfileResponse {
   string user_id = 4;
   string name = 5;
   string avatar_url = 6;
+}
+
+message SelectProfileResponse {
+  bool success = 1;
+  string message = 2;
+  string profile_id = 3;
+  string user_id = 4;
+  string name = 5;
+  string avatar_url = 6;
+  string token = 7;
+}
+
+message UpdateProfileRequest {
+  string user_id = 1;
+  string profile_id = 2;
+  string name = 3;
+  string avatar_url = 4;
+}
+
+message DeleteProfileRequest {
+  string user_id = 1;
+  string profile_id = 2;
 }
 
 message UpdateCredentialsRequest {
