@@ -1,0 +1,16 @@
+syntax = "proto3";
+package notification;
+
+service Notification {
+  rpc Send (NotifyRequest) returns (NotifyResponse) {}
+}
+
+message NotifyRequest {
+  string to = 1;
+  string subject = 2;
+  string body = 3;
+}
+
+message NotifyResponse {
+  bool accepted = 1;
+}
