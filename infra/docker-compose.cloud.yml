@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:7
+    restart: always
+    networks:
+      - sa_net
+
+  postgres:
+    image: postgres:15
+    restart: always
+    environment:
+      POSTGRES_USER: sa_user
+      POSTGRES_PASSWORD: sa_pass
+      POSTGRES_DB: sa_db
+    networks:
+      - sa_net
+
+  fx-service:
+    build:
+      context: ./services/fx-service
+    env_file:
+      - .env.cloud
+    depends_on:
+      - redis
+      - postgres
+    networks:
+      - sa_net
+
+  subscription-service:
+    build:
+      context: ./services/subscription-service
+    env_file:
+      - .env.cloud
+    depends_on:
+      - postgres
+    networks:
+      - sa_net
+
+  notification-service:
+    build:
+      context: ./services/notification-service
+    env_file:
+      - .env.cloud
+    depends_on:
+      - postgres
+    networks:
+      - sa_net
+
+networks:
+  sa_net:
+    driver: bridge
