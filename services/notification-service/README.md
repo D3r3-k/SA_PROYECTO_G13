@@ -1,52 +1,52 @@
-# Notification Service
+# Servicio de Notificaciones
 
-This service accepts notification payloads and queues them for delivery. It supports an optional SMTP delivery mode and falls back to logging/console output when SMTP is not configured.
+Servicio que recibe payloads de notificación y los entrega por correo electrónico o los registra en consola si SMTP no está configurado.
 
-Configuration (env):
+Configuración (variables de entorno):
 
-- `SMTP_HOST` — SMTP server hostname (optional)
-- `SMTP_PORT` — SMTP server port (optional; default `587`)
-- `SMTP_USER` — SMTP username (optional)
-- `SMTP_PASSWORD` — SMTP password (optional)
-- `SMTP_FROM` — From address to use when sending emails (optional)
+- `SMTP_HOST` — host SMTP (opcional)
+- `SMTP_PORT` — puerto SMTP (opcional; por defecto `587`)
+- `SMTP_USER` — usuario SMTP (opcional)
+- `SMTP_PASSWORD` — contraseña SMTP (opcional)
+- `SMTP_FROM` — dirección "From" para los correos (opcional)
 
-Behavior:
+Comportamiento:
 
-- If `SMTP_HOST` (and `SMTP_FROM`) are set, the service will attempt to send emails using the provided SMTP server.
-- If SMTP is not configured or sending fails, the service logs the payload to the console as a fallback (development-friendly).
+- Si `SMTP_HOST` y `SMTP_FROM` están configurados, el servicio intentará enviar correos vía SMTP (STARTTLS cuando esté disponible).
+- Si SMTP no está configurado o falla el envío, el servicio hace fallback a logging/console (útil en desarrollo).
 
-To enable SMTP in local development, populate `services/notification-service/.env.example` values in your `.env` used by docker compose.
+Eventos soportados (contract):
 
-# notification-service
+- `registration` — correo de confirmación tras registro de usuario.
+- `purchase` — recibo después de crear o actualizar una suscripción.
+- `content-publication` — alerta cuando se publica nuevo contenido.
 
-Servicio mínimo de notificaciones simulado.
+Plantilla y endpoints principales:
 
-Endpoints principales:
-
-- `GET /health` — healthcheck
-- `POST /notify` — acepta JSON con esquema:
+- El servicio renderiza una plantilla HTML en estilo oscuro y adapta el contenido según `type` y `metadata`.
+- `GET /health` — healthcheck.
+- `POST /notify` — acepta JSON con este esquema:
 
 ```json
 {
-  "type": "registration|purchase|alert",
+  "type": "registration|purchase|content-publication|alert",
   "user_id": "string",
   "email": "user@example.com",
-  "subject": "Asunto",
-  "message": "Cuerpo del mensaje",
+  "subject": "Asunto opcional",
+  "message": "Cuerpo opcional",
   "metadata": { "any": "extra" }
 }
 ```
 
-- `POST /notify/raw` — acepta payload arbitrario (compatibilidad)
+- `POST /notify/raw` — acepta payload arbitrario (compatibilidad).
 
-Cómo ejecutar (local con Docker):
+Ejecutar localmente (desde la raíz del repo):
 
 ```bash
-# desde la raíz del repo
-docker compose -f infra/docker-compose.local.yml up --build notification-service
+docker compose -f infra/docker-compose.local.yml up --build -d notification-service
 ```
 
-Ejemplo CURL:
+Ejemplo de uso (curl):
 
 ```bash
 curl -s -X POST http://localhost:8002/notify \
@@ -56,5 +56,6 @@ curl -s -X POST http://localhost:8002/notify \
 
 Notas:
 
-- El servicio simula envío registrando en logs. Para integrar un proveedor real, extienda `_send_notification`.
-- Configure variables en `.env` (no subir `.env` al repo).
+- Configure `SMTP_*` en `.env` para activar envío real (no subir credenciales al repo).
+- En desarrollo puede usar MailHog (puerto 8025) y no configurar SMTP.
+- La plantilla HTML está diseñada para confirmaciones, recibos y alertas de contenido.

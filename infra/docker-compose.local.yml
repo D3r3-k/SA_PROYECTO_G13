@@ -71,6 +71,8 @@ services:
       - ../.env
     environment:
       - DATABASE_URL=postgresql://sa_sub_user:sa_sub_pass@subscription-db:5432/subscription_db
+      - API_GATEWAY_URL=http://api-gateway:3000
+      - NOTIFICATION_SERVICE_URL=http://notification-service:8000
     ports:
       - "8002:8000"
     depends_on:
@@ -92,6 +94,16 @@ services:
       - "8003:8000"
     depends_on:
       - postgres
+      - mailhog
+    networks:
+      - sa_net
+
+  mailhog:
+    image: mailhog/mailhog:v1.0.1
+    container_name: sa_mailhog
+    ports:
+      - "1025:1025"
+      - "8025:8025"
     networks:
       - sa_net
 
@@ -120,6 +132,15 @@ services:
     container_name: identity-service
     env_file:
       - ../services/identity-service/.env
+    environment:
+      - DB_HOST=identity-db
+      - DB_PORT=5432
+      - DB_NAME=identity_db
+      - DB_USER=identity_user
+      - DB_PASSWORD=identity_password
+      - IDENTITY_GRPC_HOST=0.0.0.0
+      - IDENTITY_GRPC_PORT=50051
+      - NOTIFICATION_SERVICE_URL=http://notification-service:8000
     depends_on:
       identity-db:
         condition: service_healthy
@@ -133,6 +154,8 @@ services:
     container_name: api-gateway
     env_file:
       - ../apps/api-gateway/.env
+    environment:
+      - IDENTITY_GRPC_URL=identity-service:50051
     ports:
       - "3000:3000"
     depends_on:

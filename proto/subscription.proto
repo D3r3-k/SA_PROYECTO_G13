@@ -16,3 +16,12 @@ message Plan {
 message PlanList {
   repeated Plan plans = 1;
 }
+
+// Evento emitido por el servicio de suscripciones cuando una suscripción cambia de estado.
+message SubscriptionEvent {
+  string subscription_id = 10;
+  string user_id = 11;
+  string plan_id = 12;
+  string action = 13; // created | updated | cancelled
+  int64 timestamp = 14;
+}

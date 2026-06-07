@@ -26,7 +26,7 @@ def initialize_database() -> None:
 
             CREATE TABLE IF NOT EXISTS subscriptions (
                 id SERIAL PRIMARY KEY,
-                user_id INTEGER NOT NULL,
+                user_id TEXT NOT NULL,
                 plan_id INTEGER NOT NULL REFERENCES plans(id),
                 status VARCHAR(20) NOT NULL DEFAULT 'active',
                 started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -34,6 +34,8 @@ def initialize_database() -> None:
             );
             """
         )
+
+        cursor.execute("ALTER TABLE subscriptions ALTER COLUMN user_id TYPE TEXT USING user_id::text;")
 
         cursor.execute("SELECT id FROM plans LIMIT 1;")
         if cursor.fetchone() is None:
@@ -51,7 +53,7 @@ def list_plans() -> list[dict]:
         return list(cursor.fetchall())
 
 
-def create_subscription(user_id: int, plan_id: int) -> dict:
+def create_subscription(user_id: str, plan_id: int) -> dict:
     with get_cursor() as cursor:
         cursor.execute("SELECT id, name, price_usd FROM plans WHERE id = %s AND is_active = TRUE;", (plan_id,))
         plan = cursor.fetchone()
@@ -79,7 +81,40 @@ def create_subscription(user_id: int, plan_id: int) -> dict:
         }
 
 
-def get_subscriptions_by_user(user_id: int) -> list[dict]:
+def update_subscription_plan(subscription_id: int, plan_id: int) -> dict:
+    with get_cursor() as cursor:
+        cursor.execute("SELECT id, name, price_usd FROM plans WHERE id = %s AND is_active = TRUE;", (plan_id,))
+        plan = cursor.fetchone()
+        if plan is None:
+            raise ValueError("plan not found")
+
+        cursor.execute(
+            """
+            UPDATE subscriptions
+            SET plan_id = %s,
+                updated_at = NOW()
+            WHERE id = %s
+            RETURNING id, user_id, plan_id, status, started_at, updated_at;
+            """,
+            (plan_id, subscription_id),
+        )
+        subscription = cursor.fetchone()
+        if subscription is None:
+            raise ValueError("subscription not found")
+
+        return {
+            "id": subscription["id"],
+            "user_id": subscription["user_id"],
+            "plan_id": subscription["plan_id"],
+            "plan_name": plan["name"],
+            "price_usd": float(plan["price_usd"]),
+            "status": subscription["status"],
+            "started_at": subscription["started_at"],
+            "updated_at": subscription["updated_at"],
+        }
+
+
+def get_subscriptions_by_user(user_id: str) -> list[dict]:
     with get_cursor() as cursor:
         cursor.execute(
             """

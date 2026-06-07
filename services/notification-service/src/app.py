@@ -1,136 +1,223 @@
-from fastapi import FastAPI, BackgroundTasks
-from pydantic import BaseModel, EmailStr
-from typing import Optional, Dict
+from __future__ import annotations
+
+import logging
 import os
-import logging
-from fastapi import FastAPI, BackgroundTasks
+import html
 from email.message import EmailMessage
-import logging
+from typing import Any, Dict, Optional
+
 from dotenv import load_dotenv
+from fastapi import BackgroundTasks, FastAPI
+from pydantic import BaseModel, EmailStr
 
 try:
     import aiosmtplib
-except Exception:
+except Exception:  # pragma: no cover - optional dependency fallback
     aiosmtplib = None
-
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-logger = logging.getLogger("notification-service")
 
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-load_dotenv(os.path.join(BASE_DIR, '..', '.env')) if os.path.exists(os.path.join(BASE_DIR, '..', '.env')) else load_dotenv()
+PARENT_ENV = os.path.join(BASE_DIR, "..", ".env")
+load_dotenv(PARENT_ENV) if os.path.exists(PARENT_ENV) else load_dotenv()
 
-LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
-logging.basicConfig(level=LOG_LEVEL)
+logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"), format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger("notification-service")
 
 
 class NotificationRequest(BaseModel):
-    type: str  # registration, purchase, alert, etc.
+    type: str
     user_id: Optional[str] = None
     email: Optional[EmailStr] = None
     subject: Optional[str] = None
     message: Optional[str] = None
-    metadata: Optional[Dict] = None
+    metadata: Optional[Dict[str, Any]] = None
 
 
 app = FastAPI(title="notification-service")
 
-# SMTP optional configuration
 SMTP_HOST = os.getenv("SMTP_HOST")
-SMTP_PORT = int(os.getenv("SMTP_PORT", "0")) if os.getenv("SMTP_PORT") else None
+SMTP_PORT = int(os.getenv("SMTP_PORT") or "587")
 SMTP_USER = os.getenv("SMTP_USER")
 SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
 SMTP_FROM = os.getenv("SMTP_FROM")
+SMTP_STARTTLS = os.getenv("SMTP_STARTTLS", "true").lower() in {"1", "true", "yes", "on"}
 
 
 @app.get("/health")
-async def health():
-    return {"status": "ok"}
+async def health() -> dict:
+    return {"status": "ok", "smtp": bool(SMTP_HOST and SMTP_FROM)}
 
 
 async def _send_email(to_address: str, subject: str, body: str) -> bool:
-    """Attempt to send an email via SMTP when configured. Returns True if sent, False otherwise."""
-    if not SMTP_HOST or not SMTP_FROM:
-        logger.info("SMTP not configured. Skipping send.")
+    if not (SMTP_HOST and SMTP_FROM):
+        logger.info("SMTP not configured; using console fallback")
         return False
 
     if aiosmtplib is None:
-        logger.warning("aiosmtplib not installed; cannot send email")
+        logger.warning("aiosmtplib is not installed; using console fallback")
         return False
 
     message = EmailMessage()
     message["From"] = SMTP_FROM
     message["To"] = to_address
     message["Subject"] = subject
+
+    safe_subject = html.escape(subject)
+    safe_body = html.escape(body).replace("\n", "<br>")
+    html_content = f"""
+<!doctype html>
+<html lang="es">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+    </head>
+    <body style="margin:0;background:#0b0b0f;font-family:Arial,Helvetica,sans-serif;color:#f5f5f5;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:linear-gradient(180deg,#0b0b0f 0%,#111118 100%);padding:40px 16px;">
+            <tr>
+                <td align="center">
+                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:640px;background:#15151d;border:1px solid #2a2a35;border-radius:20px;overflow:hidden;box-shadow:0 16px 40px rgba(0,0,0,.45);">
+                        <tr>
+                            <td style="background:linear-gradient(135deg,#e50914 0%,#b20710 100%);padding:24px 32px;">
+                                <div style="font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:rgba(255,255,255,.82);margin-bottom:10px;">Quetxal TV</div>
+                                <div style="font-size:30px;line-height:1.1;font-weight:700;color:#ffffff;">{safe_subject}</div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="padding:32px;">
+                                <p style="margin:0 0 18px;font-size:16px;line-height:1.6;color:#e8e8ea;">{safe_body}</p>
+                                <table role="presentation" cellspacing="0" cellpadding="0" style="margin:28px 0 8px;">
+                                    <tr>
+                                        <td style="background:#e50914;border-radius:999px;">
+                                            <a href="#" style="display:inline-block;padding:14px 24px;font-size:14px;font-weight:700;color:#ffffff;text-decoration:none;letter-spacing:.02em;">Ver en Quetxal TV</a>
+                                        </td>
+                                    </tr>
+                                </table>
+                                <p style="margin:22px 0 0;font-size:12px;line-height:1.5;color:#9b9ba7;">Si no reconoces esta notificación, puedes ignorarla sin problema.</p>
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </body>
+</html>
+"""
+
     message.set_content(body)
+    message.add_alternative(html_content, subtype="html")
 
     try:
-        send_kwargs = {"hostname": SMTP_HOST, "port": SMTP_PORT or 25}
+        send_kwargs: dict[str, Any] = {
+            "hostname": SMTP_HOST,
+            "port": SMTP_PORT,
+            "start_tls": SMTP_STARTTLS,
+        }
         if SMTP_USER:
             send_kwargs["username"] = SMTP_USER
             send_kwargs["password"] = SMTP_PASSWORD
-        # If port is 587, prefer start_tls; aiosmtplib.send will handle secure connection if requested by server.
         await aiosmtplib.send(message, **send_kwargs)
         logger.info("Email sent to %s via %s:%s", to_address, SMTP_HOST, SMTP_PORT)
         return True
     except Exception:
-        logger.exception("Failed to send email to %s; falling back to console", to_address)
+        logger.exception("Failed to send email to %s", to_address)
         return False
 
 
-async def _process_notification(payload: dict) -> None:
-    """Process a notification payload. If SMTP configured and payload includes `to`/`email`, attempt send, otherwise log to console."""
-    try:
-        # Determine recipient and message
-        to_addr = payload.get("to") or payload.get("email")
+def _build_notification_content(payload: Dict[str, Any]) -> dict[str, str]:
+    notification_type = str(payload.get("type") or "generic").strip().lower()
+    metadata = payload.get("metadata") or {}
+
+    if notification_type == "registration":
+        full_name = html.escape(str(metadata.get("full_name") or ""))
+        subject = payload.get("subject") or "Confirmación de registro en Quetxal TV"
+        heading = "Registro confirmado"
+        body = (
+            f"Hola {full_name}, tu cuenta ya quedó activa. "
+            if full_name
+            else "Tu cuenta ya quedó activa. "
+        ) + "Ya puedes iniciar sesión y empezar a explorar el catálogo."
+        cta_text = metadata.get("cta_text") or "Iniciar sesión"
+        accent = "#e50914"
+        footer = "Gracias por unirte a Quetxal TV."
+    elif notification_type == "purchase":
+        action = str(metadata.get("action") or "created").lower()
+        plan_name = html.escape(str(metadata.get("plan_name") or "Plan activo"))
+        price_usd = metadata.get("price_usd")
+        subject = payload.get("subject") or (
+            "Actualización de tu suscripción en Quetxal TV"
+            if action == "updated"
+            else "Recibo de compra en Quetxal TV"
+        )
+        heading = "Tu suscripción está lista"
+        body = (
+            "Tu suscripción fue actualizada correctamente."
+            if action == "updated"
+            else "Tu suscripción quedó activa correctamente."
+        )
+        if plan_name:
+            body += f" Plan: {plan_name}."
+        if price_usd is not None:
+            body += f" Total: USD {price_usd}."
+        cta_text = metadata.get("cta_text") or "Ver mi cuenta"
+        accent = "#e50914"
+        footer = "Guarda este correo como comprobante."
+    elif notification_type in {"content-publication", "publication", "content"}:
+        content_title = html.escape(
+            str(metadata.get("content_title") or metadata.get("title") or "Nueva publicación")
+        )
+        category = html.escape(str(metadata.get("category") or "Destacado"))
+        subject = payload.get("subject") or "Nueva publicación en Quetxal TV"
+        heading = "Nuevo contenido disponible"
+        body = (
+            f"Ya está disponible {content_title}. "
+            f"Categoría: {category}."
+        )
+        cta_text = metadata.get("cta_text") or "Ver contenido"
+        accent = "#e50914"
+        footer = "Compártelo con tus usuarios y mantén la parrilla activa."
+    else:
         subject = payload.get("subject") or "Notification"
-        body = payload.get("body") or str(payload)
+        heading = html.escape(subject)
+        body = payload.get("message") or str(payload)
+        cta_text = payload.get("metadata", {}).get("cta_text") or "Ver en Quetxal TV"
+        accent = "#e50914"
+        footer = "Si no reconoces esta notificación, puedes ignorarla sin problema."
 
-        sent = False
-        if to_addr and SMTP_HOST:
-            sent = await _send_email(to_addr, subject, body)
+    cta_url = str(metadata.get("cta_url") or payload.get("cta_url") or "#")
+    plain_text = body
 
-        if not sent:
-            # fallback: log to console
-            logger.info("Queued notification (console fallback): %s", payload)
-    except Exception:
-        logger.exception("Error processing notification payload")
+    return {
+        "subject": str(subject),
+        "heading": str(heading),
+        "body": str(body),
+        "cta_text": str(cta_text),
+        "cta_url": cta_url,
+        "accent": accent,
+        "footer": footer,
+        "plain_text": plain_text
+    }
 
 
-async def _send_notification(req: NotificationRequest):
-    # Simulated send: log to stdout (container logs) and could be replaced with SMTP/API
-    logger.info("[send] type=%s user_id=%s email=%s subject=%s metadata=%s",
-                req.type, req.user_id, req.email, req.subject, req.metadata)
+async def _process_notification(payload: Dict[str, Any]) -> None:
+    to_addr = payload.get("email") or payload.get("to")
+    content = _build_notification_content(payload)
+
+    if to_addr and await _send_email(to_addr, content["subject"], content["plain_text"]):
+        return
+
+    logger.info("Queued notification (console fallback): %s", payload)
 
 
 @app.post("/notify")
-async def notify(payload: dict, background_tasks: BackgroundTasks):
-    # enqueue processing (sends via SMTP when configured, otherwise logs)
-    background_tasks.add_task(_process_notification, payload)
-    return {"status": "queued"}
-async def notify(req: NotificationRequest, background_tasks: BackgroundTasks):
-    logger.info("[receive] %s", req.json())
-    background_tasks.add_task(_send_notification, req)
-    return {"status": "queued", "type": req.type}
+async def notify(payload: NotificationRequest, background_tasks: BackgroundTasks) -> dict:
+    payload_dict = payload.dict()
+    logger.info("[receive] %s", payload_dict)
+    background_tasks.add_task(_process_notification, payload_dict)
+    return {"status": "queued", "delivery": "smtp" if SMTP_HOST and SMTP_FROM else "console"}
 
 
 @app.post("/notify/raw")
-async def notify_raw(payload: dict, background_tasks: BackgroundTasks):
-    background_tasks.add_task(_process_notification, payload)
-    return {"status": "queued"}
-
-
-@app.post("/notify/raw")
-async def notify_raw(payload: Dict, background_tasks: BackgroundTasks):
-    # Backwards-compatible endpoint for arbitrary payloads
+async def notify_raw(payload: Dict[str, Any], background_tasks: BackgroundTasks) -> dict:
     logger.info("[receive_raw] %s", payload)
-    # Create a minimal NotificationRequest for logging
-    nr = NotificationRequest(type=payload.get("type", "raw"),
-                             user_id=payload.get("user_id"),
-                             email=payload.get("email"),
-                             subject=payload.get("subject"),
-                             message=payload.get("message"),
-                             metadata=payload.get("metadata"))
-    background_tasks.add_task(_send_notification, nr)
-    return {"status": "queued", "type": nr.type}
+    background_tasks.add_task(_process_notification, payload)
+    return {"status": "queued", "delivery": "smtp" if SMTP_HOST and SMTP_FROM else "console"}
