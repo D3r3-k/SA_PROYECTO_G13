@@ -1,6 +1,8 @@
 import { status } from "@grpc/grpc-js";
 import { v4 as uuidv4 } from "uuid";
 
+import { env } from "../config/env";
+
 import {
   comparePassword,
   hashPassword
@@ -74,6 +76,34 @@ function emptyProfileResponse(message: string) {
   };
 }
 
+function emptyUserResponse(message: string) {
+  return {
+    success: false,
+    message,
+    user_id: "",
+    email: "",
+    full_name: ""
+  };
+}
+
+async function sendNotification(payload: Record<string, unknown>) {
+  const response = await fetch(new URL("/notify", env.notificationServiceUrl), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) {
+    const responseText = await response.text();
+    console.warn("Notification service rejected payload", {
+      status: response.status,
+      responseText
+    });
+  }
+}
+
 function emptySelectProfileResponse(message: string) {
   return {
     success: false,
@@ -140,6 +170,23 @@ export const identityService = {
         fullName
       });
 
+      try {
+        await sendNotification({
+          type: "registration",
+          email,
+          subject: "Confirmación de registro en Quetxal TV",
+          message:
+            "Tu cuenta ya quedó activa. Ya puedes iniciar sesión y empezar a explorar el catálogo.",
+          metadata: {
+            user_id: userId,
+            full_name: fullName,
+            cta_text: "Iniciar sesión"
+          }
+        });
+      } catch (notificationError) {
+        console.warn("Registration notification failed", notificationError);
+      }
+
       const token = signIdentityToken({
         user_id: userId,
         email
@@ -204,6 +251,32 @@ export const identityService = {
       });
     } catch (error) {
       return handleUnexpectedError(callback, error, "Failed to login");
+    }
+  },
+
+  GetUserById: async (call: any, callback: any) => {
+    try {
+      const userId = normalizeText(call.request.user_id || "");
+
+      if (!userId) {
+        return callback(null, emptyUserResponse("user_id is required"));
+      }
+
+      const user = await findUserById(userId);
+
+      if (!user) {
+        return callback(null, emptyUserResponse("User not found"));
+      }
+
+      return callback(null, {
+        success: true,
+        message: "User found",
+        user_id: user.id,
+        email: user.email,
+        full_name: user.full_name
+      });
+    } catch (error) {
+      return handleUnexpectedError(callback, error, "Failed to get user by id");
     }
   },
 

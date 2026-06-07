@@ -76,3 +76,11 @@ Decisiones:
 
 ```txt
 thumbs_up_count / total_ratings * 100
+
+## Cambios recientes añadidos por el equipo
+
+- `notification.proto`: se añadieron campos en `NotifyRequest` (`type`, `user_id`, `email`, `metadata`) y en `NotifyResponse` (`message_id`) para soportar notificaciones automáticas (registro, recibo de compra, publicación de contenido). Los campos anteriores (`to`, `subject`, `body`) se mantienen para compatibilidad.
+- `catalog.proto`: se añadió `ContentPublication` y `PublishResponse` para tipar eventos de publicación de contenido (titulo, categoría, url, `published_at`, `metadata`).
+- `subscription.proto`: se añadió el mensaje `SubscriptionEvent` para representar eventos de suscripción (created/updated/cancelled).
+
+IMPORTANTE: Estos cambios son adiciones no destructivas; si algún servicio consume estos contratos, avisa al equipo antes de fusionar para coordinar la actualización de clientes.

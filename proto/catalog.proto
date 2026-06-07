@@ -1,0 +1,25 @@
+syntax = "proto3";
+package catalog;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/struct.proto";
+
+service Catalog {
+  // Publica un evento tipado cuando se añade nuevo contenido.
+  // Este RPC es opcional: otros servicios pueden usar HTTP o el Gateway.
+  rpc PublishContent (ContentPublication) returns (PublishResponse) {}
+}
+
+message ContentPublication {
+  string content_id = 1;
+  string title = 2;
+  string category = 3;
+  string url = 4;
+  google.protobuf.Timestamp published_at = 5;
+  google.protobuf.Struct metadata = 6;
+}
+
+message PublishResponse {
+  bool accepted = 1;
+  string message = 2;
+}

@@ -7,6 +7,7 @@ service IdentityService {
   rpc RegisterUser(RegisterUserRequest) returns (AuthResponse);
   rpc Login(LoginRequest) returns (AuthResponse);
   rpc ValidateToken(ValidateTokenRequest) returns (ValidateTokenResponse);
+  rpc GetUserById(GetUserByIdRequest) returns (UserResponse);
 
   rpc CreateProfile(CreateProfileRequest) returns (ProfileResponse);
   rpc ListProfiles(ListProfilesRequest) returns (ListProfilesResponse);
@@ -35,6 +36,18 @@ message AuthResponse {
   string message = 2;
   string user_id = 3;
   string token = 4;
+}
+
+message GetUserByIdRequest {
+  string user_id = 1;
+}
+
+message UserResponse {
+  bool success = 1;
+  string message = 2;
+  string user_id = 3;
+  string email = 4;
+  string full_name = 5;
 }
 
 message ValidateTokenRequest {
