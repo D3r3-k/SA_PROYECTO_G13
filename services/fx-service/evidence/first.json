@@ -1,0 +1,8 @@
+﻿{
+    "base":  "USD",
+    "target":  "EUR",
+    "rate":  0.85911,
+    "provider":  "frankfurter",
+    "timestamp":  1780788963,
+    "cached":  true
+}

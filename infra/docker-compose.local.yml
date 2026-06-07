@@ -25,6 +25,25 @@ services:
     networks:
       - sa_net
 
+  subscription-db:
+    image: postgres:15
+    container_name: sa_subscription_db
+    environment:
+      POSTGRES_USER: sa_sub_user
+      POSTGRES_PASSWORD: sa_sub_pass
+      POSTGRES_DB: subscription_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - subscription_pgdata:/var/lib/postgresql/data
+    networks:
+      - sa_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sa_sub_user -d subscription_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   fx-service:
     build:
       context: ../services/fx-service
@@ -51,11 +70,12 @@ services:
     env_file:
       - ../.env
     environment:
-      - DATABASE_URL=postgresql://sa_user:sa_pass@postgres:5432/sa_db
+      - DATABASE_URL=postgresql://sa_sub_user:sa_sub_pass@subscription-db:5432/subscription_db
     ports:
       - "8002:8000"
     depends_on:
-      - postgres
+      subscription-db:
+        condition: service_healthy
     networks:
       - sa_net
 
@@ -123,6 +143,7 @@ services:
 volumes:
   redis_data:
   pgdata:
+  subscription_pgdata:
   identity_db_data:
 
 networks:
