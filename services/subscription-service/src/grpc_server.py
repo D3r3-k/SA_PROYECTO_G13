@@ -193,9 +193,17 @@ class SubscriptionServiceServicer(subscription_pb2_grpc.SubscriptionServiceServi
             )
 
         try:
+
+            if not request.user_id:
+                return subscription_pb2.SubscriptionResponse(
+                    success=False,
+                    message="user_id is required"
+                )
+
             subscription = update_subscription_plan(
                 request.subscription_id,
-                request.plan_id
+                request.plan_id,
+                request.user_id
             )
 
             try:

@@ -35,6 +35,14 @@ def initialize_database() -> None:
             """
         )
 
+        cursor.execute(
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS ux_subscriptions_one_active_per_user
+            ON subscriptions (user_id)
+            WHERE status = 'active';
+            """
+        )
+
         cursor.execute("ALTER TABLE subscriptions ALTER COLUMN user_id TYPE TEXT USING user_id::text;")
 
         cursor.execute(
@@ -123,10 +131,43 @@ def list_plans() -> list[dict]:
 
 def create_subscription(user_id: str, plan_id: int) -> dict:
     with get_cursor() as cursor:
-        cursor.execute("SELECT id, name, price_usd FROM plans WHERE id = %s AND is_active = TRUE;", (plan_id,))
+        cursor.execute(
+            """
+            SELECT id, name, price_usd
+            FROM plans
+            WHERE id = %s
+              AND is_active = TRUE;
+            """,
+            (plan_id,),
+        )
         plan = cursor.fetchone()
+
         if plan is None:
             raise ValueError("plan not found")
+
+        cursor.execute(
+            """
+            SELECT 
+                s.id,
+                s.user_id,
+                s.plan_id,
+                s.status,
+                s.started_at,
+                s.updated_at,
+                p.name AS plan_name,
+                p.price_usd
+            FROM subscriptions s
+            INNER JOIN plans p ON p.id = s.plan_id
+            WHERE s.user_id = %s
+              AND s.status = 'active'
+            LIMIT 1;
+            """,
+            (user_id,),
+        )
+        active_subscription = cursor.fetchone()
+
+        if active_subscription is not None:
+            raise ValueError("user already has an active subscription")
 
         cursor.execute(
             """
@@ -136,7 +177,9 @@ def create_subscription(user_id: str, plan_id: int) -> dict:
             """,
             (user_id, plan_id),
         )
+
         subscription = cursor.fetchone()
+
         return {
             "id": subscription["id"],
             "user_id": subscription["user_id"],
@@ -149,10 +192,19 @@ def create_subscription(user_id: str, plan_id: int) -> dict:
         }
 
 
-def update_subscription_plan(subscription_id: int, plan_id: int) -> dict:
+def update_subscription_plan(subscription_id: int, plan_id: int, user_id: str) -> dict:
     with get_cursor() as cursor:
-        cursor.execute("SELECT id, name, price_usd FROM plans WHERE id = %s AND is_active = TRUE;", (plan_id,))
+        cursor.execute(
+            """
+            SELECT id, name, price_usd
+            FROM plans
+            WHERE id = %s
+              AND is_active = TRUE;
+            """,
+            (plan_id,),
+        )
         plan = cursor.fetchone()
+
         if plan is None:
             raise ValueError("plan not found")
 
@@ -162,13 +214,17 @@ def update_subscription_plan(subscription_id: int, plan_id: int) -> dict:
             SET plan_id = %s,
                 updated_at = NOW()
             WHERE id = %s
+              AND user_id = %s
+              AND status = 'active'
             RETURNING id, user_id, plan_id, status, started_at, updated_at;
             """,
-            (plan_id, subscription_id),
+            (plan_id, subscription_id, user_id),
         )
+
         subscription = cursor.fetchone()
+
         if subscription is None:
-            raise ValueError("subscription not found")
+            raise ValueError("active subscription not found")
 
         return {
             "id": subscription["id"],
