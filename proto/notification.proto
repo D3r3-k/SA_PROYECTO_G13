@@ -1,30 +1,32 @@
 syntax = "proto3";
+
 package notification;
 
-import "google/protobuf/struct.proto";
+service NotificationService {
+  rpc Health (NotificationHealthRequest) returns (NotificationHealthResponse);
+  rpc Send (NotifyRequest) returns (NotifyResponse);
+}
 
-service Notification {
-  rpc Send (NotifyRequest) returns (NotifyResponse) {}
+message NotificationHealthRequest {}
+
+message NotificationHealthResponse {
+  bool success = 1;
+  string status = 2;
+  bool redis = 3;
+  bool smtp = 4;
 }
 
 message NotifyRequest {
-  // Campos históricos mantenidos para compatibilidad.
-  string to = 1;
-  string subject = 2;
-  string body = 3;
-
-  // Campos añadidos por el equipo para soportar eventos internos.
-  // Valores típicos: "registration", "purchase", "content-publication", "alert".
-  string type = 4;
-  string user_id = 5;
-  string email = 6;
-
-  // Metadatos arbitrarios para extensibilidad (por ejemplo: plan, content_id, cta_url).
-  google.protobuf.Struct metadata = 7;
+  string type = 1;
+  string user_id = 2;
+  string email = 3;
+  string subject = 4;
+  string body = 5;
+  map<string, string> metadata = 6;
 }
 
 message NotifyResponse {
   bool accepted = 1;
-  // Identificador opcional de mensaje generado por el sistema.
   string message_id = 2;
+  string message = 3;
 }
