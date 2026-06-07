@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import uuid
+from datetime import datetime, timezone
 from email.message import EmailMessage
 from typing import Any
 
@@ -36,8 +37,8 @@ NOTIFICATION_QUEUE_NAME = os.getenv("NOTIFICATION_QUEUE_NAME", "notification:que
 
 SMTP_HOST = os.getenv("SMTP_HOST")
 SMTP_PORT = int(os.getenv("SMTP_PORT") or "587")
-SMTP_USER = os.getenv("SMTP_USER")
-SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
+SMTP_USER = os.getenv("SMTP_USERNAME") or os.getenv("SMTP_USER")
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD") or os.getenv("SMTP_PASS")
 SMTP_FROM = os.getenv("SMTP_FROM")
 SMTP_STARTTLS = os.getenv("SMTP_STARTTLS", "true").lower() in {"1", "true", "yes", "on"}
 
@@ -109,14 +110,17 @@ def _build_notification_content(payload: dict[str, Any]) -> dict[str, str]:
     if notification_type == "registration":
         full_name = metadata.get("full_name") or ""
         subject = payload.get("subject") or "Confirmación de registro en Quetxal TV"
-        body = (
+        default_body = (
             f"Hola {full_name}, tu cuenta ya quedó activa. "
             if full_name
             else "Tu cuenta ya quedó activa. "
         ) + "Ya puedes iniciar sesión y empezar a explorar el catálogo."
+        body = payload.get("body") or payload.get("message") or default_body
 
-    elif notification_type == "purchase":
-        action = metadata.get("action") or "created"
+    elif notification_type in {"purchase", "purchase_receipt", "subscription_update"}:
+        action = metadata.get("action") or (
+            "updated" if notification_type == "subscription_update" else "created"
+        )
         plan_name = metadata.get("plan_name") or "Plan activo"
         price_usd = metadata.get("price_usd") or ""
 
@@ -126,27 +130,29 @@ def _build_notification_content(payload: dict[str, Any]) -> dict[str, str]:
             else "Recibo de compra en Quetxal TV"
         )
 
-        body = (
+        default_body = (
             "Tu suscripción fue actualizada correctamente."
             if action == "updated"
             else "Tu suscripción quedó activa correctamente."
         )
 
-        body += f" Plan: {plan_name}."
+        default_body += f" Plan: {plan_name}."
 
         if price_usd:
-            body += f" Total: USD {price_usd}."
+            default_body += f" Total: USD {price_usd}."
+
+        body = payload.get("body") or payload.get("message") or default_body
 
     elif notification_type in {"content-publication", "publication", "content"}:
         content_title = metadata.get("content_title") or metadata.get("title") or "Nueva publicación"
         category = metadata.get("category") or "Destacado"
 
         subject = payload.get("subject") or "Nueva publicación en Quetxal TV"
-        body = f"Ya está disponible {content_title}. Categoría: {category}."
+        body = payload.get("body") or payload.get("message") or f"Ya está disponible {content_title}. Categoría: {category}."
 
     else:
         subject = payload.get("subject") or "Notificación Quetxal TV"
-        body = payload.get("body") or str(payload)
+        body = payload.get("body") or payload.get("message") or str(payload)
 
     return {
         "subject": str(subject),
@@ -214,7 +220,8 @@ class NotificationServiceServicer(notification_pb2_grpc.NotificationServiceServi
             "email": request.email,
             "subject": request.subject,
             "body": request.body,
-            "metadata": dict(request.metadata)
+            "metadata": dict(request.metadata),
+            "created_at": datetime.now(timezone.utc).isoformat()
         }
 
         await redis_client.rpush(NOTIFICATION_QUEUE_NAME, json.dumps(payload))

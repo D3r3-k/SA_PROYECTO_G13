@@ -1,89 +1,83 @@
 # Ejemplos de payloads y comandos
 
-Este documento contiene ejemplos JSON para los nuevos mensajes `.proto` y ejemplos de uso HTTP para facilitar las pruebas.
+El cliente externo siempre prueba por el API Gateway. Internamente, el Gateway usa gRPC hacia los servicios principales y las notificaciones viajan por Redis.
 
-## Notification - `NotifyRequest` (ejemplo: registro)
+```text
+Cliente -> HTTP/cookies -> API Gateway -> gRPC -> identity/subscription/fx
+identity/subscription -> Redis notification:queue -> notification-service -> SMTP/Mailhog
+```
+
+## Evento Redis - registro
 
 ```json
 {
   "type": "registration",
   "user_id": "ee6b528d-cf4b-483b-aab2-30f2dd09eb82",
   "email": "usuario@example.com",
-  "subject": "Bienvenido a Quetxal TV",
-  "message": "Gracias por registrarte. Activa tu cuenta.",
+  "subject": "Confirmación de registro en Quetxal TV",
+  "body": "Tu cuenta ya quedó activa.",
   "metadata": {
-    "full_name": "Juan Pérez"
+    "full_name": "Juan Pérez",
+    "cta_text": "Iniciar sesión"
   }
 }
 ```
 
-## Notification - `NotifyRequest` (ejemplo: recibo de compra)
+## Evento Redis - recibo de compra
 
 ```json
 {
-  "type": "purchase",
+  "type": "purchase_receipt",
   "user_id": "ee6b528d-cf4b-483b-aab2-30f2dd09eb82",
   "email": "usuario@example.com",
-  "subject": "Recibo de compra - Plan Premium",
-  "message": "Gracias por tu compra. Se ha activado tu suscripción.",
+  "subject": "Recibo de compra - Quetxal TV",
+  "body": "Tu suscripción al plan Premium fue creada correctamente.",
   "metadata": {
+    "action": "created",
+    "plan_id": "3",
     "plan_name": "Premium",
-    "amount_usd": 9.99,
-    "subscription_id": "sub_0001"
+    "price_usd": "12.0",
+    "subscription_id": "1"
   }
 }
 ```
 
-## Catalog - `ContentPublication` (ejemplo)
+## Comandos HTTP por Gateway
 
-```json
-{
-  "content_id": "c_12345",
-  "title": "Nuevo episodio - La Aventura",
-  "category": "Series",
-  "url": "https://cdn.example.com/content/c_12345",
-  "published_at": "2026-06-06T12:00:00Z",
-  "metadata": {
-    "seasons": 1,
-    "episode": 1
-  }
-}
-```
-
-## Subscription Event (ejemplo `SubscriptionEvent`)
-
-```json
-{
-  "subscription_id": "3",
-  "user_id": "ee6b528d-cf4b-483b-aab2-30f2dd09eb82",
-  "plan_id": "1",
-  "action": "created",
-  "timestamp": 1686067200
-}
-```
-
-## Comandos HTTP rápidos
-
-- Enviar notificación (curl):
+Registro:
 
 ```bash
-curl -s -X POST http://localhost:8003/notify \
+curl -i -c cookies.txt -b cookies.txt \
+  -X POST http://localhost:3000/api/auth/register \
   -H "Content-Type: application/json" \
-  -d '{"type":"registration","user_id":"u1","email":"u1@example.com","subject":"Bienvenido","message":"Gracias"}'
+  -d '{"email":"test1@quetxaltv.com","password":"Password123","full_name":"Usuario Prueba"}'
 ```
 
-- Crear suscripción (PowerShell):
+Login:
 
-```powershell
-Invoke-RestMethod -Method Post -Uri http://localhost:8002/subscriptions -ContentType "application/json" -Body '{"user_id":"ee6b528d-cf4b-483b-aab2-30f2dd09eb82","plan_id":1}'
+```bash
+curl -i -c cookies.txt -b cookies.txt \
+  -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test1@quetxaltv.com","password":"Password123"}'
 ```
 
-- Consultar tasa FX (PowerShell):
+FX:
 
-```powershell
-Invoke-RestMethod -Uri http://localhost:8001/rates/USD/GTQ
+```bash
+curl -i -b cookies.txt http://localhost:3000/api/rates/USD/GTQ
+curl -i -b cookies.txt http://localhost:3000/api/rates/USD/GTQ
 ```
 
-## Postman
+Planes y suscripción:
 
-Se recomienda crear una colección con las peticiones anteriores y variables de entorno para `baseUrl` y `user_id`. Si quieres, genero el JSON de una colección Postman básica.
+```bash
+curl -i -b cookies.txt http://localhost:3000/api/plans
+
+curl -i -b cookies.txt \
+  -X POST http://localhost:3000/api/subscriptions \
+  -H "Content-Type: application/json" \
+  -d '{"plan_id":1}'
+```
+
+Mailhog UI: `http://localhost:8025`.

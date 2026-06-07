@@ -1,47 +1,32 @@
 # Servicio FX
 
-Servicio que obtiene tipos de cambio desde el proveedor configurado (por defecto: Frankfurter v2) y almacena resultados en caché en Redis.
+Microservicio gRPC que obtiene tipos de cambio desde el proveedor configurado y almacena resultados en Redis con TTL. El cliente externo no llama a este servicio directamente; las pruebas se hacen por el API Gateway.
 
-Notas importantes:
+## Variables de entorno
 
-- Frankfurter v2 soporta GTQ en su catálogo público y puede servir pares como `USD ↔ GTQ`, `EUR ↔ GTQ` y `EUR ↔ USD` a través de sus endpoints. El valor por defecto es `https://api.frankfurter.dev/v2`.
-- Las consultas a pares soportados se cachean en Redis usando `FX_CACHE_TTL`.
-
-Comportamiento y recomendaciones:
-
-1. Si el endpoint principal no está disponible, el proveedor intenta el endpoint alternativo (`/rates?base=...&quotes=...`) antes de fallar.
-2. Si no es posible obtener la tasa, el servicio responde con HTTP 502 y registra el error del proveedor.
-3. Para pruebas deterministas, use `validate_fx.ps1` (incluido) que demuestra el flujo miss → fetch → hit.
-
-Variables de entorno relevantes:
-
-- `REDIS_URL`: URL de Redis (p. ej. `redis://redis:6379/0`).
+- `REDIS_URL`: URL interna de Redis, por ejemplo `redis://redis:6379/0`.
 - `FX_CACHE_TTL`: TTL de la caché en segundos.
-- `FX_API_BASE_URL`: URL base del proveedor FX (por defecto `https://api.frankfurter.dev/v2`).
+- `FX_API_BASE_URL`: URL base del proveedor FX, por defecto `https://api.frankfurter.dev/v2`.
 
-Archivos de interés:
+## Archivos de interés
 
-- `src/app.py` — endpoints de FastAPI y lógica de caché.
-- `src/provider.py` — implementación del proveedor (Frankfurter v2 por defecto).
-- `src/cache.py` — wrapper de Redis usado para get/set con TTL.
+- `src/grpc_server.py`: servidor gRPC `FxService`.
+- `src/provider.py`: integración con Frankfurter v2.
+- `src/cache.py`: wrapper de Redis para `get/set` con TTL.
 
-Ejecutar localmente (desde la raíz del repositorio):
+## Ejecutar localmente
 
-```powershell
-docker compose -f infra/docker-compose.local.yml up --build -d redis postgres fx-service
+```bash
+docker compose -f infra/docker-compose.local.yml up --build -d redis fx-service api-gateway
 ```
 
-Comprobar salud:
+## Probar por Gateway
 
-```powershell
-Invoke-RestMethod -Uri http://localhost:8001/health
+Primero iniciar sesión y guardar cookies. Luego:
+
+```bash
+curl -i -b cookies.txt http://localhost:3000/api/rates/USD/GTQ
+curl -i -b cookies.txt http://localhost:3000/api/rates/USD/GTQ
 ```
 
-Ejemplo de consulta de tasa:
-
-```powershell
-Invoke-RestMethod -Uri http://localhost:8001/rates/USD/EUR
-Invoke-RestMethod -Uri http://localhost:8001/rates/USD/EUR
-```
-
-La primera llamada debe ser `cache miss` y la segunda `cache hit` según los logs del contenedor.
+La primera llamada debe resolver desde proveedor y devolver `cached: false`; la segunda debe resolver desde Redis y devolver `cached: true`.

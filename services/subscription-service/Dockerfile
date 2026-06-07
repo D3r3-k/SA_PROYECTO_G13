@@ -7,12 +7,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY proto/ /proto/
 COPY services/subscription-service/src/ ./src/
-
+RUN mkdir -p /app/src/generated
 RUN python -m grpc_tools.protoc \
     -I /proto \
     --python_out=/app/src/generated \
     --grpc_python_out=/app/src/generated \
-    /proto/subscription.proto /proto/identity.proto /proto/notification.proto
+    /proto/subscription.proto
 
 RUN touch /app/src/generated/__init__.py
 

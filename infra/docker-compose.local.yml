@@ -1,27 +1,38 @@
-version: '3.8'
+version: "3.8"
 
 services:
   redis:
     image: redis:7
     container_name: sa_redis
-    ports:
-      - "6379:6379"
+    expose:
+      - "6379"
     volumes:
       - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
     networks:
       - sa_net
 
-  postgres:
-    image: postgres:15
-    container_name: sa_postgres
+  identity-db:
+    image: postgres:16-alpine
+    container_name: identity-db
     environment:
-      POSTGRES_USER: sa_user
-      POSTGRES_PASSWORD: sa_pass
-      POSTGRES_DB: sa_db
-    ports:
-      - "5432:5432"
+      POSTGRES_DB: identity_db
+      POSTGRES_USER: identity_user
+      POSTGRES_PASSWORD: identity_password
+    expose:
+      - "5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - identity_db_data:/var/lib/postgresql/data
+      - ../services/identity-service/migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U identity_user -d identity_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - sa_net
 
@@ -32,17 +43,45 @@ services:
       POSTGRES_USER: sa_sub_user
       POSTGRES_PASSWORD: sa_sub_pass
       POSTGRES_DB: subscription_db
-    ports:
-      - "5433:5432"
+    expose:
+      - "5432"
     volumes:
       - subscription_pgdata:/var/lib/postgresql/data
-    networks:
-      - sa_net
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U sa_sub_user -d subscription_db"]
       interval: 5s
       timeout: 5s
       retries: 10
+    networks:
+      - sa_net
+
+  identity-service:
+    build:
+      context: ..
+      dockerfile: services/identity-service/Dockerfile
+    container_name: identity-service
+    environment:
+      NODE_ENV: development
+      IDENTITY_GRPC_HOST: 0.0.0.0
+      IDENTITY_GRPC_PORT: 50051
+      JWT_SECRET: PIVOTE_PRUEBAS_EJEMPLO
+      JWT_EXPIRES_IN: 1d
+      DB_HOST: identity-db
+      DB_PORT: 5432
+      DB_NAME: identity_db
+      DB_USER: identity_user
+      DB_PASSWORD: identity_password
+      REDIS_URL: redis://redis:6379/0
+      NOTIFICATION_QUEUE_NAME: notification:queue
+    expose:
+      - "50051"
+    depends_on:
+      redis:
+        condition: service_healthy
+      identity-db:
+        condition: service_healthy
+    networks:
+      - sa_net
 
   fx-service:
     build:
@@ -50,30 +89,31 @@ services:
       dockerfile: services/fx-service/Dockerfile
     container_name: sa_fx_service
     environment:
-      - REDIS_URL=redis://redis:6379/0
-      - FX_CACHE_TTL=3600
-      - FX_API_BASE_URL=https://api.frankfurter.dev/v2
+      REDIS_URL: redis://redis:6379/0
+      FX_CACHE_TTL: 3600
+      FX_API_BASE_URL: https://api.frankfurter.dev/v2
     expose:
       - "50052"
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy
     networks:
       - sa_net
 
   subscription-service:
     build:
-      context: ../services/subscription-service
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: services/subscription-service/Dockerfile
     container_name: sa_subscription_service
-    env_file:
-      - ../.env
     environment:
-      - DATABASE_URL=postgresql://sa_sub_user:sa_sub_pass@subscription-db:5432/subscription_db
-      - IDENTITY_GRPC_URL=identity-service:50051
-      - NOTIFICATION_GRPC_URL=notification-service:50054
-    ports:
-      - "8002:8000"
+      DATABASE_URL: postgresql://sa_sub_user:sa_sub_pass@subscription-db:5432/subscription_db
+      REDIS_URL: redis://redis:6379/0
+      NOTIFICATION_QUEUE_NAME: notification:queue
+    expose:
+      - "50053"
     depends_on:
+      redis:
+        condition: service_healthy
       subscription-db:
         condition: service_healthy
     networks:
@@ -85,66 +125,21 @@ services:
       dockerfile: services/notification-service/Dockerfile
     container_name: sa_notification_service
     environment:
-      - REDIS_URL=redis://redis:6379/0
-      - NOTIFICATION_QUEUE_NAME=notification:queue
-      - SMTP_HOST=mailhog
-      - SMTP_PORT=1025
-      - SMTP_FROM=no-reply@quetxaltv.com
-      - SMTP_STARTTLS=false
+      REDIS_URL: redis://redis:6379/0
+      NOTIFICATION_QUEUE_NAME: notification:queue
+      SMTP_HOST: mailhog
+      SMTP_PORT: 1025
+      SMTP_USERNAME: ""
+      SMTP_PASSWORD: ""
+      SMTP_FROM: no-reply@quetxaltv.com
+      SMTP_STARTTLS: "false"
     expose:
       - "50054"
     depends_on:
-      - redis
-      - mailhog
-    networks:
-      - sa_net
-
-  mailhog:
-    image: mailhog/mailhog:v1.0.1
-    container_name: sa_mailhog
-    ports:
-      - "1025:1025"
-      - "8025:8025"
-    networks:
-      - sa_net
-
-  identity-db:
-    image: postgres:16-alpine
-    container_name: identity-db
-    environment:
-      POSTGRES_DB: identity_db
-      POSTGRES_USER: identity_user
-      POSTGRES_PASSWORD: identity_password
-    volumes:
-      - identity_db_data:/var/lib/postgresql/data
-      - ../services/identity-service/migrations:/docker-entrypoint-initdb.d
-    networks:
-      - sa_net
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U identity_user -d identity_db"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  identity-service:
-    build:
-      context: ..
-      dockerfile: services/identity-service/Dockerfile
-    container_name: identity-service
-    env_file:
-      - ../services/identity-service/.env
-    environment:
-      - DB_HOST=identity-db
-      - DB_PORT=5432
-      - DB_NAME=identity_db
-      - DB_USER=identity_user
-      - DB_PASSWORD=identity_password
-      - IDENTITY_GRPC_HOST=0.0.0.0
-      - IDENTITY_GRPC_PORT=50051
-      - NOTIFICATION_GRPC_URL=notification-service:50054
-    depends_on:
-      identity-db:
+      redis:
         condition: service_healthy
+      mailhog:
+        condition: service_started
     networks:
       - sa_net
 
@@ -153,20 +148,23 @@ services:
       context: ..
       dockerfile: apps/api-gateway/Dockerfile
     container_name: api-gateway
-    env_file:
-      - ../apps/api-gateway/.env
     environment:
-      - IDENTITY_GRPC_URL=identity-service:50051
-      - FX_GRPC_URL=fx-service:50052
-      - SUBSCRIPTION_GRPC_URL=subscription-service:50053
-      - NOTIFICATION_GRPC_URL=notification-service:50054
+      NODE_ENV: development
+      PORT: 3000
+      FRONTEND_URL: http://localhost:8080
+      JWT_SECRET: PIVOTE_PRUEBAS_EJEMPLO
+      COOKIE_NAME: access_token
+      COOKIE_SECURE: "false"
+      COOKIE_SAME_SITE: lax
+      IDENTITY_GRPC_URL: identity-service:50051
+      FX_GRPC_URL: fx-service:50052
+      SUBSCRIPTION_GRPC_URL: subscription-service:50053
     ports:
       - "3000:3000"
     depends_on:
       - identity-service
       - fx-service
       - subscription-service
-      - notification-service
     networks:
       - sa_net
 
@@ -182,11 +180,20 @@ services:
     networks:
       - sa_net
 
+  mailhog:
+    image: mailhog/mailhog:v1.0.1
+    container_name: sa_mailhog
+    expose:
+      - "1025"
+    ports:
+      - "8025:8025"
+    networks:
+      - sa_net
+
 volumes:
   redis_data:
-  pgdata:
-  subscription_pgdata:
   identity_db_data:
+  subscription_pgdata:
 
 networks:
   sa_net:

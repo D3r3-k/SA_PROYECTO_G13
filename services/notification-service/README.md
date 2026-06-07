@@ -1,61 +1,51 @@
 # Servicio de Notificaciones
 
-Servicio que recibe payloads de notificación y los entrega por correo electrónico o los registra en consola si SMTP no está configurado.
+Microservicio de notificaciones por correo. En el flujo productivo consume eventos desde Redis y envía correos mediante SMTP o Mailhog.
 
-Configuración (variables de entorno):
+## Flujo productivo
 
-- `SMTP_HOST` — host SMTP (opcional)
-- `SMTP_PORT` — puerto SMTP (opcional; por defecto `587`)
-- `SMTP_USER` — usuario SMTP (opcional)
-- `SMTP_PASSWORD` — contraseña SMTP (opcional)
-- `SMTP_FROM` — dirección "From" para los correos (opcional)
-
-Comportamiento:
-
-- Si `SMTP_HOST` y `SMTP_FROM` están configurados, el servicio intentará enviar correos vía SMTP (STARTTLS cuando esté disponible).
-- Si SMTP no está configurado o falla el envío, el servicio hace fallback a logging/console (útil en desarrollo).
-
-Eventos soportados (contract):
-
-- `registration` — correo de confirmación tras registro de usuario.
-- `purchase` — recibo después de crear o actualizar una suscripción.
-- `content-publication` — alerta cuando se publica nuevo contenido.
-
-Plantilla y endpoints principales:
-
-- El servicio renderiza una plantilla HTML en estilo oscuro y adapta el contenido según `type` y `metadata`.
-- `GET /health` — healthcheck.
-- `POST /notify` — acepta JSON con este esquema:
-
-```json
-{
-  "type": "registration|purchase|content-publication|alert",
-  "user_id": "string",
-  "email": "user@example.com",
-  "subject": "Asunto opcional",
-  "message": "Cuerpo opcional",
-  "metadata": { "any": "extra" }
-}
+```text
+identity-service/subscription-service -> Redis RPUSH notification:queue
+notification-service -> Redis BLPOP notification:queue -> SMTP/Mailhog
 ```
 
-- `POST /notify/raw` — acepta payload arbitrario (compatibilidad).
+El método gRPC `Send` se conserva como compatibilidad y encolador administrativo, pero `identity-service` y `subscription-service` no lo usan directamente.
 
-Ejecutar localmente (desde la raíz del repo):
+## Variables de entorno
+
+- `REDIS_URL`: URL interna de Redis.
+- `NOTIFICATION_QUEUE_NAME`: cola Redis, por defecto `notification:queue`.
+- `SMTP_HOST`: host SMTP. En local: `mailhog`.
+- `SMTP_PORT`: puerto SMTP. En local: `1025`.
+- `SMTP_USERNAME`: usuario SMTP, vacío para Mailhog.
+- `SMTP_PASSWORD`: contraseña SMTP, vacía para Mailhog.
+- `SMTP_FROM`: remitente.
+- `SMTP_STARTTLS`: `false` para Mailhog, `true` para SMTP real con STARTTLS.
+
+## Eventos soportados
+
+- `registration`: confirmación de registro.
+- `purchase_receipt`: recibo de compra.
+- `subscription_update`: actualización de suscripción.
+- `content-publication`: alerta de nueva publicación.
+
+## Ejecutar localmente
 
 ```bash
-docker compose -f infra/docker-compose.local.yml up --build -d notification-service
+docker compose -f infra/docker-compose.local.yml up --build -d redis mailhog notification-service
 ```
 
-Ejemplo de uso (curl):
+## Prueba administrativa con Redis
 
 ```bash
-curl -s -X POST http://localhost:8002/notify \
-  -H "Content-Type: application/json" \
-  -d '{"type":"registration","user_id":"u1","email":"u1@example.com","subject":"Bienvenido","message":"Gracias por registrarte"}'
+docker compose -f infra/docker-compose.local.yml exec redis redis-cli RPUSH notification:queue \
+  '{"type":"registration","user_id":"u1","email":"u1@example.com","subject":"Bienvenido","body":"Gracias por registrarte","metadata":{"full_name":"Usuario"}}'
 ```
 
-Notas:
+Luego revisar logs y Mailhog:
 
-- Configure `SMTP_*` en `.env` para activar envío real (no subir credenciales al repo).
-- En desarrollo puede usar MailHog (puerto 8025) y no configurar SMTP.
-- La plantilla HTML está diseñada para confirmaciones, recibos y alertas de contenido.
+```bash
+docker logs sa_notification_service
+```
+
+Mailhog UI: `http://localhost:8025`.

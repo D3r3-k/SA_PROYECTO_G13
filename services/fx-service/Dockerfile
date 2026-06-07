@@ -7,7 +7,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY proto/ /proto/
 COPY services/fx-service/src/ ./src/
-
+RUN mkdir -p /app/src/generated
 RUN python -m grpc_tools.protoc \
     -I /proto \
     --python_out=/app/src/generated \

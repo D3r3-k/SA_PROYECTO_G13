@@ -7,7 +7,7 @@ import subscription_pb2
 import subscription_pb2_grpc
 
 from src.db import get_connection
-from src.grpc_clients import send_purchase_notification
+from src.notification_publisher import publish_notification_event
 from src.repository import (
     create_subscription,
     delete_subscription,
@@ -19,6 +19,53 @@ from src.repository import (
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger("subscription-service-grpc")
+
+
+async def _publish_subscription_notification(
+    subscription: dict,
+    email: str,
+    action: str
+) -> None:
+    if not email:
+        logger.warning(
+            "subscription notification skipped because email is empty user_id=%s",
+            subscription.get("user_id")
+        )
+        return
+
+    is_update = action == "updated"
+    plan_name = str(subscription["plan_name"])
+
+    subject = (
+        "Actualización de suscripción - Quetxal TV"
+        if is_update
+        else "Recibo de compra - Quetxal TV"
+    )
+
+    body = (
+        f"Tu suscripción al plan {plan_name} fue actualizada correctamente."
+        if is_update
+        else f"Tu suscripción al plan {plan_name} fue creada correctamente."
+    )
+
+    await publish_notification_event({
+        "type": "subscription_update" if is_update else "purchase_receipt",
+        "user_id": str(subscription["user_id"]),
+        "email": email,
+        "subject": subject,
+        "body": body,
+        "metadata": {
+            "action": action,
+            "plan_id": str(subscription["plan_id"]),
+            "plan_name": plan_name,
+            "price_usd": str(subscription["price_usd"]),
+            "subscription_id": str(subscription["id"]),
+            "status": str(subscription["status"]),
+            "started_at": str(subscription["started_at"]),
+            "updated_at": str(subscription["updated_at"]),
+            "cta_text": "Ir a mi cuenta",
+        },
+    })
 
 
 def _to_plan_message(plan: dict):
@@ -100,7 +147,17 @@ class SubscriptionServiceServicer(subscription_pb2_grpc.SubscriptionServiceServi
         try:
             subscription = create_subscription(request.user_id, request.plan_id)
 
-            await send_purchase_notification(subscription, "created")
+            try:
+                await _publish_subscription_notification(
+                    subscription,
+                    request.email,
+                    "created"
+                )
+            except Exception:
+                logger.warning(
+                    "could not publish subscription creation notification",
+                    exc_info=True
+                )
 
             return subscription_pb2.SubscriptionResponse(
                 success=True,
@@ -141,7 +198,17 @@ class SubscriptionServiceServicer(subscription_pb2_grpc.SubscriptionServiceServi
                 request.plan_id
             )
 
-            await send_purchase_notification(subscription, "updated")
+            try:
+                await _publish_subscription_notification(
+                    subscription,
+                    request.email,
+                    "updated"
+                )
+            except Exception:
+                logger.warning(
+                    "could not publish subscription update notification",
+                    exc_info=True
+                )
 
             return subscription_pb2.SubscriptionResponse(
                 success=True,
