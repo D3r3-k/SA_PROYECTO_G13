@@ -1,8 +1,23 @@
 FROM python:3.11-slim
+
 WORKDIR /app
-COPY requirements.txt ./
+
+COPY services/subscription-service/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
-COPY src/ ./src/
-ENV PYTHONPATH=/app/src
-EXPOSE 8000
-CMD ["uvicorn", "src.app:app", "--host", "0.0.0.0", "--port", "8000"]
+
+COPY proto/ /proto/
+COPY services/subscription-service/src/ ./src/
+RUN mkdir -p /app/src/generated
+RUN python -m grpc_tools.protoc \
+    -I /proto \
+    --python_out=/app/src/generated \
+    --grpc_python_out=/app/src/generated \
+    /proto/subscription.proto
+
+RUN touch /app/src/generated/__init__.py
+
+ENV PYTHONPATH=/app/src:/app/src/generated
+
+EXPOSE 50053
+
+CMD ["python", "-m", "src.grpc_server"]

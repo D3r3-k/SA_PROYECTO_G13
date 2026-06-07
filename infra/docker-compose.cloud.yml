@@ -1,52 +1,197 @@
-version: '3.8'
+version: "3.8"
 
 services:
   redis:
     image: redis:7
-    restart: always
+    container_name: sa_redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    expose:
+      - "6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
     networks:
       - sa_net
 
-  postgres:
-    image: postgres:15
-    restart: always
+  identity-db:
+    image: postgres:16-alpine
+    container_name: identity-db
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: sa_user
-      POSTGRES_PASSWORD: sa_pass
-      POSTGRES_DB: sa_db
+      POSTGRES_DB: ${IDENTITY_DB_NAME:-identity_db}
+      POSTGRES_USER: ${IDENTITY_DB_USER:-identity_user}
+      POSTGRES_PASSWORD: ${IDENTITY_DB_PASSWORD:-identity_password}
+    expose:
+      - "5432"
+    volumes:
+      - identity_db_data:/var/lib/postgresql/data
+      - ../services/identity-service/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - sa_net
+
+  subscription-db:
+    image: postgres:15
+    container_name: sa_subscription_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${SUBSCRIPTION_DB_NAME:-subscription_db}
+      POSTGRES_USER: ${SUBSCRIPTION_DB_USER:-sa_sub_user}
+      POSTGRES_PASSWORD: ${SUBSCRIPTION_DB_PASSWORD:-sa_sub_pass}
+    expose:
+      - "5432"
+    volumes:
+      - subscription_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - sa_net
+
+  identity-service:
+    build:
+      context: ..
+      dockerfile: services/identity-service/Dockerfile
+    container_name: identity-service
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      IDENTITY_GRPC_HOST: 0.0.0.0
+      IDENTITY_GRPC_PORT: 50051
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-1d}
+      DB_HOST: identity-db
+      DB_PORT: 5432
+      DB_NAME: ${IDENTITY_DB_NAME:-identity_db}
+      DB_USER: ${IDENTITY_DB_USER:-identity_user}
+      DB_PASSWORD: ${IDENTITY_DB_PASSWORD:-identity_password}
+      REDIS_URL: redis://redis:6379/0
+      NOTIFICATION_QUEUE_NAME: ${NOTIFICATION_QUEUE_NAME:-notification:queue}
+    expose:
+      - "50051"
+    depends_on:
+      redis:
+        condition: service_healthy
+      identity-db:
+        condition: service_healthy
     networks:
       - sa_net
 
   fx-service:
     build:
-      context: ./services/fx-service
-    env_file:
-      - .env.cloud
+      context: ..
+      dockerfile: services/fx-service/Dockerfile
+    container_name: sa_fx_service
+    restart: unless-stopped
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      FX_CACHE_TTL: ${FX_CACHE_TTL:-3600}
+      FX_API_BASE_URL: ${FX_API_BASE_URL:-https://api.frankfurter.dev/v2}
+    expose:
+      - "50052"
     depends_on:
-      - redis
-      - postgres
+      redis:
+        condition: service_healthy
     networks:
       - sa_net
 
   subscription-service:
     build:
-      context: ./services/subscription-service
-    env_file:
-      - .env.cloud
+      context: ..
+      dockerfile: services/subscription-service/Dockerfile
+    container_name: sa_subscription_service
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${SUBSCRIPTION_DB_USER:-sa_sub_user}:${SUBSCRIPTION_DB_PASSWORD:-sa_sub_pass}@subscription-db:5432/${SUBSCRIPTION_DB_NAME:-subscription_db}
+      REDIS_URL: redis://redis:6379/0
+      NOTIFICATION_QUEUE_NAME: ${NOTIFICATION_QUEUE_NAME:-notification:queue}
+    expose:
+      - "50053"
     depends_on:
-      - postgres
+      redis:
+        condition: service_healthy
+      subscription-db:
+        condition: service_healthy
     networks:
       - sa_net
 
   notification-service:
     build:
-      context: ./services/notification-service
-    env_file:
-      - .env.cloud
+      context: ..
+      dockerfile: services/notification-service/Dockerfile
+    container_name: sa_notification_service
+    restart: unless-stopped
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      NOTIFICATION_QUEUE_NAME: ${NOTIFICATION_QUEUE_NAME:-notification:queue}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-no-reply@quetxaltv.com}
+      SMTP_STARTTLS: ${SMTP_STARTTLS:-true}
+    expose:
+      - "50054"
     depends_on:
-      - postgres
+      redis:
+        condition: service_healthy
     networks:
       - sa_net
+
+  api-gateway:
+    build:
+      context: ..
+      dockerfile: apps/api-gateway/Dockerfile
+    container_name: api-gateway
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:8080}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      COOKIE_NAME: ${COOKIE_NAME:-access_token}
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+      COOKIE_SAME_SITE: ${COOKIE_SAME_SITE:-lax}
+      IDENTITY_GRPC_URL: identity-service:50051
+      FX_GRPC_URL: fx-service:50052
+      SUBSCRIPTION_GRPC_URL: subscription-service:50053
+    ports:
+      - "${API_GATEWAY_PORT:-3000}:3000"
+    depends_on:
+      - identity-service
+      - fx-service
+      - subscription-service
+    networks:
+      - sa_net
+
+  web:
+    build:
+      context: ../apps/web
+      dockerfile: Dockerfile
+    container_name: sa_web
+    restart: unless-stopped
+    ports:
+      - "${WEB_PORT:-8080}:80"
+    depends_on:
+      - api-gateway
+    networks:
+      - sa_net
+
+volumes:
+  redis_data:
+  identity_db_data:
+  subscription_pgdata:
 
 networks:
   sa_net:

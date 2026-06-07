@@ -1,109 +1,18 @@
-version: '3.8'
+version: "3.8"
 
 services:
   redis:
     image: redis:7
     container_name: sa_redis
-    ports:
-      - "6379:6379"
+    expose:
+      - "6379"
     volumes:
       - redis_data:/data
-    networks:
-      - sa_net
-
-  postgres:
-    image: postgres:15
-    container_name: sa_postgres
-    environment:
-      POSTGRES_USER: sa_user
-      POSTGRES_PASSWORD: sa_pass
-      POSTGRES_DB: sa_db
-    ports:
-      - "5432:5432"
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    networks:
-      - sa_net
-
-  subscription-db:
-    image: postgres:15
-    container_name: sa_subscription_db
-    environment:
-      POSTGRES_USER: sa_sub_user
-      POSTGRES_PASSWORD: sa_sub_pass
-      POSTGRES_DB: subscription_db
-    ports:
-      - "5433:5432"
-    volumes:
-      - subscription_pgdata:/var/lib/postgresql/data
-    networks:
-      - sa_net
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U sa_sub_user -d subscription_db"]
+      test: ["CMD", "redis-cli", "ping"]
       interval: 5s
-      timeout: 5s
+      timeout: 3s
       retries: 10
-
-  fx-service:
-    build:
-      context: ../services/fx-service
-      dockerfile: Dockerfile
-    container_name: sa_fx_service
-    env_file:
-      - ../.env
-    environment:
-      - REDIS_URL=redis://redis:6379/0
-      - DATABASE_URL=postgresql://sa_user:sa_pass@postgres:5432/sa_db
-    ports:
-      - "8001:8000"
-    depends_on:
-      - redis
-      - postgres
-    networks:
-      - sa_net
-
-  subscription-service:
-    build:
-      context: ../services/subscription-service
-      dockerfile: Dockerfile
-    container_name: sa_subscription_service
-    env_file:
-      - ../.env
-    environment:
-      - DATABASE_URL=postgresql://sa_sub_user:sa_sub_pass@subscription-db:5432/subscription_db
-      - API_GATEWAY_URL=http://api-gateway:3000
-      - NOTIFICATION_SERVICE_URL=http://notification-service:8000
-    ports:
-      - "8002:8000"
-    depends_on:
-      subscription-db:
-        condition: service_healthy
-    networks:
-      - sa_net
-
-  notification-service:
-    build:
-      context: ../services/notification-service
-      dockerfile: Dockerfile
-    container_name: sa_notification_service
-    env_file:
-      - ../.env
-    environment:
-      - DATABASE_URL=postgresql://sa_user:sa_pass@postgres:5432/sa_db
-    ports:
-      - "8003:8000"
-    depends_on:
-      - postgres
-      - mailhog
-    networks:
-      - sa_net
-
-  mailhog:
-    image: mailhog/mailhog:v1.0.1
-    container_name: sa_mailhog
-    ports:
-      - "1025:1025"
-      - "8025:8025"
     networks:
       - sa_net
 
@@ -111,38 +20,123 @@ services:
     image: postgres:16-alpine
     container_name: identity-db
     environment:
-      POSTGRES_DB: identity_db
-      POSTGRES_USER: identity_user
-      POSTGRES_PASSWORD: identity_password
+      POSTGRES_DB: ${IDENTITY_DB_NAME}
+      POSTGRES_USER: ${IDENTITY_DB_USER}
+      POSTGRES_PASSWORD: ${IDENTITY_DB_PASSWORD}
+    expose:
+      - "5432"
     volumes:
       - identity_db_data:/var/lib/postgresql/data
       - ../services/identity-service/migrations:/docker-entrypoint-initdb.d
-    networks:
-      - sa_net
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U identity_user -d identity_db"]
+      test: ["CMD-SHELL", "pg_isready -U ${IDENTITY_DB_USER} -d ${IDENTITY_DB_NAME}"]
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - sa_net
+
+  subscription-db:
+    image: postgres:15
+    container_name: sa_subscription_db
+    environment:
+      POSTGRES_USER: ${SUBSCRIPTION_DB_USER}
+      POSTGRES_PASSWORD: ${SUBSCRIPTION_DB_PASSWORD}
+      POSTGRES_DB: ${SUBSCRIPTION_DB_NAME}
+    expose:
+      - "5432"
+    volumes:
+      - subscription_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${SUBSCRIPTION_DB_USER} -d ${SUBSCRIPTION_DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - sa_net
 
   identity-service:
     build:
       context: ..
       dockerfile: services/identity-service/Dockerfile
     container_name: identity-service
-    env_file:
-      - ../services/identity-service/.env
     environment:
-      - DB_HOST=identity-db
-      - DB_PORT=5432
-      - DB_NAME=identity_db
-      - DB_USER=identity_user
-      - DB_PASSWORD=identity_password
-      - IDENTITY_GRPC_HOST=0.0.0.0
-      - IDENTITY_GRPC_PORT=50051
-      - NOTIFICATION_SERVICE_URL=http://notification-service:8000
+      NODE_ENV: ${NODE_ENV}
+      IDENTITY_GRPC_HOST: ${IDENTITY_GRPC_HOST}
+      IDENTITY_GRPC_PORT: ${IDENTITY_GRPC_PORT}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN}
+      DB_HOST: ${IDENTITY_DB_HOST}
+      DB_PORT: ${IDENTITY_DB_PORT}
+      DB_NAME: ${IDENTITY_DB_NAME}
+      DB_USER: ${IDENTITY_DB_USER}
+      DB_PASSWORD: ${IDENTITY_DB_PASSWORD}
+      REDIS_URL: ${REDIS_URL}
+      NOTIFICATION_QUEUE_NAME: ${NOTIFICATION_QUEUE_NAME}
+    expose:
+      - "${IDENTITY_GRPC_PORT}"
     depends_on:
+      redis:
+        condition: service_healthy
       identity-db:
+        condition: service_healthy
+    networks:
+      - sa_net
+
+  fx-service:
+    build:
+      context: ..
+      dockerfile: services/fx-service/Dockerfile
+    container_name: sa_fx_service
+    environment:
+      REDIS_URL: ${REDIS_URL}
+      FX_CACHE_TTL: ${FX_CACHE_TTL}
+      FX_API_BASE_URL: ${FX_API_BASE_URL}
+    expose:
+      - "${FX_GRPC_PORT}"
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - sa_net
+
+  subscription-service:
+    build:
+      context: ..
+      dockerfile: services/subscription-service/Dockerfile
+    container_name: sa_subscription_service
+    environment:
+      DATABASE_URL: ${SUBSCRIPTION_DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
+      NOTIFICATION_QUEUE_NAME: ${NOTIFICATION_QUEUE_NAME}
+    expose:
+      - "${SUBSCRIPTION_GRPC_PORT}"
+    depends_on:
+      redis:
+        condition: service_healthy
+      subscription-db:
+        condition: service_healthy
+    networks:
+      - sa_net
+
+  notification-service:
+    build:
+      context: ..
+      dockerfile: services/notification-service/Dockerfile
+    container_name: sa_notification_service
+    environment:
+      REDIS_URL: ${REDIS_URL}
+      NOTIFICATION_QUEUE_NAME: ${NOTIFICATION_QUEUE_NAME}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USERNAME: ${SMTP_USERNAME}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      SMTP_FROM: ${SMTP_FROM}
+      SMTP_STARTTLS: ${SMTP_STARTTLS}
+    expose:
+      - "50054"
+    depends_on:
+      redis:
         condition: service_healthy
     networks:
       - sa_net
@@ -152,14 +146,23 @@ services:
       context: ..
       dockerfile: apps/api-gateway/Dockerfile
     container_name: api-gateway
-    env_file:
-      - ../apps/api-gateway/.env
     environment:
-      - IDENTITY_GRPC_URL=identity-service:50051
+      NODE_ENV: ${NODE_ENV}
+      PORT: ${API_GATEWAY_PORT}
+      FRONTEND_URL: ${FRONTEND_URL}
+      JWT_SECRET: ${JWT_SECRET}
+      COOKIE_NAME: ${COOKIE_NAME}
+      COOKIE_SECURE: ${COOKIE_SECURE}
+      COOKIE_SAME_SITE: ${COOKIE_SAME_SITE}
+      IDENTITY_GRPC_URL: ${IDENTITY_GRPC_URL}
+      FX_GRPC_URL: ${FX_GRPC_URL}
+      SUBSCRIPTION_GRPC_URL: ${SUBSCRIPTION_GRPC_URL}
     ports:
-      - "3000:3000"
+      - "${API_GATEWAY_PORT}:${API_GATEWAY_PORT}"
     depends_on:
       - identity-service
+      - fx-service
+      - subscription-service
     networks:
       - sa_net
 
@@ -169,7 +172,7 @@ services:
       dockerfile: Dockerfile
     container_name: sa_web
     ports:
-      - "8080:80"
+      - "${WEB_PORT}:80"
     depends_on:
       - api-gateway
     networks:
@@ -177,9 +180,8 @@ services:
 
 volumes:
   redis_data:
-  pgdata:
-  subscription_pgdata:
   identity_db_data:
+  subscription_pgdata:
 
 networks:
   sa_net:

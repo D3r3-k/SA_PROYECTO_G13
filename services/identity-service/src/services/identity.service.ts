@@ -1,8 +1,6 @@
 import { status } from "@grpc/grpc-js";
 import { v4 as uuidv4 } from "uuid";
 
-import { env } from "../config/env";
-
 import {
   comparePassword,
   hashPassword
@@ -19,6 +17,8 @@ import {
   registerUser,
   updatePasswordHash
 } from "../repositories/user.repository";
+
+import { publishNotificationEvent } from "../events/notification.publisher";
 
 import {
   createProfile,
@@ -84,24 +84,6 @@ function emptyUserResponse(message: string) {
     email: "",
     full_name: ""
   };
-}
-
-async function sendNotification(payload: Record<string, unknown>) {
-  const response = await fetch(new URL("/notify", env.notificationServiceUrl), {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify(payload)
-  });
-
-  if (!response.ok) {
-    const responseText = await response.text();
-    console.warn("Notification service rejected payload", {
-      status: response.status,
-      responseText
-    });
-  }
 }
 
 function emptySelectProfileResponse(message: string) {
@@ -171,12 +153,12 @@ export const identityService = {
       });
 
       try {
-        await sendNotification({
+        await publishNotificationEvent({
           type: "registration",
+          user_id: userId,
           email,
           subject: "Confirmación de registro en Quetxal TV",
-          message:
-            "Tu cuenta ya quedó activa. Ya puedes iniciar sesión y empezar a explorar el catálogo.",
+          body: "Tu cuenta ya quedó activa. Ya puedes iniciar sesión y empezar a explorar el catálogo.",
           metadata: {
             user_id: userId,
             full_name: fullName,
