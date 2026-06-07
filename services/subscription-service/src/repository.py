@@ -37,12 +37,80 @@ def initialize_database() -> None:
 
         cursor.execute("ALTER TABLE subscriptions ALTER COLUMN user_id TYPE TEXT USING user_id::text;")
 
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS subscription_audit (
+                id SERIAL PRIMARY KEY,
+                subscription_id INTEGER NOT NULL,
+                old_plan_id INTEGER,
+                new_plan_id INTEGER,
+                old_status VARCHAR(20),
+                new_status VARCHAR(20),
+                changed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            );
+
+            CREATE OR REPLACE VIEW vw_user_active_subscription AS
+            SELECT
+                s.id AS subscription_id,
+                s.user_id,
+                s.plan_id,
+                p.name AS plan_name,
+                p.price_usd,
+                s.status,
+                s.started_at,
+                s.updated_at
+            FROM subscriptions s
+            JOIN plans p ON p.id = s.plan_id
+            WHERE s.status = 'active';
+
+            CREATE OR REPLACE FUNCTION fn_calculate_monthly_price(plan_price NUMERIC)
+            RETURNS NUMERIC AS $$
+            BEGIN
+                RETURN ROUND(plan_price, 2);
+            END;
+            $$ LANGUAGE plpgsql;
+
+            CREATE OR REPLACE FUNCTION fn_audit_subscription_change()
+            RETURNS TRIGGER AS $$
+            BEGIN
+                IF OLD.plan_id IS DISTINCT FROM NEW.plan_id
+                   OR OLD.status IS DISTINCT FROM NEW.status THEN
+                    INSERT INTO subscription_audit (
+                        subscription_id,
+                        old_plan_id,
+                        new_plan_id,
+                        old_status,
+                        new_status
+                    )
+                    VALUES (
+                        OLD.id,
+                        OLD.plan_id,
+                        NEW.plan_id,
+                        OLD.status,
+                        NEW.status
+                    );
+                END IF;
+
+                RETURN NEW;
+            END;
+            $$ LANGUAGE plpgsql;
+
+            DROP TRIGGER IF EXISTS trg_audit_subscription_change ON subscriptions;
+
+            CREATE TRIGGER trg_audit_subscription_change
+            AFTER UPDATE ON subscriptions
+            FOR EACH ROW
+            EXECUTE FUNCTION fn_audit_subscription_change();
+            """
+        )
+
         cursor.execute("SELECT id FROM plans LIMIT 1;")
         if cursor.fetchone() is None:
             cursor.executemany(
                 "INSERT INTO plans (id, name, price_usd, is_active) VALUES (%s, %s, %s, %s);",
                 PLAN_SEED,
             )
+        
 
 
 def list_plans() -> list[dict]:
@@ -134,5 +202,15 @@ def get_subscriptions_by_user(user_id: str) -> list[dict]:
 
 def delete_subscription(subscription_id: int) -> bool:
     with get_cursor() as cursor:
-        cursor.execute("DELETE FROM subscriptions WHERE id = %s RETURNING id;", (subscription_id,))
+        cursor.execute(
+            """
+            UPDATE subscriptions
+            SET status = 'cancelled',
+                updated_at = NOW()
+            WHERE id = %s
+              AND status <> 'cancelled'
+            RETURNING id;
+            """,
+            (subscription_id,),
+        )
         return cursor.fetchone() is not None

@@ -46,19 +46,17 @@ services:
 
   fx-service:
     build:
-      context: ../services/fx-service
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: services/fx-service/Dockerfile
     container_name: sa_fx_service
-    env_file:
-      - ../.env
     environment:
       - REDIS_URL=redis://redis:6379/0
-      - DATABASE_URL=postgresql://sa_user:sa_pass@postgres:5432/sa_db
-    ports:
-      - "8001:8000"
+      - FX_CACHE_TTL=3600
+      - FX_API_BASE_URL=https://api.frankfurter.dev/v2
+    expose:
+      - "50052"
     depends_on:
       - redis
-      - postgres
     networks:
       - sa_net
 
@@ -71,8 +69,8 @@ services:
       - ../.env
     environment:
       - DATABASE_URL=postgresql://sa_sub_user:sa_sub_pass@subscription-db:5432/subscription_db
-      - API_GATEWAY_URL=http://api-gateway:3000
-      - NOTIFICATION_SERVICE_URL=http://notification-service:8000
+      - IDENTITY_GRPC_URL=identity-service:50051
+      - NOTIFICATION_GRPC_URL=notification-service:50054
     ports:
       - "8002:8000"
     depends_on:
@@ -83,17 +81,20 @@ services:
 
   notification-service:
     build:
-      context: ../services/notification-service
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: services/notification-service/Dockerfile
     container_name: sa_notification_service
-    env_file:
-      - ../.env
     environment:
-      - DATABASE_URL=postgresql://sa_user:sa_pass@postgres:5432/sa_db
-    ports:
-      - "8003:8000"
+      - REDIS_URL=redis://redis:6379/0
+      - NOTIFICATION_QUEUE_NAME=notification:queue
+      - SMTP_HOST=mailhog
+      - SMTP_PORT=1025
+      - SMTP_FROM=no-reply@quetxaltv.com
+      - SMTP_STARTTLS=false
+    expose:
+      - "50054"
     depends_on:
-      - postgres
+      - redis
       - mailhog
     networks:
       - sa_net
@@ -140,7 +141,7 @@ services:
       - DB_PASSWORD=identity_password
       - IDENTITY_GRPC_HOST=0.0.0.0
       - IDENTITY_GRPC_PORT=50051
-      - NOTIFICATION_SERVICE_URL=http://notification-service:8000
+      - NOTIFICATION_GRPC_URL=notification-service:50054
     depends_on:
       identity-db:
         condition: service_healthy
@@ -156,10 +157,16 @@ services:
       - ../apps/api-gateway/.env
     environment:
       - IDENTITY_GRPC_URL=identity-service:50051
+      - FX_GRPC_URL=fx-service:50052
+      - SUBSCRIPTION_GRPC_URL=subscription-service:50053
+      - NOTIFICATION_GRPC_URL=notification-service:50054
     ports:
       - "3000:3000"
     depends_on:
       - identity-service
+      - fx-service
+      - subscription-service
+      - notification-service
     networks:
       - sa_net
 
