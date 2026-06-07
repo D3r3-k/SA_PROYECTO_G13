@@ -39,3 +39,5 @@ Comandos, endpoints, capturas o pasos usados para validar:
 ```bash
 # ejemplo
 docker compose -f infra/docker-compose.local.yml up --build
+```
+
