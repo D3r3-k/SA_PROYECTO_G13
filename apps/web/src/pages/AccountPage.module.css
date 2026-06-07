@@ -1,0 +1,72 @@
+.title {
+  font-size: var(--fs-2xl);
+  font-weight: 700;
+  margin-bottom: 2rem;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 1.5rem;
+}
+
+.sectionTitle {
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  margin-bottom: 1.25rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.infoRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.625rem 0;
+  border-bottom: 1px solid rgba(51, 65, 85, 0.5);
+}
+
+.infoRow:last-child {
+  border-bottom: none;
+}
+
+.infoLabel {
+  font-size: var(--fs-sm);
+  color: var(--color-text-muted);
+}
+
+.infoValue {
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.mono {
+  font-family: monospace;
+  font-size: var(--fs-xs);
+  color: var(--color-text-muted);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.msg {
+  font-size: var(--fs-sm);
+  border-radius: var(--radius-md);
+  padding: 0.75rem 1rem;
+}
+
+.success {
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  color: var(--color-success);
+}
+
+.error {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: var(--color-danger);
+}

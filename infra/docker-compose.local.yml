@@ -163,6 +163,18 @@ services:
     networks:
       - sa_net
 
+  web:
+    build:
+      context: ../apps/web
+      dockerfile: Dockerfile
+    container_name: sa_web
+    ports:
+      - "8080:80"
+    depends_on:
+      - api-gateway
+    networks:
+      - sa_net
+
 volumes:
   redis_data:
   pgdata:
