@@ -1,0 +1,101 @@
+syntax = "proto3";
+
+package catalog;
+
+option go_package = "./catalogpb";
+
+service CatalogService {
+
+  rpc SearchContent(SearchRequest)
+      returns (SearchResponse);
+
+  rpc GetContentById(ContentRequest)
+      returns (ContentDetail);
+
+  rpc GetFeatured(Empty)
+      returns (ContentList);
+
+  rpc GetCategories(Empty)
+      returns (CategoryList);
+
+  rpc GetGenres(Empty)
+      returns (GenreList);
+}
+
+message Empty {}
+
+message SearchRequest {
+  string title = 1;
+  string genre = 2;
+  string category = 3;
+  string type = 4; // MOVIE | SERIES
+}
+
+message ContentRequest {
+  string content_id = 1;
+}
+
+message ContentSummary {
+  string content_id = 1;
+  string title = 2;
+  string poster_url = 3;
+  string genre = 4;
+  string category = 5;
+  double recommendation = 6;
+}
+
+message ContentDetail {
+  string content_id = 1;
+  string title = 2;
+  string description = 3;
+  string genre = 4;
+  string category = 5;
+  string release_date = 6;
+  repeated Actor actors = 7;
+  repeated Season seasons = 8;
+}
+
+message Actor {
+  string actor_id = 1;
+  string full_name = 2;
+  string photo_url = 3;
+}
+
+message Season {
+  string season_id = 1;
+  int32 number = 2;
+  repeated Episode episodes = 3;
+}
+
+message Episode {
+  string episode_id = 1;
+  string title = 2;
+  int32 duration_minutes = 3;
+}
+
+message SearchResponse {
+  repeated ContentSummary results = 1;
+  int32                   total   = 2; // total de resultados (para paginación futura)
+}
+
+message ContentList {
+  repeated ContentSummary contents = 1;
+}
+
+message Category {
+  string category_id = 1;
+  string name        = 2;
+}
+
+message Genre {
+  string genre_id = 1;
+  string name     = 2;
+}
+
+message CategoryList {
+  repeated Category categories = 1;
+}
+
+message GenreList {
+  repeated Genre genres = 1;
+}
