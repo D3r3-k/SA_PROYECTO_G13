@@ -11,6 +11,7 @@ type Config struct {
 	DatabaseURL              string
 	ArchiveMetadataBaseURL   string
 	ArchiveDownloadBaseURL   string
+	ArchiveImageBaseURL      string
 	ArchiveMovieIdentifiers  []string
 	ArchiveSeriesIdentifier  string
 	ArchiveSeriesIdentifiers []string
@@ -28,6 +29,7 @@ func Load() Config {
 		DatabaseURL:              getEnv("DATABASE_URL", "postgresql://catalog_user:catalog_password@catalog-db:5432/catalog_db"),
 		ArchiveMetadataBaseURL:   getEnv("ARCHIVE_METADATA_BASE_URL", "https://archive.org/metadata"),
 		ArchiveDownloadBaseURL:   getEnv("ARCHIVE_DOWNLOAD_BASE_URL", "https://archive.org/download"),
+		ArchiveImageBaseURL:      getEnv("ARCHIVE_IMAGE_BASE_URL", "https://archive.org/services/img"),
 		ArchiveMovieIdentifiers:  splitList(getEnv("ARCHIVE_MOVIE_IDENTIFIERS", "")),
 		ArchiveSeriesIdentifier:  getEnv("ARCHIVE_SERIES_IDENTIFIER", ""),
 		ArchiveSeriesIdentifiers: splitList(getEnv("ARCHIVE_SERIES_IDENTIFIERS", "")),

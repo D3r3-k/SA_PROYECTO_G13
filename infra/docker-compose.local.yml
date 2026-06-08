@@ -169,6 +169,7 @@ services:
       DATABASE_URL: ${CATALOG_DATABASE_URL}
       ARCHIVE_METADATA_BASE_URL: ${ARCHIVE_METADATA_BASE_URL:-https://archive.org/metadata}
       ARCHIVE_DOWNLOAD_BASE_URL: ${ARCHIVE_DOWNLOAD_BASE_URL:-https://archive.org/download}
+      ARCHIVE_IMAGE_BASE_URL: ${ARCHIVE_IMAGE_BASE_URL:-https://archive.org/services/img}
       ARCHIVE_MOVIE_IDENTIFIERS: ${ARCHIVE_MOVIE_IDENTIFIERS:-charlie-chaplin-the-champion-1915,charliechaplin_theimmigrant_20190819,night_of_the_living_dead,TheGeneral,Nosferatu1922}
       ARCHIVE_SERIES_IDENTIFIER: ${ARCHIVE_SERIES_IDENTIFIER:-BarbecueForTwo1960}
       ARCHIVE_SERIES_IDENTIFIERS: ${ARCHIVE_SERIES_IDENTIFIERS:-BarbecueForTwo1960,Popeye_forPresident,popeye-meets-ali-baba-1937,PopeyePopeyeTheSailorMeetsSindbadTheSailor1936,PopeyeAncientFistory,popeye-private-eye-popeye-1954,popeye-little-sweepea-1936,popeye-greek-mirthology-1954,popeye-i-dont-scare-1956,popeye-spree-lunch-1957}

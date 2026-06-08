@@ -55,6 +55,7 @@ CATALOG_DATABASE_URL=postgresql://catalog_user:catalog_password@catalog-db:5432/
 CATALOG_GRPC_URL=catalog-service:50055
 ARCHIVE_METADATA_BASE_URL=https://archive.org/metadata
 ARCHIVE_DOWNLOAD_BASE_URL=https://archive.org/download
+ARCHIVE_IMAGE_BASE_URL=https://archive.org/services/img
 ARCHIVE_MOVIE_TARGET=5
 ARCHIVE_SERIES_TARGET=10
 ARCHIVE_MOVIE_IDENTIFIERS=charlie-chaplin-the-champion-1915,charliechaplin_theimmigrant_20190819,night_of_the_living_dead,TheGeneral,Nosferatu1922
@@ -85,3 +86,9 @@ curl -X POST http://localhost:3000/api/catalog/sync-minimum \
   -d '{"force": true}'
 ```
 
+El catalog-service no inserta registros de respaldo quemados. Si Internet Archive no devuelve suficientes archivos .mp4 reales, la sincronizacion reporta el problema en el mensaje de respuesta y en sync_audit.
+
+
+## Caratulas de contenido
+
+El catalog-service llena `poster_path` con una imagen obtenida desde los metadatos de archive.org cuando existe. Si el item no trae un archivo de imagen claro, usa la URL publica `ARCHIVE_IMAGE_BASE_URL/{identifier}` para exponer una caratula generada por Internet Archive. El frontend debe renderizar `poster_path` como imagen y usar `media_url` solo para reproducir video.

@@ -16,6 +16,7 @@ import (
 type ArchiveClient struct {
 	MetadataBaseURL string
 	DownloadBaseURL string
+	ImageBaseURL    string
 	HTTPClient      *http.Client
 }
 
@@ -53,16 +54,20 @@ type ArchiveSearchDoc struct {
 	Title      any    `json:"title"`
 }
 
-func NewArchiveClient(metadataBaseURL string, downloadBaseURL string) ArchiveClient {
+func NewArchiveClient(metadataBaseURL string, downloadBaseURL string, imageBaseURL string) ArchiveClient {
 	if strings.TrimSpace(metadataBaseURL) == "" {
 		metadataBaseURL = "https://archive.org/metadata"
 	}
 	if strings.TrimSpace(downloadBaseURL) == "" {
 		downloadBaseURL = "https://archive.org/download"
 	}
+	if strings.TrimSpace(imageBaseURL) == "" {
+		imageBaseURL = "https://archive.org/services/img"
+	}
 	return ArchiveClient{
 		MetadataBaseURL: strings.TrimRight(metadataBaseURL, "/"),
 		DownloadBaseURL: strings.TrimRight(downloadBaseURL, "/"),
+		ImageBaseURL:    strings.TrimRight(imageBaseURL, "/"),
 		HTTPClient:      &http.Client{Timeout: 15 * time.Second},
 	}
 }
@@ -150,7 +155,7 @@ func (c ArchiveClient) ItemToMovieSeed(identifier string) (ContentSeed, error) {
 		Type:          "movie",
 		Title:         title,
 		Overview:      cleanText(firstText(item.Metadata.Description, "Archivo multimedia obtenido desde Internet Archive.")),
-		PosterPath:    c.firstImageURL(item.Metadata.Identifier, item.Files),
+		PosterPath:    c.posterURL(item.Metadata.Identifier, item.Files),
 		ReleaseDate:   firstText(item.Metadata.Date, ""),
 		MediaURL:      c.downloadURL(item.Metadata.Identifier, media.Name),
 		MediaMimeType: mimeFromFile(media),
@@ -202,7 +207,7 @@ func (c ArchiveClient) ItemToSeriesSeed(identifier string, maxEpisodes int) (Con
 		Type:          "series",
 		Title:         firstText(item.Metadata.Title, identifier),
 		Overview:      cleanText(firstText(item.Metadata.Description, "Serie obtenida desde Internet Archive.")),
-		PosterPath:    c.firstImageURL(item.Metadata.Identifier, item.Files),
+		PosterPath:    c.posterURL(item.Metadata.Identifier, item.Files),
 		ReleaseDate:   firstText(item.Metadata.Date, ""),
 		MediaURL:      seriesMediaURL,
 		MediaMimeType: seriesMediaMimeType,
@@ -228,7 +233,7 @@ func (c ArchiveClient) EpisodeItemsToSeriesSeed(seriesTitle string, identifiers 
 			return ContentSeed{}, fmt.Errorf("archive episode item %s does not contain a supported video file", id)
 		}
 		if poster == "" {
-			poster = c.firstImageURL(item.Metadata.Identifier, item.Files)
+			poster = c.posterURL(item.Metadata.Identifier, item.Files)
 		}
 		episodes = append(episodes, EpisodeSeed{
 			SeasonNumber:   1,
@@ -292,7 +297,7 @@ func (c ArchiveClient) SearchEpisodeItemsToSeriesSeed(seriesTitle string, query 
 			continue
 		}
 		if poster == "" {
-			poster = c.firstImageURL(item.Metadata.Identifier, item.Files)
+			poster = c.posterURL(item.Metadata.Identifier, item.Files)
 		}
 		if creator == "Internet Archive" {
 			creator = firstText(item.Metadata.Creator, "Internet Archive")
@@ -363,14 +368,49 @@ func (c ArchiveClient) firstVideoFile(files []ArchiveFile) (ArchiveFile, bool) {
 	return videos[0], true
 }
 
-func (c ArchiveClient) firstImageURL(identifier string, files []ArchiveFile) string {
+func (c ArchiveClient) posterURL(identifier string, files []ArchiveFile) string {
+	if image := c.firstMetadataImageURL(identifier, files); image != "" {
+		return image
+	}
+	return c.serviceImageURL(identifier)
+}
+
+func (c ArchiveClient) firstMetadataImageURL(identifier string, files []ArchiveFile) string {
+	preferred := []ArchiveFile{}
+	fallback := []ArchiveFile{}
 	for _, f := range files {
-		lower := strings.ToLower(f.Name)
-		if strings.HasSuffix(lower, ".jpg") || strings.HasSuffix(lower, ".jpeg") || strings.HasSuffix(lower, ".png") || strings.Contains(strings.ToLower(f.Format), "jpeg") || strings.Contains(strings.ToLower(f.Format), "png") {
-			return c.downloadURL(identifier, f.Name)
+		lowerName := strings.ToLower(strings.TrimSpace(f.Name))
+		lowerFormat := strings.ToLower(strings.TrimSpace(f.Format))
+		if strings.Contains(lowerName, "_meta.xml") || strings.Contains(lowerName, "_files.xml") {
+			continue
+		}
+		isImage := strings.HasSuffix(lowerName, ".jpg") || strings.HasSuffix(lowerName, ".jpeg") || strings.HasSuffix(lowerName, ".png") || strings.Contains(lowerFormat, "jpeg") || strings.Contains(lowerFormat, "png")
+		if !isImage {
+			continue
+		}
+		if strings.Contains(lowerName, "__ia_thumb") || strings.Contains(lowerName, ".thumbs/") || strings.Contains(lowerName, "thumbnail") || strings.Contains(lowerFormat, "item image") {
+			preferred = append(preferred, f)
+		} else {
+			fallback = append(fallback, f)
 		}
 	}
+	if len(preferred) > 0 {
+		sort.SliceStable(preferred, func(i, j int) bool { return preferred[i].Name < preferred[j].Name })
+		return c.downloadURL(identifier, preferred[0].Name)
+	}
+	if len(fallback) > 0 {
+		sort.SliceStable(fallback, func(i, j int) bool { return fallback[i].Name < fallback[j].Name })
+		return c.downloadURL(identifier, fallback[0].Name)
+	}
 	return ""
+}
+
+func (c ArchiveClient) serviceImageURL(identifier string) string {
+	identifier = strings.TrimSpace(identifier)
+	if identifier == "" {
+		return ""
+	}
+	return c.ImageBaseURL + "/" + url.PathEscape(identifier)
 }
 
 func (c ArchiveClient) downloadURL(identifier string, fileName string) string {
