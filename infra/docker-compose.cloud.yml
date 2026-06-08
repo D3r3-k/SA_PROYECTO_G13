@@ -59,6 +59,48 @@ services:
     networks:
       - sa_net
 
+  catalog-db:
+    image: postgres:16-alpine
+    container_name: catalog-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${CATALOG_DB_NAME:-catalog_db}
+      POSTGRES_USER: ${CATALOG_DB_USER:-catalog_user}
+      POSTGRES_PASSWORD: ${CATALOG_DB_PASSWORD:-catalog_password}
+    expose:
+      - "5432"
+    volumes:
+      - catalog_pgdata:/var/lib/postgresql/data
+      - ../services/catalog-service/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - sa_net
+
+  engagement-db:
+    image: postgres:16-alpine
+    container_name: engagement-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${ENGAGEMENT_DB_NAME:-engagement_db}
+      POSTGRES_USER: ${ENGAGEMENT_DB_USER:-engagement_user}
+      POSTGRES_PASSWORD: ${ENGAGEMENT_DB_PASSWORD:-engagement_password}
+    expose:
+      - "5432"
+    volumes:
+      - engagement_pgdata:/var/lib/postgresql/data
+      - ../services/engagement-service/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - sa_net
+
   identity-service:
     build:
       context: ..
@@ -126,6 +168,50 @@ services:
     networks:
       - sa_net
 
+  catalog-service:
+    build:
+      context: ..
+      dockerfile: services/catalog-service/Dockerfile
+    container_name: catalog-service
+    restart: unless-stopped
+    environment:
+      CATALOG_GRPC_PORT: 50055
+      DATABASE_URL: postgresql://${CATALOG_DB_USER:-catalog_user}:${CATALOG_DB_PASSWORD:-catalog_password}@catalog-db:5432/${CATALOG_DB_NAME:-catalog_db}
+      ARCHIVE_METADATA_BASE_URL: ${ARCHIVE_METADATA_BASE_URL:-https://archive.org/metadata}
+      ARCHIVE_DOWNLOAD_BASE_URL: ${ARCHIVE_DOWNLOAD_BASE_URL:-https://archive.org/download}
+      ARCHIVE_MOVIE_IDENTIFIERS: ${ARCHIVE_MOVIE_IDENTIFIERS:-charlie-chaplin-the-champion-1915,charliechaplin_theimmigrant_20190819,night_of_the_living_dead,TheGeneral,Nosferatu1922}
+      ARCHIVE_SERIES_IDENTIFIER: ${ARCHIVE_SERIES_IDENTIFIER:-BarbecueForTwo1960}
+      ARCHIVE_SERIES_IDENTIFIERS: ${ARCHIVE_SERIES_IDENTIFIERS:-BarbecueForTwo1960,Popeye_forPresident,popeye-meets-ali-baba-1937,PopeyePopeyeTheSailorMeetsSindbadTheSailor1936,PopeyeAncientFistory,popeye-private-eye-popeye-1954,popeye-little-sweepea-1936,popeye-greek-mirthology-1954,popeye-i-dont-scare-1956,popeye-spree-lunch-1957}
+      ARCHIVE_SERIES_EPISODE_IDENTIFIERS: ${ARCHIVE_SERIES_EPISODE_IDENTIFIERS:-}
+      ARCHIVE_SERIES_TITLE: ${ARCHIVE_SERIES_TITLE:-Serie Internet Archive}
+      ARCHIVE_MOVIE_TARGET: ${ARCHIVE_MOVIE_TARGET:-5}
+      ARCHIVE_SERIES_TARGET: ${ARCHIVE_SERIES_TARGET:-10}
+      ARCHIVE_SERIES_EPISODE_LIMIT: ${ARCHIVE_SERIES_EPISODE_LIMIT:-15}
+      ARCHIVE_ALLOW_FALLBACK: ${ARCHIVE_ALLOW_FALLBACK:-false}
+    expose:
+      - "50055"
+    depends_on:
+      catalog-db:
+        condition: service_healthy
+    networks:
+      - sa_net
+
+  engagement-service:
+    build:
+      context: ..
+      dockerfile: services/engagement-service/Dockerfile
+    container_name: engagement-service
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${ENGAGEMENT_DB_USER:-engagement_user}:${ENGAGEMENT_DB_PASSWORD:-engagement_password}@engagement-db:5432/${ENGAGEMENT_DB_NAME:-engagement_db}
+    expose:
+      - "50056"
+    depends_on:
+      engagement-db:
+        condition: service_healthy
+    networks:
+      - sa_net
+
   notification-service:
     build:
       context: ..
@@ -166,12 +252,16 @@ services:
       IDENTITY_GRPC_URL: identity-service:50051
       FX_GRPC_URL: fx-service:50052
       SUBSCRIPTION_GRPC_URL: subscription-service:50053
+      CATALOG_GRPC_URL: catalog-service:50055
+      ENGAGEMENT_GRPC_URL: engagement-service:50056
     ports:
       - "${API_GATEWAY_PORT:-3000}:3000"
     depends_on:
       - identity-service
       - fx-service
       - subscription-service
+      - catalog-service
+      - engagement-service
     networks:
       - sa_net
 
@@ -192,6 +282,8 @@ volumes:
   redis_data:
   identity_db_data:
   subscription_pgdata:
+  catalog_pgdata:
+  engagement_pgdata:
 
 networks:
   sa_net:

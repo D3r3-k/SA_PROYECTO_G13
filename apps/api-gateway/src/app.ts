@@ -9,6 +9,8 @@ import { profileRoutes } from "./routes/profiles.routes";
 
 import { subscriptionRoutes } from "./routes/subscriptions.routes";
 import { fxRoutes } from "./routes/fx.routes";
+import { catalogRoutes } from "./routes/catalog.routes";
+import { engagementRoutes } from "./routes/engagement.routes";
 
 export const app = express();
 
@@ -28,3 +30,6 @@ app.use("/api/profiles", profileRoutes);
 
 app.use("/api", subscriptionRoutes);
 app.use("/api", fxRoutes);
+
+app.use("/api/catalog", catalogRoutes);
+app.use("/api/engagement", engagementRoutes);

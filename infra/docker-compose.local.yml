@@ -55,6 +55,46 @@ services:
     networks:
       - sa_net
 
+  catalog-db:
+    image: postgres:16-alpine
+    container_name: catalog-db
+    environment:
+      POSTGRES_DB: ${CATALOG_DB_NAME}
+      POSTGRES_USER: ${CATALOG_DB_USER}
+      POSTGRES_PASSWORD: ${CATALOG_DB_PASSWORD}
+    expose:
+      - "5432"
+    volumes:
+      - catalog_pgdata:/var/lib/postgresql/data
+      - ../services/catalog-service/migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${CATALOG_DB_USER} -d ${CATALOG_DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - sa_net
+
+  engagement-db:
+    image: postgres:16-alpine
+    container_name: engagement-db
+    environment:
+      POSTGRES_DB: ${ENGAGEMENT_DB_NAME}
+      POSTGRES_USER: ${ENGAGEMENT_DB_USER}
+      POSTGRES_PASSWORD: ${ENGAGEMENT_DB_PASSWORD}
+    expose:
+      - "5432"
+    volumes:
+      - engagement_pgdata:/var/lib/postgresql/data
+      - ../services/engagement-service/migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${ENGAGEMENT_DB_USER} -d ${ENGAGEMENT_DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - sa_net
+
   identity-service:
     build:
       context: ..
@@ -119,6 +159,48 @@ services:
     networks:
       - sa_net
 
+  catalog-service:
+    build:
+      context: ..
+      dockerfile: services/catalog-service/Dockerfile
+    container_name: catalog-service
+    environment:
+      CATALOG_GRPC_PORT: ${CATALOG_GRPC_PORT}
+      DATABASE_URL: ${CATALOG_DATABASE_URL}
+      ARCHIVE_METADATA_BASE_URL: ${ARCHIVE_METADATA_BASE_URL:-https://archive.org/metadata}
+      ARCHIVE_DOWNLOAD_BASE_URL: ${ARCHIVE_DOWNLOAD_BASE_URL:-https://archive.org/download}
+      ARCHIVE_MOVIE_IDENTIFIERS: ${ARCHIVE_MOVIE_IDENTIFIERS:-charlie-chaplin-the-champion-1915,charliechaplin_theimmigrant_20190819,night_of_the_living_dead,TheGeneral,Nosferatu1922}
+      ARCHIVE_SERIES_IDENTIFIER: ${ARCHIVE_SERIES_IDENTIFIER:-BarbecueForTwo1960}
+      ARCHIVE_SERIES_IDENTIFIERS: ${ARCHIVE_SERIES_IDENTIFIERS:-BarbecueForTwo1960,Popeye_forPresident,popeye-meets-ali-baba-1937,PopeyePopeyeTheSailorMeetsSindbadTheSailor1936,PopeyeAncientFistory,popeye-private-eye-popeye-1954,popeye-little-sweepea-1936,popeye-greek-mirthology-1954,popeye-i-dont-scare-1956,popeye-spree-lunch-1957}
+      ARCHIVE_SERIES_EPISODE_IDENTIFIERS: ${ARCHIVE_SERIES_EPISODE_IDENTIFIERS:-}
+      ARCHIVE_SERIES_TITLE: ${ARCHIVE_SERIES_TITLE:-Serie Internet Archive}
+      ARCHIVE_MOVIE_TARGET: ${ARCHIVE_MOVIE_TARGET:-5}
+      ARCHIVE_SERIES_TARGET: ${ARCHIVE_SERIES_TARGET:-10}
+      ARCHIVE_SERIES_EPISODE_LIMIT: ${ARCHIVE_SERIES_EPISODE_LIMIT:-15}
+      ARCHIVE_ALLOW_FALLBACK: ${ARCHIVE_ALLOW_FALLBACK:-false}
+    expose:
+      - "${CATALOG_GRPC_PORT}"
+    depends_on:
+      catalog-db:
+        condition: service_healthy
+    networks:
+      - sa_net
+
+  engagement-service:
+    build:
+      context: ..
+      dockerfile: services/engagement-service/Dockerfile
+    container_name: engagement-service
+    environment:
+      DATABASE_URL: ${ENGAGEMENT_DATABASE_URL}
+    expose:
+      - "${ENGAGEMENT_GRPC_PORT}"
+    depends_on:
+      engagement-db:
+        condition: service_healthy
+    networks:
+      - sa_net
+
   notification-service:
     build:
       context: ..
@@ -157,12 +239,16 @@ services:
       IDENTITY_GRPC_URL: ${IDENTITY_GRPC_URL}
       FX_GRPC_URL: ${FX_GRPC_URL}
       SUBSCRIPTION_GRPC_URL: ${SUBSCRIPTION_GRPC_URL}
+      CATALOG_GRPC_URL: ${CATALOG_GRPC_URL}
+      ENGAGEMENT_GRPC_URL: ${ENGAGEMENT_GRPC_URL}
     ports:
       - "${API_GATEWAY_PORT}:${API_GATEWAY_PORT}"
     depends_on:
       - identity-service
       - fx-service
       - subscription-service
+      - catalog-service
+      - engagement-service
     networks:
       - sa_net
 
@@ -182,6 +268,8 @@ volumes:
   redis_data:
   identity_db_data:
   subscription_pgdata:
+  catalog_pgdata:
+  engagement_pgdata:
 
 networks:
   sa_net:
