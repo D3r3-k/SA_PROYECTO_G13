@@ -1,41 +1,51 @@
-# notification-service
+# Servicio de Notificaciones
 
-Servicio mínimo de notificaciones simulado.
+Microservicio de notificaciones por correo. En el flujo productivo consume eventos desde Redis y envía correos mediante SMTP o Mailhog.
 
-Endpoints principales:
+## Flujo productivo
 
-- `GET /health` — healthcheck
-- `POST /notify` — acepta JSON con esquema:
-
-```json
-{
-  "type": "registration|purchase|alert",
-  "user_id": "string",
-  "email": "user@example.com",
-  "subject": "Asunto",
-  "message": "Cuerpo del mensaje",
-  "metadata": { "any": "extra" }
-}
+```text
+identity-service/subscription-service -> Redis RPUSH notification:queue
+notification-service -> Redis BLPOP notification:queue -> SMTP/Mailhog
 ```
 
-- `POST /notify/raw` — acepta payload arbitrario (compatibilidad)
+El método gRPC `Send` se conserva como compatibilidad y encolador administrativo, pero `identity-service` y `subscription-service` no lo usan directamente.
 
-Cómo ejecutar (local con Docker):
+## Variables de entorno
+
+- `REDIS_URL`: URL interna de Redis.
+- `NOTIFICATION_QUEUE_NAME`: cola Redis, por defecto `notification:queue`.
+- `SMTP_HOST`: host SMTP. En local: `mailhog`.
+- `SMTP_PORT`: puerto SMTP. En local: `1025`.
+- `SMTP_USERNAME`: usuario SMTP, vacío para Mailhog.
+- `SMTP_PASSWORD`: contraseña SMTP, vacía para Mailhog.
+- `SMTP_FROM`: remitente.
+- `SMTP_STARTTLS`: `false` para Mailhog, `true` para SMTP real con STARTTLS.
+
+## Eventos soportados
+
+- `registration`: confirmación de registro.
+- `purchase_receipt`: recibo de compra.
+- `subscription_update`: actualización de suscripción.
+- `content-publication`: alerta de nueva publicación.
+
+## Ejecutar localmente
 
 ```bash
-# desde la raíz del repo
-docker compose -f infra/docker-compose.local.yml up --build notification-service
+docker compose -f infra/docker-compose.local.yml up --build -d redis mailhog notification-service
 ```
 
-Ejemplo CURL:
+## Prueba administrativa con Redis
 
 ```bash
-curl -s -X POST http://localhost:8002/notify \
-  -H "Content-Type: application/json" \
-  -d '{"type":"registration","user_id":"u1","email":"u1@example.com","subject":"Bienvenido","message":"Gracias por registrarte"}'
+docker compose -f infra/docker-compose.local.yml exec redis redis-cli RPUSH notification:queue \
+  '{"type":"registration","user_id":"u1","email":"u1@example.com","subject":"Bienvenido","body":"Gracias por registrarte","metadata":{"full_name":"Usuario"}}'
 ```
 
-Notas:
+Luego revisar logs y Mailhog:
 
-- El servicio simula envío registrando en logs. Para integrar un proveedor real, extienda `_send_notification`.
-- Configure variables en `.env` (no subir `.env` al repo).
+```bash
+docker logs sa_notification_service
+```
+
+Mailhog UI: `http://localhost:8025`.

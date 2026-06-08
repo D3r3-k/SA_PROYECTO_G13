@@ -18,6 +18,8 @@ import {
   updatePasswordHash
 } from "../repositories/user.repository";
 
+import { publishNotificationEvent } from "../events/notification.publisher";
+
 import {
   createProfile,
   deleteProfileByUserAndProfileId,
@@ -71,6 +73,16 @@ function emptyProfileResponse(message: string) {
     user_id: "",
     name: "",
     avatar_url: ""
+  };
+}
+
+function emptyUserResponse(message: string) {
+  return {
+    success: false,
+    message,
+    user_id: "",
+    email: "",
+    full_name: ""
   };
 }
 
@@ -140,6 +152,23 @@ export const identityService = {
         fullName
       });
 
+      try {
+        await publishNotificationEvent({
+          type: "registration",
+          user_id: userId,
+          email,
+          subject: "Confirmación de registro en Quetxal TV",
+          body: "Tu cuenta ya quedó activa. Ya puedes iniciar sesión y empezar a explorar el catálogo.",
+          metadata: {
+            user_id: userId,
+            full_name: fullName,
+            cta_text: "Iniciar sesión"
+          }
+        });
+      } catch (notificationError) {
+        console.warn("Registration notification failed", notificationError);
+      }
+
       const token = signIdentityToken({
         user_id: userId,
         email
@@ -204,6 +233,32 @@ export const identityService = {
       });
     } catch (error) {
       return handleUnexpectedError(callback, error, "Failed to login");
+    }
+  },
+
+  GetUserById: async (call: any, callback: any) => {
+    try {
+      const userId = normalizeText(call.request.user_id || "");
+
+      if (!userId) {
+        return callback(null, emptyUserResponse("user_id is required"));
+      }
+
+      const user = await findUserById(userId);
+
+      if (!user) {
+        return callback(null, emptyUserResponse("User not found"));
+      }
+
+      return callback(null, {
+        success: true,
+        message: "User found",
+        user_id: user.id,
+        email: user.email,
+        full_name: user.full_name
+      });
+    } catch (error) {
+      return handleUnexpectedError(callback, error, "Failed to get user by id");
     }
   },
 
