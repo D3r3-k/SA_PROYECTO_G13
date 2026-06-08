@@ -31,5 +31,5 @@ app.use("/api/profiles", profileRoutes);
 app.use("/api", subscriptionRoutes);
 app.use("/api", fxRoutes);
 
-app.use("/api", catalogRoutes);
-app.use("/api", engagementRoutes);
+app.use("/api/catalog", catalogRoutes);
+app.use("/api/engagement", engagementRoutes);

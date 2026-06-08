@@ -79,9 +79,11 @@ catalogRoutes.get("/search", authMiddleware, async (req, res) => {
 
 catalogRoutes.get("/:contentId", authMiddleware, async (req, res) => {
   try {
+    const contentId = asString(req.params.contentId);
+
     const response = await callCatalogMethod<Record<string, string>, BasicResponse>(
       "GetContentDetail",
-      { content_id: req.params.contentId }
+      { content_id: contentId }
     );
 
     if (!response.success) {
@@ -97,10 +99,13 @@ catalogRoutes.get("/:contentId", authMiddleware, async (req, res) => {
 
 catalogRoutes.get("/:contentId/episodes", authMiddleware, async (req, res) => {
   try {
+    const contentId = asString(req.params.contentId);
+
     const response = await callCatalogMethod("ListEpisodes", {
-      content_id: req.params.contentId,
+      content_id: contentId,
       season_number: asInt(req.query.season_number, 1)
     });
+
     return res.json(response);
   } catch (error) {
     console.error("List episodes gRPC failed", error);

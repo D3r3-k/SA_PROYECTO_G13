@@ -33,6 +33,14 @@ function asInt(value: unknown, fallback: number): number {
   return Number.isInteger(parsed) ? parsed : fallback;
 }
 
+function asString(value: unknown): string {
+  if (Array.isArray(value)) {
+    return String(value[0] || "");
+  }
+
+  return String(value || "");
+}
+
 function statusFromResponse(response: BasicResponse): number {
   const message = String(response.message || "").toLowerCase();
   if (message.includes("not found")) return 404;
@@ -66,7 +74,7 @@ engagementRoutes.post(
         "RateContent",
         {
           profile_id: currentProfileId,
-          content_id: req.params.contentId,
+          content_id: asString(req.params.contentId),
           rating
         }
       );
@@ -89,7 +97,7 @@ engagementRoutes.get(
   async (req, res) => {
     try {
       const response = await callEngagementMethod("GetContentRatingSummary", {
-        content_id: req.params.contentId
+        content_id: asString(req.params.contentId)
       });
       return res.json(response);
     } catch (error) {
@@ -113,7 +121,7 @@ engagementRoutes.post(
         "SaveProgress",
         {
           profile_id: currentProfileId,
-          content_id: req.params.contentId,
+          content_id: asString(req.params.contentId),
           season_number: asInt(req.body?.season_number, 0),
           episode_number: asInt(req.body?.episode_number, 0),
           minute: asInt(req.body?.minute, 0)
@@ -138,7 +146,7 @@ engagementRoutes.get(
   async (req, res) => {
     try {
       const response = await callEngagementMethod("GetRecentHistory", {
-        profile_id: req.params.profileId,
+        profile_id: asString(req.params.profileId),
         limit: asInt(req.query.limit, 10)
       });
       return res.json(response);
@@ -161,7 +169,7 @@ engagementRoutes.get(
     try {
       const response = await callEngagementMethod("ResumeContent", {
         profile_id: currentProfileId,
-        content_id: req.params.contentId
+        content_id: asString(req.params.contentId)
       });
       return res.json(response);
     } catch (error) {

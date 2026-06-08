@@ -14,6 +14,7 @@ type Repository struct{ DB *pgxpool.Pool }
 
 type ContentCard struct {
 	ContentID, ExternalID, Type, Title, Overview, PosterPath, ReleaseDate string
+	MediaURL, MediaMimeType, SourcePageURL                                string
 	Genres                                                                []string
 	SeasonsCount, EpisodesCount                                           int
 }
@@ -25,6 +26,7 @@ type Episode struct {
 	EpisodeID, ContentID        string
 	SeasonNumber, EpisodeNumber int
 	Title, Overview             string
+	MediaURL, MediaMimeType     string
 	RuntimeMinutes              int
 }
 
@@ -34,6 +36,11 @@ type Detail struct {
 }
 
 func (r Repository) Ping(ctx context.Context) error { return r.DB.Ping(ctx) }
+
+func (r Repository) ClearCatalog(ctx context.Context) error {
+	_, err := r.DB.Exec(ctx, "CALL sp_clear_catalog_data();")
+	return err
+}
 
 func (r Repository) UpsertContent(ctx context.Context, seed provider.ContentSeed) (string, error) {
 	genresJSON, err := json.Marshal(seed.Genres)
@@ -62,6 +69,8 @@ func (r Repository) UpsertContent(ctx context.Context, seed provider.ContentSeed
 			"title":           item.Title,
 			"overview":        item.Overview,
 			"runtime_minutes": item.RuntimeMinutes,
+			"media_url":       item.MediaURL,
+			"media_mime_type": item.MediaMimeType,
 		})
 	}
 	episodesJSON, err := json.Marshal(episodePayload)
@@ -73,15 +82,18 @@ func (r Repository) UpsertContent(ctx context.Context, seed provider.ContentSeed
 	err = r.DB.QueryRow(ctx, `
         CALL sp_upsert_content_from_external(
             $1, $2, $3, $4, $5, $6, $7, $8, $9,
-            $10::jsonb, $11::jsonb, $12::jsonb, NULL::uuid
+            $10, $11, $12, $13::jsonb, $14::jsonb, $15::jsonb, NULL::uuid
         );`,
 		seed.ExternalID,
-		"tmdb",
+		providerName(seed.Provider),
 		seed.Type,
 		seed.Title,
 		seed.Overview,
 		seed.PosterPath,
 		seed.ReleaseDate,
+		seed.MediaURL,
+		seed.MediaMimeType,
+		seed.SourcePageURL,
 		seed.SeasonsCount,
 		len(seed.Episodes),
 		string(genresJSON),
@@ -100,7 +112,7 @@ func (r Repository) InsertAudit(ctx context.Context, providerName string, succes
 
 func (r Repository) List(ctx context.Context, typ string, genre string, query string, limit int, offset int) ([]ContentCard, error) {
 	rows, err := r.DB.Query(ctx, `
-        SELECT content_id, external_id, type, title, overview, poster_path, release_date, genres, seasons_count, episodes_count
+        SELECT content_id, external_id, type, title, overview, poster_path, release_date, media_url, media_mime_type, source_page_url, genres, seasons_count, episodes_count
         FROM fn_catalog_list($1, $2, $3, $4, $5);`, typ, genre, query, limit, offset)
 	if err != nil {
 		return nil, err
@@ -113,7 +125,7 @@ func (r Repository) Detail(ctx context.Context, id string) (Detail, bool, error)
 	var card ContentCard
 	var genres string
 	err := r.DB.QueryRow(ctx, `
-        SELECT content_id, external_id, type, title, overview, poster_path, release_date, genres, seasons_count, episodes_count
+        SELECT content_id, external_id, type, title, overview, poster_path, release_date, media_url, media_mime_type, source_page_url, genres, seasons_count, episodes_count
         FROM fn_catalog_detail($1::uuid);`, id).Scan(
 		&card.ContentID,
 		&card.ExternalID,
@@ -122,6 +134,9 @@ func (r Repository) Detail(ctx context.Context, id string) (Detail, bool, error)
 		&card.Overview,
 		&card.PosterPath,
 		&card.ReleaseDate,
+		&card.MediaURL,
+		&card.MediaMimeType,
+		&card.SourcePageURL,
 		&genres,
 		&card.SeasonsCount,
 		&card.EpisodesCount,
@@ -155,7 +170,7 @@ func (r Repository) Detail(ctx context.Context, id string) (Detail, bool, error)
 
 func (r Repository) Episodes(ctx context.Context, id string, season int) ([]Episode, error) {
 	rows, err := r.DB.Query(ctx, `
-        SELECT episode_id, content_id, season_number, episode_number, title, overview, runtime_minutes
+        SELECT episode_id, content_id, season_number, episode_number, title, overview, runtime_minutes, media_url, media_mime_type
         FROM fn_catalog_episodes($1::uuid, $2);`, id, season)
 	if err != nil {
 		return nil, err
@@ -164,7 +179,7 @@ func (r Repository) Episodes(ctx context.Context, id string, season int) ([]Epis
 	items := []Episode{}
 	for rows.Next() {
 		var item Episode
-		if err := rows.Scan(&item.EpisodeID, &item.ContentID, &item.SeasonNumber, &item.EpisodeNumber, &item.Title, &item.Overview, &item.RuntimeMinutes); err != nil {
+		if err := rows.Scan(&item.EpisodeID, &item.ContentID, &item.SeasonNumber, &item.EpisodeNumber, &item.Title, &item.Overview, &item.RuntimeMinutes, &item.MediaURL, &item.MediaMimeType); err != nil {
 			return nil, err
 		}
 		items = append(items, item)
@@ -185,6 +200,9 @@ func scanContentRows(rows pgx.Rows) ([]ContentCard, error) {
 			&item.Overview,
 			&item.PosterPath,
 			&item.ReleaseDate,
+			&item.MediaURL,
+			&item.MediaMimeType,
+			&item.SourcePageURL,
 			&genres,
 			&item.SeasonsCount,
 			&item.EpisodesCount,
@@ -210,4 +228,12 @@ func splitCSV(value string) []string {
 		}
 	}
 	return out
+}
+
+func providerName(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return "archive.org"
+	}
+	return value
 }

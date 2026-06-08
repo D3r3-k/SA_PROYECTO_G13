@@ -3,12 +3,15 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 CREATE TABLE IF NOT EXISTS contents (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     external_id TEXT NOT NULL,
-    provider TEXT NOT NULL DEFAULT 'tmdb',
+    provider TEXT NOT NULL DEFAULT 'archive.org',
     type TEXT NOT NULL CHECK (type IN ('movie', 'series')),
     title TEXT NOT NULL,
     overview TEXT NOT NULL DEFAULT '',
     poster_path TEXT NOT NULL DEFAULT '',
     release_date TEXT NOT NULL DEFAULT '',
+    media_url TEXT NOT NULL DEFAULT '',
+    media_mime_type TEXT NOT NULL DEFAULT '',
+    source_page_url TEXT NOT NULL DEFAULT '',
     seasons_count INTEGER NOT NULL DEFAULT 0,
     episodes_count INTEGER NOT NULL DEFAULT 0,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -43,6 +46,8 @@ CREATE TABLE IF NOT EXISTS episodes (
     title TEXT NOT NULL,
     overview TEXT NOT NULL DEFAULT '',
     runtime_minutes INTEGER NOT NULL DEFAULT 0,
+    media_url TEXT NOT NULL DEFAULT '',
+    media_mime_type TEXT NOT NULL DEFAULT '',
     UNIQUE(content_id, season_number, episode_number)
 );
 
@@ -55,6 +60,12 @@ CREATE TABLE IF NOT EXISTS sync_audit (
     episodes_synced INTEGER NOT NULL DEFAULT 0,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+ALTER TABLE contents ADD COLUMN IF NOT EXISTS media_url TEXT NOT NULL DEFAULT '';
+ALTER TABLE contents ADD COLUMN IF NOT EXISTS media_mime_type TEXT NOT NULL DEFAULT '';
+ALTER TABLE contents ADD COLUMN IF NOT EXISTS source_page_url TEXT NOT NULL DEFAULT '';
+ALTER TABLE episodes ADD COLUMN IF NOT EXISTS media_url TEXT NOT NULL DEFAULT '';
+ALTER TABLE episodes ADD COLUMN IF NOT EXISTS media_mime_type TEXT NOT NULL DEFAULT '';
 
 CREATE OR REPLACE FUNCTION fn_normalize_search_text(value TEXT)
 RETURNS TEXT AS $$
@@ -85,6 +96,9 @@ SELECT
     c.overview,
     c.poster_path,
     c.release_date,
+    c.media_url,
+    c.media_mime_type,
+    c.source_page_url,
     COALESCE(STRING_AGG(DISTINCT g.name, ', ' ORDER BY g.name), '') AS genres,
     c.seasons_count,
     c.episodes_count
@@ -96,6 +110,17 @@ GROUP BY c.id;
 CREATE OR REPLACE VIEW vw_content_detail AS
 SELECT * FROM vw_catalog_card;
 
+
+CREATE OR REPLACE PROCEDURE sp_clear_catalog_data()
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    DELETE FROM contents;
+    DELETE FROM genres
+    WHERE NOT EXISTS (SELECT 1 FROM content_genres cg WHERE cg.genre_id = genres.id);
+END;
+$$;
+
 CREATE OR REPLACE PROCEDURE sp_upsert_content_from_external(
     IN p_external_id TEXT,
     IN p_provider TEXT,
@@ -104,6 +129,9 @@ CREATE OR REPLACE PROCEDURE sp_upsert_content_from_external(
     IN p_overview TEXT,
     IN p_poster_path TEXT,
     IN p_release_date TEXT,
+    IN p_media_url TEXT,
+    IN p_media_mime_type TEXT,
+    IN p_source_page_url TEXT,
     IN p_seasons_count INTEGER,
     IN p_episodes_count INTEGER,
     IN p_genres JSONB,
@@ -121,15 +149,19 @@ DECLARE
 BEGIN
     INSERT INTO contents (
         external_id, provider, type, title, overview, poster_path,
-        release_date, seasons_count, episodes_count
+        release_date, media_url, media_mime_type, source_page_url,
+        seasons_count, episodes_count
     ) VALUES (
         p_external_id,
-        COALESCE(NULLIF(p_provider, ''), 'tmdb'),
+        COALESCE(NULLIF(p_provider, ''), 'archive.org'),
         p_type,
         p_title,
         COALESCE(p_overview, ''),
         COALESCE(p_poster_path, ''),
         COALESCE(p_release_date, ''),
+        COALESCE(p_media_url, ''),
+        COALESCE(p_media_mime_type, ''),
+        COALESCE(p_source_page_url, ''),
         GREATEST(COALESCE(p_seasons_count, 0), 0),
         GREATEST(COALESCE(p_episodes_count, 0), 0)
     )
@@ -139,6 +171,9 @@ BEGIN
         overview = EXCLUDED.overview,
         poster_path = EXCLUDED.poster_path,
         release_date = EXCLUDED.release_date,
+        media_url = EXCLUDED.media_url,
+        media_mime_type = EXCLUDED.media_mime_type,
+        source_page_url = EXCLUDED.source_page_url,
         seasons_count = EXCLUDED.seasons_count,
         episodes_count = EXCLUDED.episodes_count,
         updated_at = NOW()
@@ -179,14 +214,16 @@ BEGIN
     IF p_episodes IS NOT NULL THEN
         FOR v_episode IN SELECT value FROM jsonb_array_elements(p_episodes)
         LOOP
-            INSERT INTO episodes(content_id, season_number, episode_number, title, overview, runtime_minutes)
+            INSERT INTO episodes(content_id, season_number, episode_number, title, overview, runtime_minutes, media_url, media_mime_type)
             VALUES (
                 p_content_id,
                 GREATEST(COALESCE((v_episode->>'season_number')::INTEGER, 0), 0),
                 GREATEST(COALESCE((v_episode->>'episode_number')::INTEGER, 0), 0),
                 COALESCE(v_episode->>'title', ''),
                 COALESCE(v_episode->>'overview', ''),
-                GREATEST(COALESCE((v_episode->>'runtime_minutes')::INTEGER, 0), 0)
+                GREATEST(COALESCE((v_episode->>'runtime_minutes')::INTEGER, 0), 0),
+                COALESCE(v_episode->>'media_url', ''),
+                COALESCE(v_episode->>'media_mime_type', '')
             );
         END LOOP;
     END IF;
@@ -229,6 +266,9 @@ RETURNS TABLE (
     overview TEXT,
     poster_path TEXT,
     release_date TEXT,
+    media_url TEXT,
+    media_mime_type TEXT,
+    source_page_url TEXT,
     genres TEXT,
     seasons_count INTEGER,
     episodes_count INTEGER
@@ -243,6 +283,9 @@ BEGIN
         v.overview,
         v.poster_path,
         v.release_date,
+        v.media_url,
+        v.media_mime_type,
+        v.source_page_url,
         v.genres,
         v.seasons_count,
         v.episodes_count
@@ -269,6 +312,9 @@ RETURNS TABLE (
     overview TEXT,
     poster_path TEXT,
     release_date TEXT,
+    media_url TEXT,
+    media_mime_type TEXT,
+    source_page_url TEXT,
     genres TEXT,
     seasons_count INTEGER,
     episodes_count INTEGER
@@ -283,6 +329,9 @@ BEGIN
         v.overview,
         v.poster_path,
         v.release_date,
+        v.media_url,
+        v.media_mime_type,
+        v.source_page_url,
         v.genres,
         v.seasons_count,
         v.episodes_count
@@ -316,7 +365,9 @@ RETURNS TABLE (
     episode_number INTEGER,
     title TEXT,
     overview TEXT,
-    runtime_minutes INTEGER
+    runtime_minutes INTEGER,
+    media_url TEXT,
+    media_mime_type TEXT
 ) AS $$
 BEGIN
     RETURN QUERY
@@ -327,7 +378,9 @@ BEGIN
         e.episode_number,
         e.title,
         e.overview,
-        e.runtime_minutes
+        e.runtime_minutes,
+        e.media_url,
+        e.media_mime_type
     FROM episodes e
     WHERE e.content_id = p_content_id
       AND e.season_number = GREATEST(COALESCE(p_season_number, 1), 1)

@@ -9,8 +9,14 @@ import (
 )
 
 type Service struct {
-	Repo repository.Repository
-	Tmdb provider.Client
+	Repo                    repository.Repository
+	Archive                 provider.ArchiveClient
+	ArchiveMovieIdentifiers []string
+	ArchiveSeriesIdentifier string
+	ArchiveSeriesTitle      string
+	ArchiveSeriesEpisodes   []string
+	ArchiveEpisodeLimit     int
+	AllowFallback           bool
 }
 
 type SyncResult struct {
@@ -22,30 +28,20 @@ type SyncResult struct {
 }
 
 func (s Service) SyncMinimum(ctx context.Context, force bool) SyncResult {
-	seeds := []provider.ContentSeed{}
-	providerName := "tmdb"
-
-	if s.Tmdb.Available() {
-		movieIDs := []int{603, 157336}
-		for _, id := range movieIDs {
-			movie, err := s.Tmdb.GetMovie(id)
-			if err != nil {
-				return s.fail(ctx, providerName, fmt.Sprintf("tmdb movie %d failed: %v", id, err), 0, 0)
-			}
-			seeds = append(seeds, provider.MovieToSeed(movie))
+	providerName := "archive.org"
+	seeds, err := s.archiveSeeds()
+	if err != nil {
+		if !s.AllowFallback {
+			return s.fail(ctx, providerName, fmt.Sprintf("archive.org sync failed: %v", err), 0, 0)
 		}
-		tv, err := s.Tmdb.GetTV(1396)
-		if err != nil {
-			return s.fail(ctx, providerName, fmt.Sprintf("tmdb tv failed: %v", err), 0, 0)
-		}
-		season, err := s.Tmdb.GetSeason(1396, 1)
-		if err != nil {
-			return s.fail(ctx, providerName, fmt.Sprintf("tmdb season failed: %v", err), 0, 0)
-		}
-		seeds = append(seeds, provider.TVToSeed(tv, season))
-	} else {
-		providerName = "fallback-local"
+		providerName = "fallback-local-archive-direct-urls"
 		seeds = fallbackSeeds()
+	}
+
+	if force {
+		if err := s.Repo.ClearCatalog(ctx); err != nil {
+			return s.fail(ctx, providerName, fmt.Sprintf("catalog cleanup failed: %v", err), 0, 0)
+		}
 	}
 
 	contents := 0
@@ -62,6 +58,55 @@ func (s Service) SyncMinimum(ctx context.Context, force bool) SyncResult {
 	return SyncResult{Success: true, Message: msg, Contents: contents, Episodes: episodes, Provider: providerName}
 }
 
+func (s Service) archiveSeeds() ([]provider.ContentSeed, error) {
+	if len(s.ArchiveMovieIdentifiers) < 2 {
+		return nil, fmt.Errorf("ARCHIVE_MOVIE_IDENTIFIERS must contain at least 2 identifiers")
+	}
+
+	seeds := make([]provider.ContentSeed, 0, 3)
+	for i, identifier := range s.ArchiveMovieIdentifiers {
+		if i >= 2 {
+			break
+		}
+		seed, err := s.Archive.ItemToMovieSeed(identifier)
+		if err != nil {
+			return nil, err
+		}
+		seeds = append(seeds, seed)
+	}
+
+	if len(s.ArchiveSeriesEpisodes) >= 3 {
+		limit := s.ArchiveEpisodeLimit
+		if limit <= 0 || limit > 5 {
+			limit = 5
+		}
+		episodeIDs := s.ArchiveSeriesEpisodes
+		if len(episodeIDs) > limit {
+			episodeIDs = episodeIDs[:limit]
+		}
+		seed, err := s.Archive.EpisodeItemsToSeriesSeed(s.ArchiveSeriesTitle, episodeIDs)
+		if err != nil {
+			return nil, err
+		}
+		seeds = append(seeds, seed)
+		return seeds, nil
+	}
+
+	if s.ArchiveSeriesIdentifier == "" {
+		return nil, fmt.Errorf("configure ARCHIVE_SERIES_IDENTIFIER or at least 3 ARCHIVE_SERIES_EPISODE_IDENTIFIERS")
+	}
+
+	seed, err := s.Archive.ItemToSeriesSeed(s.ArchiveSeriesIdentifier, s.ArchiveEpisodeLimit)
+	if err != nil {
+		return nil, err
+	}
+	if len(seed.Episodes) < 3 {
+		return nil, fmt.Errorf("series item %s returned fewer than 3 playable episodes", s.ArchiveSeriesIdentifier)
+	}
+	seeds = append(seeds, seed)
+	return seeds, nil
+}
+
 func (s Service) fail(ctx context.Context, providerName string, msg string, contents int, episodes int) SyncResult {
 	s.Repo.InsertAudit(ctx, providerName, false, msg, contents, episodes)
 	return SyncResult{Success: false, Message: msg, Contents: contents, Episodes: episodes, Provider: providerName}
@@ -69,8 +114,55 @@ func (s Service) fail(ctx context.Context, providerName string, msg string, cont
 
 func fallbackSeeds() []provider.ContentSeed {
 	return []provider.ContentSeed{
-		{ExternalID: "603", Type: "movie", Title: "The Matrix", Overview: "Un programador descubre que la realidad es una simulacion.", PosterPath: "/matrix.jpg", ReleaseDate: "1999-03-31", Genres: []string{"Accion", "Ciencia ficcion"}, Cast: []provider.CastSeed{{"Keanu Reeves", "Neo", 0}, {"Laurence Fishburne", "Morpheus", 1}, {"Carrie-Anne Moss", "Trinity", 2}}},
-		{ExternalID: "157336", Type: "movie", Title: "Interstellar", Overview: "Un equipo viaja por un agujero de gusano para buscar un nuevo hogar para la humanidad.", PosterPath: "/interstellar.jpg", ReleaseDate: "2014-11-05", Genres: []string{"Aventura", "Drama", "Ciencia ficcion"}, Cast: []provider.CastSeed{{"Matthew McConaughey", "Cooper", 0}, {"Anne Hathaway", "Brand", 1}, {"Jessica Chastain", "Murph", 2}}},
-		{ExternalID: "1396", Type: "series", Title: "Breaking Bad", Overview: "Un profesor de quimica se involucra en la produccion de metanfetamina.", PosterPath: "/breakingbad.jpg", ReleaseDate: "2008-01-20", Genres: []string{"Drama", "Crimen"}, SeasonsCount: 5, Cast: []provider.CastSeed{{"Bryan Cranston", "Walter White", 0}, {"Aaron Paul", "Jesse Pinkman", 1}, {"Anna Gunn", "Skyler White", 2}}, Episodes: []provider.EpisodeSeed{{1, 1, "Pilot", "Walter White toma una decision extrema.", 58}, {1, 2, "Cat's in the Bag...", "Walter y Jesse enfrentan las consecuencias.", 48}, {1, 3, "...And the Bag's in the River", "Walter debe decidir que hacer con Krazy-8.", 48}, {1, 4, "Cancer Man", "La familia conoce el diagnostico.", 48}, {1, 5, "Gray Matter", "Walter recibe una oferta de ayuda.", 48}}},
+		{
+			ExternalID:    "night_of_the_living_dead",
+			Provider:      "archive.org",
+			Type:          "movie",
+			Title:         "Night of the Living Dead",
+			Overview:      "Pelicula de dominio publico referenciada con URL directa al archivo multimedia de Internet Archive.",
+			PosterPath:    "",
+			ReleaseDate:   "1968",
+			MediaURL:      "https://archive.org/download/MPEG4_File/videotest.mp4",
+			MediaMimeType: "video/mp4",
+			SourcePageURL: "https://archive.org/details/MPEG4_File",
+			Genres:        []string{"Terror", "Dominio publico"},
+			Cast:          []provider.CastSeed{{"Internet Archive", "Fuente", 0}},
+		},
+		{
+			ExternalID:    "TheGeneral",
+			Provider:      "archive.org",
+			Type:          "movie",
+			Title:         "The General",
+			Overview:      "Pelicula clasica referenciada con URL directa al archivo multimedia de Internet Archive.",
+			PosterPath:    "",
+			ReleaseDate:   "1926",
+			MediaURL:      "https://archive.org/download/MPEG4_File/videotest.mp4",
+			MediaMimeType: "video/mp4",
+			SourcePageURL: "https://archive.org/details/MPEG4_File",
+			Genres:        []string{"Comedia", "Accion", "Dominio publico"},
+			Cast:          []provider.CastSeed{{"Buster Keaton", "Actor principal", 0}},
+		},
+		{
+			ExternalID:    "fallback-series-archive",
+			Provider:      "archive.org",
+			Type:          "series",
+			Title:         "Serie Internet Archive Demo",
+			Overview:      "Serie minima con cinco capitulos que apuntan directamente a archivos multimedia alojados en archive.org/download.",
+			PosterPath:    "",
+			ReleaseDate:   "",
+			MediaURL:      "https://archive.org/download/MPEG4_File/videotest.mp4",
+			MediaMimeType: "video/mp4",
+			SourcePageURL: "https://archive.org/",
+			Genres:        []string{"Serie", "Archivo"},
+			SeasonsCount:  1,
+			Cast:          []provider.CastSeed{{"Internet Archive", "Fuente", 0}},
+			Episodes: []provider.EpisodeSeed{
+				{1, 1, "Capitulo 1", "Archivo multimedia directo desde Internet Archive.", 0, "https://archive.org/download/MPEG4_File/videotest.mp4", "video/mp4"},
+				{1, 2, "Capitulo 2", "Archivo multimedia directo desde Internet Archive.", 0, "https://archive.org/download/MPEG4_File/videotest.mp4", "video/mp4"},
+				{1, 3, "Capitulo 3", "Archivo multimedia directo desde Internet Archive.", 0, "https://archive.org/download/MPEG4_File/videotest.mp4", "video/mp4"},
+				{1, 4, "Capitulo 4", "Archivo multimedia directo desde Internet Archive.", 0, "https://archive.org/download/MPEG4_File/videotest.mp4", "video/mp4"},
+				{1, 5, "Capitulo 5", "Archivo multimedia directo desde Internet Archive.", 0, "https://archive.org/download/MPEG4_File/videotest.mp4", "video/mp4"},
+			},
+		},
 	}
 }

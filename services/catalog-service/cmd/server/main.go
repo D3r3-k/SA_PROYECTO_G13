@@ -26,7 +26,17 @@ func main() {
 	}
 
 	repo := repository.Repository{DB: pool}
-	svc := service.Service{Repo: repo, Tmdb: provider.NewClient(cfg.TmdbBaseURL, cfg.TmdbAPIKey, cfg.TmdbLang)}
+	archiveClient := provider.NewArchiveClient(cfg.ArchiveMetadataBaseURL, cfg.ArchiveDownloadBaseURL)
+	svc := service.Service{
+		Repo:                    repo,
+		Archive:                 archiveClient,
+		ArchiveMovieIdentifiers: cfg.ArchiveMovieIdentifiers,
+		ArchiveSeriesIdentifier: cfg.ArchiveSeriesIdentifier,
+		ArchiveSeriesTitle:      cfg.ArchiveSeriesTitle,
+		ArchiveSeriesEpisodes:   cfg.ArchiveSeriesEpisodes,
+		ArchiveEpisodeLimit:     cfg.ArchiveEpisodeLimit,
+		AllowFallback:           cfg.ArchiveAllowFallback,
+	}
 	server, err := grpcserver.New(repo, svc)
 	if err != nil {
 		log.Fatalf("catalog grpc init failed: %v", err)

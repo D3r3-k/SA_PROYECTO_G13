@@ -191,6 +191,11 @@ func (s *Server) cardMessage(item repository.ContentCard) protoreflect.Message {
 	setString(m, "overview", item.Overview)
 	setString(m, "poster_path", item.PosterPath)
 	setString(m, "release_date", item.ReleaseDate)
+	setString(m, "media_url", item.MediaURL)
+	setString(m, "media_mime_type", item.MediaMimeType)
+	setString(m, "source_page_url", item.SourcePageURL)
+	setInt32(m, "seasons_count", int32(item.SeasonsCount))
+	setInt32(m, "episodes_count", int32(item.EpisodesCount))
 	list := m.Mutable(m.Descriptor().Fields().ByName("genres")).List()
 	for _, g := range item.Genres {
 		gm := s.newMsg("Genre")
@@ -215,6 +220,8 @@ func (s *Server) episodeMessage(e repository.Episode) protoreflect.Message {
 	setString(m, "title", e.Title)
 	setString(m, "overview", e.Overview)
 	setInt32(m, "runtime_minutes", int32(e.RuntimeMinutes))
+	setString(m, "media_url", e.MediaURL)
+	setString(m, "media_mime_type", e.MediaMimeType)
 	return m
 }
 
@@ -244,10 +251,10 @@ func buildDescriptors() (map[string]protoreflect.MessageDescriptor, error) {
 		msg("SearchContentRequest", field("query", 1, tStr, opt, ""), field("type", 2, tStr, opt, ""), field("genre", 3, tStr, opt, ""), field("limit", 4, tI32, opt, ""), field("offset", 5, tI32, opt, "")),
 		msg("GetContentDetailRequest", field("content_id", 1, tStr, opt, "")), msg("ListEpisodesRequest", field("content_id", 1, tStr, opt, ""), field("season_number", 2, tI32, opt, "")),
 		msg("Genre", field("name", 1, tStr, opt, "")), msg("CastMember", field("actor_name", 1, tStr, opt, ""), field("character_name", 2, tStr, opt, ""), field("order_index", 3, tI32, opt, "")),
-		msg("ContentCard", field("content_id", 1, tStr, opt, ""), field("external_id", 2, tStr, opt, ""), field("type", 3, tStr, opt, ""), field("title", 4, tStr, opt, ""), field("overview", 5, tStr, opt, ""), field("poster_path", 6, tStr, opt, ""), field("release_date", 7, tStr, opt, ""), field("genres", 8, tMsg, rep, ".catalog.Genre")),
+		msg("ContentCard", field("content_id", 1, tStr, opt, ""), field("external_id", 2, tStr, opt, ""), field("type", 3, tStr, opt, ""), field("title", 4, tStr, opt, ""), field("overview", 5, tStr, opt, ""), field("poster_path", 6, tStr, opt, ""), field("release_date", 7, tStr, opt, ""), field("genres", 8, tMsg, rep, ".catalog.Genre"), field("media_url", 9, tStr, opt, ""), field("media_mime_type", 10, tStr, opt, ""), field("source_page_url", 11, tStr, opt, ""), field("seasons_count", 12, tI32, opt, ""), field("episodes_count", 13, tI32, opt, "")),
 		msg("ContentDetailResponse", field("success", 1, tBool, opt, ""), field("message", 2, tStr, opt, ""), field("content", 3, tMsg, opt, ".catalog.ContentCard"), field("cast", 4, tMsg, rep, ".catalog.CastMember"), field("seasons_count", 5, tI32, opt, ""), field("episodes_count", 6, tI32, opt, "")),
 		msg("ListContentResponse", field("success", 1, tBool, opt, ""), field("message", 2, tStr, opt, ""), field("items", 3, tMsg, rep, ".catalog.ContentCard")),
-		msg("Episode", field("episode_id", 1, tStr, opt, ""), field("content_id", 2, tStr, opt, ""), field("season_number", 3, tI32, opt, ""), field("episode_number", 4, tI32, opt, ""), field("title", 5, tStr, opt, ""), field("overview", 6, tStr, opt, ""), field("runtime_minutes", 7, tI32, opt, "")),
+		msg("Episode", field("episode_id", 1, tStr, opt, ""), field("content_id", 2, tStr, opt, ""), field("season_number", 3, tI32, opt, ""), field("episode_number", 4, tI32, opt, ""), field("title", 5, tStr, opt, ""), field("overview", 6, tStr, opt, ""), field("runtime_minutes", 7, tI32, opt, ""), field("media_url", 8, tStr, opt, ""), field("media_mime_type", 9, tStr, opt, "")),
 		msg("ListEpisodesResponse", field("success", 1, tBool, opt, ""), field("message", 2, tStr, opt, ""), field("episodes", 3, tMsg, rep, ".catalog.Episode")),
 	}}
 	fd, err := protodesc.NewFile(file, nil)

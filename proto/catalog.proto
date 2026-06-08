@@ -74,6 +74,9 @@ message ContentCard {
   string poster_path = 6;
   string release_date = 7;
   repeated Genre genres = 8;
+  string media_url = 9;
+  string media_mime_type = 10;
+  string source_page_url = 11;
 }
 
 message ContentDetailResponse {
@@ -99,6 +102,8 @@ message Episode {
   string title = 5;
   string overview = 6;
   int32 runtime_minutes = 7;
+  string media_url = 8;
+  string media_mime_type = 9;
 }
 
 message ListEpisodesResponse {

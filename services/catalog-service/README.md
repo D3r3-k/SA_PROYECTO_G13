@@ -1,37 +1,59 @@
 # Catalog Service
 
-Microservicio en Go responsable del catalogo de peliculas y series.
+Microservicio de catalogo en Go expuesto por gRPC.
 
-## Funcionalidades
+## Funcionalidad
 
 - Healthcheck gRPC.
-- Sincronizacion minima desde TMDB: 2 peliculas y 1 serie con 5 episodios.
-- Fallback local si no existe `TMDB_API_KEY`, para que el proyecto levante en local.
-- Listado, busqueda y filtros por tipo/genero/titulo.
-- Detalle con ficha tecnica y reparto.
-- Listado de episodios por temporada.
+- Sincronizacion minima desde Internet Archive: 2 peliculas y 1 serie con 3 a 5 capitulos.
+- Guarda URLs directas del archivo multimedia, usando `https://archive.org/download/{identifier}/{filename}`.
+- No guarda ni retorna la pagina HTML de Archive como recurso de reproduccion.
+- Listado de catalogo.
+- Busqueda por texto, tipo y genero.
+- Detalle de contenido con reparto.
+- Listado de episodios para series.
+
+## Fuente externa
+
+El servicio consume la Metadata API de Internet Archive:
+
+```txt
+https://archive.org/metadata/{identifier}
+```
+
+De la respuesta toma los archivos de video soportados (`mp4`, `webm`, `ogv`) y construye una URL directa de descarga/reproduccion:
+
+```txt
+https://archive.org/download/{identifier}/{filename}
+```
+
+Esa es la URL que debe usar el frontend en un `<video src="...">`, no la pagina `https://archive.org/details/...`.
 
 ## Variables
 
-Ver `.env.example`.
-
-## Endpoints expuestos por Gateway
-
-- `POST /api/catalog/sync-minimum`
-- `GET /api/catalog`
-- `GET /api/catalog/search?q=&type=&genre=`
-- `GET /api/catalog/:contentId`
-- `GET /api/catalog/:contentId/episodes?season_number=1`
-
-## Persistencia versionada
-
-La estructura de base de datos y la logica SQL del dominio estan versionadas en:
-
-```txt
-services/catalog-service/migrations/001_init.sql
+```env
+CATALOG_GRPC_PORT=50055
+DATABASE_URL=postgresql://catalog_user:catalog_password@catalog-db:5432/catalog_db
+ARCHIVE_METADATA_BASE_URL=https://archive.org/metadata
+ARCHIVE_DOWNLOAD_BASE_URL=https://archive.org/download
+ARCHIVE_MOVIE_IDENTIFIERS=charlie-chaplin-the-champion-1915,charliechaplin_theimmigrant_20190819
+ARCHIVE_SERIES_IDENTIFIER=BarbecueForTwo1960
+ARCHIVE_SERIES_EPISODE_IDENTIFIERS=
+ARCHIVE_SERIES_TITLE=Serie Internet Archive
+ARCHIVE_SERIES_EPISODE_LIMIT=5
+ARCHIVE_ALLOW_FALLBACK=true
 ```
 
-El servicio aplica estos archivos al iniciar. El codigo Go no contiene DDL ni SQL transaccional complejo; solamente llama procedimientos y funciones versionadas:
+Puedes cargar una serie de dos formas:
+
+1. `ARCHIVE_SERIES_IDENTIFIER`: un solo item de Archive que contenga de 3 a 5 archivos de video.
+2. `ARCHIVE_SERIES_EPISODE_IDENTIFIERS`: tres a cinco identifiers separados por coma, uno por capitulo.
+
+## Base de datos
+
+La logica de persistencia esta versionada en `migrations/001_init.sql`.
+
+Objetos principales:
 
 - `sp_upsert_content_from_external`
 - `sp_insert_sync_audit`
@@ -39,5 +61,6 @@ El servicio aplica estos archivos al iniciar. El codigo Go no contiene DDL ni SQ
 - `fn_catalog_detail`
 - `fn_catalog_cast`
 - `fn_catalog_episodes`
-
-Si se requiere cambiar reglas de catalogo, busqueda, detalle, generos, reparto o episodios, modificar primero el archivo SQL de migracion y luego reiniciar el servicio.
+- `vw_catalog_card`
+- `vw_content_detail`
+- `trg_catalog_updated_at`
