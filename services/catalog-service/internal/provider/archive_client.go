@@ -115,8 +115,8 @@ func (c ArchiveClient) ItemToSeriesSeed(identifier string, maxEpisodes int) (Con
 	if len(videos) == 0 {
 		return ContentSeed{}, fmt.Errorf("archive item %s does not contain supported video files", identifier)
 	}
-	if maxEpisodes <= 0 || maxEpisodes > 5 {
-		maxEpisodes = 5
+	if maxEpisodes <= 0 || maxEpisodes > 15 {
+		maxEpisodes = 15
 	}
 	if len(videos) > maxEpisodes {
 		videos = videos[:maxEpisodes]
@@ -247,26 +247,16 @@ func (c ArchiveClient) downloadURL(identifier string, fileName string) string {
 }
 
 func isSupportedVideo(f ArchiveFile) bool {
-	name := strings.ToLower(f.Name)
-	format := strings.ToLower(f.Format)
+	name := strings.ToLower(strings.TrimSpace(f.Name))
 	if strings.Contains(name, "_meta.xml") || strings.Contains(name, "_files.xml") {
 		return false
 	}
-	return strings.HasSuffix(name, ".mp4") || strings.HasSuffix(name, ".ogv") || strings.HasSuffix(name, ".webm") || strings.Contains(format, "mpeg4") || strings.Contains(format, "h.264") || strings.Contains(format, "webm") || strings.Contains(format, "ogg video")
+	
+	return strings.HasSuffix(name, ".mp4")
 }
 
 func mimeFromFile(f ArchiveFile) string {
-	lower := strings.ToLower(f.Name)
-	switch {
-	case strings.HasSuffix(lower, ".mp4"):
-		return "video/mp4"
-	case strings.HasSuffix(lower, ".webm"):
-		return "video/webm"
-	case strings.HasSuffix(lower, ".ogv"), strings.HasSuffix(lower, ".ogg"):
-		return "video/ogg"
-	default:
-		return "video/mp4"
-	}
+	return "video/mp4"
 }
 
 func titleFromFile(f ArchiveFile, fallback string) string {

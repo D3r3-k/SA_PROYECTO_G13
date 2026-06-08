@@ -48,11 +48,12 @@ catalogRoutes.post("/sync-minimum", authMiddleware, async (req, res) => {
 
 catalogRoutes.get("/", authMiddleware, async (req, res) => {
   try {
+    
     const response = await callCatalogMethod("ListContent", {
       type: asString(req.query.type),
       genre: asString(req.query.genre),
-      limit: asInt(req.query.limit, 20),
-      offset: asInt(req.query.offset, 0)
+      limit: 100,
+      offset: 0
     });
     return res.json(response);
   } catch (error) {

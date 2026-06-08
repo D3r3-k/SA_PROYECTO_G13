@@ -28,14 +28,17 @@ func main() {
 	repo := repository.Repository{DB: pool}
 	archiveClient := provider.NewArchiveClient(cfg.ArchiveMetadataBaseURL, cfg.ArchiveDownloadBaseURL)
 	svc := service.Service{
-		Repo:                    repo,
-		Archive:                 archiveClient,
-		ArchiveMovieIdentifiers: cfg.ArchiveMovieIdentifiers,
-		ArchiveSeriesIdentifier: cfg.ArchiveSeriesIdentifier,
-		ArchiveSeriesTitle:      cfg.ArchiveSeriesTitle,
-		ArchiveSeriesEpisodes:   cfg.ArchiveSeriesEpisodes,
-		ArchiveEpisodeLimit:     cfg.ArchiveEpisodeLimit,
-		AllowFallback:           cfg.ArchiveAllowFallback,
+		Repo:                     repo,
+		Archive:                  archiveClient,
+		ArchiveMovieIdentifiers:  cfg.ArchiveMovieIdentifiers,
+		ArchiveSeriesIdentifier:  cfg.ArchiveSeriesIdentifier,
+		ArchiveSeriesIdentifiers: cfg.ArchiveSeriesIdentifiers,
+		ArchiveSeriesTitle:       cfg.ArchiveSeriesTitle,
+		ArchiveSeriesEpisodes:    cfg.ArchiveSeriesEpisodes,
+		ArchiveEpisodeLimit:      cfg.ArchiveEpisodeLimit,
+		ArchiveMovieTarget:       cfg.ArchiveMovieTarget,
+		ArchiveSeriesTarget:      cfg.ArchiveSeriesTarget,
+		AllowFallback:            cfg.ArchiveAllowFallback,
 	}
 	server, err := grpcserver.New(repo, svc)
 	if err != nil {

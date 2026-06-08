@@ -7,30 +7,36 @@ import (
 )
 
 type Config struct {
-	Port                    string
-	DatabaseURL             string
-	ArchiveMetadataBaseURL  string
-	ArchiveDownloadBaseURL  string
-	ArchiveMovieIdentifiers []string
-	ArchiveSeriesIdentifier string
-	ArchiveSeriesTitle      string
-	ArchiveSeriesEpisodes   []string
-	ArchiveEpisodeLimit     int
-	ArchiveAllowFallback    bool
+	Port                     string
+	DatabaseURL              string
+	ArchiveMetadataBaseURL   string
+	ArchiveDownloadBaseURL   string
+	ArchiveMovieIdentifiers  []string
+	ArchiveSeriesIdentifier  string
+	ArchiveSeriesIdentifiers []string
+	ArchiveSeriesTitle       string
+	ArchiveSeriesEpisodes    []string
+	ArchiveEpisodeLimit      int
+	ArchiveMovieTarget       int
+	ArchiveSeriesTarget      int
+	ArchiveAllowFallback     bool
 }
 
 func Load() Config {
 	return Config{
-		Port:                    getEnv("CATALOG_GRPC_PORT", "50055"),
-		DatabaseURL:             getEnv("DATABASE_URL", "postgresql://catalog_user:catalog_password@catalog-db:5432/catalog_db"),
-		ArchiveMetadataBaseURL:  getEnv("ARCHIVE_METADATA_BASE_URL", "https://archive.org/metadata"),
-		ArchiveDownloadBaseURL:  getEnv("ARCHIVE_DOWNLOAD_BASE_URL", "https://archive.org/download"),
-		ArchiveMovieIdentifiers: splitList(getEnv("ARCHIVE_MOVIE_IDENTIFIERS", "charlie-chaplin-the-champion-1915,charliechaplin_theimmigrant_20190819")),
-		ArchiveSeriesIdentifier: getEnv("ARCHIVE_SERIES_IDENTIFIER", "BarbecueForTwo1960"),
-		ArchiveSeriesTitle:      getEnv("ARCHIVE_SERIES_TITLE", "Serie Internet Archive"),
-		ArchiveSeriesEpisodes:   splitList(getEnv("ARCHIVE_SERIES_EPISODE_IDENTIFIERS", "")),
-		ArchiveEpisodeLimit:     getInt("ARCHIVE_SERIES_EPISODE_LIMIT", 5),
-		ArchiveAllowFallback:    getBool("ARCHIVE_ALLOW_FALLBACK", true),
+		Port:                     getEnv("CATALOG_GRPC_PORT", "50055"),
+		DatabaseURL:              getEnv("DATABASE_URL", "postgresql://catalog_user:catalog_password@catalog-db:5432/catalog_db"),
+		ArchiveMetadataBaseURL:   getEnv("ARCHIVE_METADATA_BASE_URL", "https://archive.org/metadata"),
+		ArchiveDownloadBaseURL:   getEnv("ARCHIVE_DOWNLOAD_BASE_URL", "https://archive.org/download"),
+		ArchiveMovieIdentifiers:  splitList(getEnv("ARCHIVE_MOVIE_IDENTIFIERS", "")),
+		ArchiveSeriesIdentifier:  getEnv("ARCHIVE_SERIES_IDENTIFIER", ""),
+		ArchiveSeriesIdentifiers: splitList(getEnv("ARCHIVE_SERIES_IDENTIFIERS", "")),
+		ArchiveSeriesTitle:       getEnv("ARCHIVE_SERIES_TITLE", "Serie Internet Archive"),
+		ArchiveSeriesEpisodes:    splitList(getEnv("ARCHIVE_SERIES_EPISODE_IDENTIFIERS", "")),
+		ArchiveEpisodeLimit:      getInt("ARCHIVE_SERIES_EPISODE_LIMIT", 5),
+		ArchiveMovieTarget:       getInt("ARCHIVE_MOVIE_TARGET", 5),
+		ArchiveSeriesTarget:      getInt("ARCHIVE_SERIES_TARGET", 10),
+		ArchiveAllowFallback:     getBool("ARCHIVE_ALLOW_FALLBACK", true),
 	}
 }
 

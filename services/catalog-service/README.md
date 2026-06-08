@@ -36,8 +36,11 @@ CATALOG_GRPC_PORT=50055
 DATABASE_URL=postgresql://catalog_user:catalog_password@catalog-db:5432/catalog_db
 ARCHIVE_METADATA_BASE_URL=https://archive.org/metadata
 ARCHIVE_DOWNLOAD_BASE_URL=https://archive.org/download
-ARCHIVE_MOVIE_IDENTIFIERS=charlie-chaplin-the-champion-1915,charliechaplin_theimmigrant_20190819
+ARCHIVE_MOVIE_TARGET=5
+ARCHIVE_SERIES_TARGET=10
+ARCHIVE_MOVIE_IDENTIFIERS=charlie-chaplin-the-champion-1915,charliechaplin_theimmigrant_20190819,night_of_the_living_dead,TheGeneral,Nosferatu1922
 ARCHIVE_SERIES_IDENTIFIER=BarbecueForTwo1960
+ARCHIVE_SERIES_IDENTIFIERS=BarbecueForTwo1960,Popeye_forPresident,popeye-meets-ali-baba-1937,PopeyePopeyeTheSailorMeetsSindbadTheSailor1936,PopeyeAncientFistory,popeye-private-eye-popeye-1954,popeye-little-sweepea-1936,popeye-greek-mirthology-1954,popeye-i-dont-scare-1956,popeye-spree-lunch-1957
 ARCHIVE_SERIES_EPISODE_IDENTIFIERS=
 ARCHIVE_SERIES_TITLE=Serie Internet Archive
 ARCHIVE_SERIES_EPISODE_LIMIT=5
@@ -64,3 +67,8 @@ Objetos principales:
 - `vw_catalog_card`
 - `vw_content_detail`
 - `trg_catalog_updated_at`
+
+
+## Nota de listado de catalogo
+
+`GET /api/catalog` retorna hasta 100 contenidos sin paginacion por defecto para facilitar la demo del set sincronizado completo: 5 peliculas y 10 series. Los filtros `type` y `genre` se mantienen. La busqueda `GET /api/catalog/search` conserva parametros de paginacion.

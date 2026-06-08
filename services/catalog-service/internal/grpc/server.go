@@ -175,7 +175,7 @@ func (s *Server) contentListResponse(items []repository.ContentCard, err error) 
 		return res
 	}
 	setBool(res, "success", true)
-	setString(res, "message", "content listed")
+	setString(res, "message", fmt.Sprintf("content listed: %d items", len(items)))
 	list := res.Mutable(res.Descriptor().Fields().ByName("items")).List()
 	for _, item := range items {
 		list.Append(protoreflect.ValueOfMessage(s.cardMessage(item)))

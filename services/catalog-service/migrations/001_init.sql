@@ -298,7 +298,7 @@ BEGIN
           OR fn_normalize_search_text(v.overview) LIKE '%' || fn_normalize_search_text(p_query) || '%'
       )
     ORDER BY v.title
-    LIMIT LEAST(GREATEST(COALESCE(p_limit, 20), 1), 50)
+    LIMIT LEAST(GREATEST(COALESCE(NULLIF(p_limit, 0), 100), 1), 100)
     OFFSET GREATEST(COALESCE(p_offset, 0), 0);
 END;
 $$ LANGUAGE plpgsql STABLE;
