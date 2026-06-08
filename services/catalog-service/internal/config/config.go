@@ -33,10 +33,10 @@ func Load() Config {
 		ArchiveSeriesIdentifiers: splitList(getEnv("ARCHIVE_SERIES_IDENTIFIERS", "")),
 		ArchiveSeriesTitle:       getEnv("ARCHIVE_SERIES_TITLE", "Serie Internet Archive"),
 		ArchiveSeriesEpisodes:    splitList(getEnv("ARCHIVE_SERIES_EPISODE_IDENTIFIERS", "")),
-		ArchiveEpisodeLimit:      getInt("ARCHIVE_SERIES_EPISODE_LIMIT", 5),
+		ArchiveEpisodeLimit:      getInt("ARCHIVE_SERIES_EPISODE_LIMIT", 15),
 		ArchiveMovieTarget:       getInt("ARCHIVE_MOVIE_TARGET", 5),
 		ArchiveSeriesTarget:      getInt("ARCHIVE_SERIES_TARGET", 10),
-		ArchiveAllowFallback:     getBool("ARCHIVE_ALLOW_FALLBACK", true),
+		ArchiveAllowFallback:     getBool("ARCHIVE_ALLOW_FALLBACK", false),
 	}
 }
 

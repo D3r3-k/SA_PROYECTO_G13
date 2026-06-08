@@ -40,6 +40,19 @@ type ArchiveFile struct {
 	Size   string `json:"size"`
 }
 
+type ArchiveSearchResponse struct {
+	Response ArchiveSearchInnerResponse `json:"response"`
+}
+
+type ArchiveSearchInnerResponse struct {
+	Docs []ArchiveSearchDoc `json:"docs"`
+}
+
+type ArchiveSearchDoc struct {
+	Identifier string `json:"identifier"`
+	Title      any    `json:"title"`
+}
+
 func NewArchiveClient(metadataBaseURL string, downloadBaseURL string) ArchiveClient {
 	if strings.TrimSpace(metadataBaseURL) == "" {
 		metadataBaseURL = "https://archive.org/metadata"
@@ -76,6 +89,49 @@ func (c ArchiveClient) GetItem(identifier string) (ArchiveMetadataResponse, erro
 		item.Metadata.Identifier = identifier
 	}
 	return item, nil
+}
+
+func (c ArchiveClient) SearchIdentifiers(query string, rows int) ([]string, error) {
+	query = strings.TrimSpace(query)
+	if query == "" {
+		query = "mediatype:movies"
+	}
+	if rows <= 0 {
+		rows = 25
+	}
+	endpoint := "https://archive.org/advancedsearch.php"
+	params := url.Values{}
+	params.Set("q", query)
+	params.Set("fl[]", "identifier")
+	params.Add("fl[]", "title")
+	params.Set("rows", strconv.Itoa(rows))
+	params.Set("page", "1")
+	params.Set("output", "json")
+	params.Set("sort[]", "downloads desc")
+
+	resp, err := c.HTTPClient.Get(endpoint + "?" + params.Encode())
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("archive.org advancedsearch returned status %d", resp.StatusCode)
+	}
+	var result ArchiveSearchResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, err
+	}
+	out := []string{}
+	seen := map[string]bool{}
+	for _, doc := range result.Response.Docs {
+		id := strings.TrimSpace(doc.Identifier)
+		if id == "" || seen[id] {
+			continue
+		}
+		seen[id] = true
+		out = append(out, id)
+	}
+	return out, nil
 }
 
 func (c ArchiveClient) ItemToMovieSeed(identifier string) (ContentSeed, error) {
@@ -212,6 +268,82 @@ func (c ArchiveClient) EpisodeItemsToSeriesSeed(seriesTitle string, identifiers 
 	}, nil
 }
 
+func (c ArchiveClient) SearchEpisodeItemsToSeriesSeed(seriesTitle string, query string, maxEpisodes int) (ContentSeed, error) {
+	if maxEpisodes <= 0 || maxEpisodes > 15 {
+		maxEpisodes = 15
+	}
+	ids, err := c.SearchIdentifiers(query, maxEpisodes*4)
+	if err != nil {
+		return ContentSeed{}, err
+	}
+	episodes := []EpisodeSeed{}
+	poster := ""
+	creator := "Internet Archive"
+	for _, id := range ids {
+		if len(episodes) >= maxEpisodes {
+			break
+		}
+		item, err := c.GetItem(id)
+		if err != nil {
+			continue
+		}
+		media, ok := c.firstVideoFile(item.Files)
+		if !ok {
+			continue
+		}
+		if poster == "" {
+			poster = c.firstImageURL(item.Metadata.Identifier, item.Files)
+		}
+		if creator == "Internet Archive" {
+			creator = firstText(item.Metadata.Creator, "Internet Archive")
+		}
+		episodes = append(episodes, EpisodeSeed{
+			SeasonNumber:   1,
+			EpisodeNumber:  len(episodes) + 1,
+			Title:          firstText(item.Metadata.Title, titleFromFile(media, fmt.Sprintf("Episodio %d", len(episodes)+1))),
+			Overview:       cleanText(firstText(item.Metadata.Description, "Archivo multimedia reproducible directamente desde archive.org/download.")),
+			RuntimeMinutes: runtimeMinutes(media.Length),
+			MediaURL:       c.downloadURL(item.Metadata.Identifier, media.Name),
+			MediaMimeType:  mimeFromFile(media),
+		})
+	}
+	if len(episodes) < 3 {
+		return ContentSeed{}, fmt.Errorf("series query %q returned only %d real mp4 episodes", query, len(episodes))
+	}
+	if strings.TrimSpace(seriesTitle) == "" {
+		seriesTitle = "Internet Archive Collection"
+	}
+	return ContentSeed{
+		ExternalID:    sanitizeExternalIDProvider(seriesTitle) + "-archive-series",
+		Provider:      "archive.org",
+		Type:          "series",
+		Title:         seriesTitle,
+		Overview:      "Serie armada con episodios reales obtenidos desde Internet Archive mediante advancedsearch y metadata; cada episodio apunta a un archivo .mp4 directo.",
+		PosterPath:    poster,
+		ReleaseDate:   "",
+		MediaURL:      episodes[0].MediaURL,
+		MediaMimeType: episodes[0].MediaMimeType,
+		SourcePageURL: "https://archive.org/search?query=" + url.QueryEscape(query),
+		Genres:        []string{"Archivo", "Serie", "Dominio publico"},
+		Cast:          []CastSeed{{ActorName: creator, CharacterName: "Fuente", OrderIndex: 0}},
+		SeasonsCount:  1,
+		Episodes:      episodes,
+	}, nil
+}
+
+func sanitizeExternalIDProvider(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	value = strings.ReplaceAll(value, " ", "-")
+	value = strings.ReplaceAll(value, ":", "")
+	value = strings.ReplaceAll(value, "/", "-")
+	value = regexp.MustCompile(`[^a-z0-9_-]+`).ReplaceAllString(value, "-")
+	value = strings.Trim(value, "-")
+	if value == "" {
+		return "archive-series"
+	}
+	return value
+}
+
 func (c ArchiveClient) videoFiles(files []ArchiveFile) []ArchiveFile {
 	out := []ArchiveFile{}
 	for _, f := range files {
@@ -251,7 +383,8 @@ func isSupportedVideo(f ArchiveFile) bool {
 	if strings.Contains(name, "_meta.xml") || strings.Contains(name, "_files.xml") {
 		return false
 	}
-	
+	// Para el frontend se requiere una URL reproducible directa con terminacion .mp4.
+	// No se aceptan .ogv, .ogg, .webm, .m4v ni archivos derivados sin extension mp4.
 	return strings.HasSuffix(name, ".mp4")
 }
 

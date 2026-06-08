@@ -5,7 +5,7 @@ Microservicio de catalogo en Go expuesto por gRPC.
 ## Funcionalidad
 
 - Healthcheck gRPC.
-- Sincronizacion minima desde Internet Archive: 2 peliculas y 1 serie con 3 a 5 capitulos.
+- Sincronizacion desde Internet Archive: 5 peliculas y 10 series, con hasta 15 capitulos por serie.
 - Guarda URLs directas del archivo multimedia, usando `https://archive.org/download/{identifier}/{filename}`.
 - No guarda ni retorna la pagina HTML de Archive como recurso de reproduccion.
 - Listado de catalogo.
@@ -21,7 +21,7 @@ El servicio consume la Metadata API de Internet Archive:
 https://archive.org/metadata/{identifier}
 ```
 
-De la respuesta toma los archivos de video soportados (`mp4`, `webm`, `ogv`) y construye una URL directa de descarga/reproduccion:
+De la respuesta toma unicamente archivos de video con extension `.mp4` y construye una URL directa de descarga/reproduccion:
 
 ```txt
 https://archive.org/download/{identifier}/{filename}
@@ -43,14 +43,14 @@ ARCHIVE_SERIES_IDENTIFIER=BarbecueForTwo1960
 ARCHIVE_SERIES_IDENTIFIERS=BarbecueForTwo1960,Popeye_forPresident,popeye-meets-ali-baba-1937,PopeyePopeyeTheSailorMeetsSindbadTheSailor1936,PopeyeAncientFistory,popeye-private-eye-popeye-1954,popeye-little-sweepea-1936,popeye-greek-mirthology-1954,popeye-i-dont-scare-1956,popeye-spree-lunch-1957
 ARCHIVE_SERIES_EPISODE_IDENTIFIERS=
 ARCHIVE_SERIES_TITLE=Serie Internet Archive
-ARCHIVE_SERIES_EPISODE_LIMIT=5
-ARCHIVE_ALLOW_FALLBACK=true
+ARCHIVE_SERIES_EPISODE_LIMIT=15
+ARCHIVE_ALLOW_FALLBACK=false
 ```
 
 Puedes cargar una serie de dos formas:
 
-1. `ARCHIVE_SERIES_IDENTIFIER`: un solo item de Archive que contenga de 3 a 5 archivos de video.
-2. `ARCHIVE_SERIES_EPISODE_IDENTIFIERS`: tres a cinco identifiers separados por coma, uno por capitulo.
+1. `ARCHIVE_SERIES_IDENTIFIER`: un solo item de Archive que contenga archivos de video `.mp4`, hasta el limite configurado.
+2. `ARCHIVE_SERIES_EPISODE_IDENTIFIERS`: identifiers separados por coma, uno por capitulo, hasta el limite configurado.
 
 ## Base de datos
 

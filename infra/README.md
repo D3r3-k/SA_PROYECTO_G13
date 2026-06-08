@@ -63,8 +63,10 @@ ARCHIVE_SERIES_IDENTIFIER=BarbecueForTwo1960
 ARCHIVE_SERIES_IDENTIFIERS=BarbecueForTwo1960,Popeye_forPresident,popeye-meets-ali-baba-1937,PopeyePopeyeTheSailorMeetsSindbadTheSailor1936,PopeyeAncientFistory,popeye-private-eye-popeye-1954,popeye-little-sweepea-1936,popeye-greek-mirthology-1954,popeye-i-dont-scare-1956,popeye-spree-lunch-1957
 ARCHIVE_SERIES_EPISODE_IDENTIFIERS=
 ARCHIVE_SERIES_TITLE=Serie Internet Archive
-ARCHIVE_SERIES_EPISODE_LIMIT=5
-ARCHIVE_ALLOW_FALLBACK=true
+ARCHIVE_SERIES_EPISODE_LIMIT=15
+
+Nota: el catalog-service filtra solo archivos multimedia con extension .mp4; no guarda .ogv, .webm ni .m4v como media_url.
+ARCHIVE_ALLOW_FALLBACK=false
 
 ENGAGEMENT_DB_NAME=engagement_db
 ENGAGEMENT_DB_USER=engagement_user
@@ -83,4 +85,3 @@ curl -X POST http://localhost:3000/api/catalog/sync-minimum \
   -d '{"force": true}'
 ```
 
-Si Internet Archive no responde y `ARCHIVE_ALLOW_FALLBACK=true`, el servicio usa un fallback local con URLs directas de `archive.org/download` para que la demo local no se bloquee.

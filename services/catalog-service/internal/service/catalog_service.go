@@ -35,11 +35,7 @@ func (s Service) SyncMinimum(ctx context.Context, force bool) SyncResult {
 	providerName := "archive.org"
 	seeds, err := s.archiveSeeds()
 	if err != nil {
-		if !s.AllowFallback {
-			return s.fail(ctx, providerName, fmt.Sprintf("archive.org sync failed: %v", err), 0, 0)
-		}
-		providerName = "fallback-local-archive-direct-urls"
-		seeds = fallbackSeeds(s.movieTarget(), s.seriesTarget(), s.episodeLimit())
+		return s.fail(ctx, providerName, fmt.Sprintf("archive.org sync failed: %v", err), 0, 0)
 	}
 
 	if force {
@@ -68,61 +64,104 @@ func (s Service) archiveSeeds() ([]provider.ContentSeed, error) {
 	episodeLimit := s.episodeLimit()
 
 	seeds := make([]provider.ContentSeed, 0, movieTarget+seriesTarget)
-	movieIDs := mergeIdentifiers(s.ArchiveMovieIdentifiers, defaultMovieIdentifiers())
-	seriesIDs := mergeIdentifiers(seriesIdentifiersFromConfig(s.ArchiveSeriesIdentifier, s.ArchiveSeriesIdentifiers), defaultSeriesIdentifiers())
+	usedContentIDs := map[string]bool{}
 
+	// 1) Peliculas reales por identifiers configurados o defaults.
+	movieIDs := mergeIdentifiers(s.ArchiveMovieIdentifiers, defaultMovieIdentifiers())
 	movieErrors := []string{}
 	for i := 0; len(seedsOfType(seeds, "movie")) < movieTarget && i < len(movieIDs); i++ {
-		id := movieIDs[i]
-		seed, err := s.Archive.ItemToMovieSeed(id)
+		seed, err := s.Archive.ItemToMovieSeed(movieIDs[i])
 		if err != nil {
-			movieErrors = append(movieErrors, fmt.Sprintf("%s: %v", id, err))
-			if s.AllowFallback {
-				seeds = append(seeds, fallbackMovieSeed(len(seedsOfType(seeds, "movie"))+1, id))
-			}
+			movieErrors = append(movieErrors, fmt.Sprintf("%s: %v", movieIDs[i], err))
 			continue
 		}
+		if !isRealMP4Seed(seed) || usedContentIDs[seed.ExternalID] {
+			continue
+		}
+		usedContentIDs[seed.ExternalID] = true
 		seeds = append(seeds, seed)
 	}
 
-	// Compatible con la configuracion anterior: una serie armada con 3-5 identifiers de episodios.
+	// 2) Si faltan peliculas, se descubren items reales desde archive.org advancedsearch.
+	for _, query := range defaultMovieSearchQueries() {
+		if len(seedsOfType(seeds, "movie")) >= movieTarget {
+			break
+		}
+		ids, err := s.Archive.SearchIdentifiers(query, 40)
+		if err != nil {
+			movieErrors = append(movieErrors, fmt.Sprintf("search %q: %v", query, err))
+			continue
+		}
+		for _, id := range ids {
+			if len(seedsOfType(seeds, "movie")) >= movieTarget {
+				break
+			}
+			if usedContentIDs[id] {
+				continue
+			}
+			seed, err := s.Archive.ItemToMovieSeed(id)
+			if err != nil || !isRealMP4Seed(seed) {
+				continue
+			}
+			usedContentIDs[seed.ExternalID] = true
+			seeds = append(seeds, seed)
+		}
+	}
+
+	// 3) Serie real armada por identifiers configurados de episodios.
 	if len(s.ArchiveSeriesEpisodes) >= 3 && len(seedsOfType(seeds, "series")) < seriesTarget {
 		ids := s.ArchiveSeriesEpisodes
 		if len(ids) > episodeLimit {
 			ids = ids[:episodeLimit]
 		}
-		seriesTitle := s.ArchiveSeriesTitle
-		if strings.TrimSpace(seriesTitle) == "" {
+		seriesTitle := strings.TrimSpace(s.ArchiveSeriesTitle)
+		if seriesTitle == "" {
 			seriesTitle = "Serie Internet Archive"
 		}
 		seed, err := s.Archive.EpisodeItemsToSeriesSeed(seriesTitle, ids)
-		if err != nil {
-			if s.AllowFallback {
-				seeds = append(seeds, fallbackSeriesSeed(len(seedsOfType(seeds, "series"))+1, seriesTitle, episodeLimit))
-			}
-		} else {
+		if err == nil && isRealMP4Series(seed) {
+			seed.ExternalID = uniqueSeriesExternalID(seed.ExternalID, len(seedsOfType(seeds, "series"))+1)
 			seeds = append(seeds, seed)
 		}
 	}
 
+	// 4) Series reales por identifiers configurados/defaults que contienen varios MP4 en un mismo item.
+	seriesIDs := mergeIdentifiers(seriesIdentifiersFromConfig(s.ArchiveSeriesIdentifier, s.ArchiveSeriesIdentifiers), defaultSeriesIdentifiers())
 	seriesErrors := []string{}
 	for i := 0; len(seedsOfType(seeds, "series")) < seriesTarget && i < len(seriesIDs); i++ {
-		id := seriesIDs[i]
-		seed, err := s.Archive.ItemToSeriesSeed(id, episodeLimit)
+		seed, err := s.Archive.ItemToSeriesSeed(seriesIDs[i], episodeLimit)
 		if err != nil {
-			seriesErrors = append(seriesErrors, fmt.Sprintf("%s: %v", id, err))
-			if s.AllowFallback {
-				seeds = append(seeds, fallbackSeriesSeed(len(seedsOfType(seeds, "series"))+1, id, episodeLimit))
-			}
+			seriesErrors = append(seriesErrors, fmt.Sprintf("%s: %v", seriesIDs[i], err))
 			continue
 		}
+		if !isRealMP4Series(seed) {
+			continue
+		}
+		seed.ExternalID = uniqueSeriesExternalID(seed.ExternalID, len(seedsOfType(seeds, "series"))+1)
+		seeds = append(seeds, seed)
+	}
+
+	// 5) Si faltan series, se crean colecciones con episodios reales encontrados por advancedsearch.
+	for _, def := range defaultSeriesSearchDefinitions() {
+		if len(seedsOfType(seeds, "series")) >= seriesTarget {
+			break
+		}
+		seed, err := s.Archive.SearchEpisodeItemsToSeriesSeed(def.Title, def.Query, episodeLimit)
+		if err != nil {
+			seriesErrors = append(seriesErrors, fmt.Sprintf("search %q: %v", def.Query, err))
+			continue
+		}
+		if !isRealMP4Series(seed) {
+			continue
+		}
+		seed.ExternalID = uniqueSeriesExternalID(seed.ExternalID, len(seedsOfType(seeds, "series"))+1)
 		seeds = append(seeds, seed)
 	}
 
 	moviesLoaded := len(seedsOfType(seeds, "movie"))
 	seriesLoaded := len(seedsOfType(seeds, "series"))
-	if moviesLoaded < movieTarget || seriesLoaded < seriesTarget {
-		return nil, fmt.Errorf("insufficient archive catalog: movies=%d/%d series=%d/%d movie_errors=[%s] series_errors=[%s]", moviesLoaded, movieTarget, seriesLoaded, seriesTarget, strings.Join(movieErrors, " | "), strings.Join(seriesErrors, " | "))
+	if moviesLoaded < 2 || seriesLoaded < 1 {
+		return nil, fmt.Errorf("insufficient real archive.org mp4 catalog: movies=%d/%d series=%d/%d movie_errors=[%s] series_errors=[%s]", moviesLoaded, movieTarget, seriesLoaded, seriesTarget, strings.Join(movieErrors, " | "), strings.Join(seriesErrors, " | "))
 	}
 	return seeds, nil
 }
@@ -154,10 +193,10 @@ func (s Service) seriesTarget() int {
 
 func (s Service) episodeLimit() int {
 	if s.ArchiveEpisodeLimit <= 0 {
-		return 5
+		return 15
 	}
-	if s.ArchiveEpisodeLimit > 5 {
-		return 5
+	if s.ArchiveEpisodeLimit > 15 {
+		return 15
 	}
 	return s.ArchiveEpisodeLimit
 }
@@ -199,101 +238,64 @@ func defaultMovieIdentifiers() []string {
 	return []string{
 		"charlie-chaplin-the-champion-1915",
 		"charliechaplin_theimmigrant_20190819",
-		"night_of_the_living_dead",
-		"TheGeneral",
 		"Nosferatu1922",
-		"TheKid",
-		"SherlockJr",
+		"night_of_the_living_dead",
 	}
 }
 
 func defaultSeriesIdentifiers() []string {
 	return []string{
 		"BarbecueForTwo1960",
-		"Popeye_forPresident",
-		"popeye-meets-ali-baba-1937",
-		"PopeyePopeyeTheSailorMeetsSindbadTheSailor1936",
-		"PopeyeAncientFistory",
-		"popeye-private-eye-popeye-1954",
-		"popeye-little-sweepea-1936",
-		"popeye-greek-mirthology-1954",
-		"popeye-i-dont-scare-1956",
-		"popeye-spree-lunch-1957",
-		"popeye-shuteye-popeye-1952",
-		"popeye-floor-flusher-1954",
 	}
 }
 
-func fallbackSeeds(movieTarget int, seriesTarget int, episodeLimit int) []provider.ContentSeed {
-	out := make([]provider.ContentSeed, 0, movieTarget+seriesTarget)
-	for i := 1; i <= movieTarget; i++ {
-		out = append(out, fallbackMovieSeed(i, fmt.Sprintf("fallback-movie-%02d", i)))
-	}
-	for i := 1; i <= seriesTarget; i++ {
-		out = append(out, fallbackSeriesSeed(i, fmt.Sprintf("Serie Demo %02d", i), episodeLimit))
-	}
-	return out
+type seriesSearchDefinition struct {
+	Title string
+	Query string
 }
 
-func fallbackMovieSeed(index int, externalID string) provider.ContentSeed {
-	return provider.ContentSeed{
-		ExternalID:    fmt.Sprintf("%s-movie-%02d", sanitizeExternalID(externalID), index),
-		Provider:      "archive.org",
-		Type:          "movie",
-		Title:         fmt.Sprintf("Pelicula Archivo %02d", index),
-		Overview:      "Pelicula de respaldo con URL directa a un archivo multimedia alojado en archive.org/download.",
-		PosterPath:    "",
-		ReleaseDate:   "",
-		MediaURL:      fallbackVideoURL(),
-		MediaMimeType: "video/mp4",
-		SourcePageURL: "https://archive.org/details/MPEG4_File",
-		Genres:        []string{"Archivo", "Dominio publico", "Pelicula"},
-		Cast:          []provider.CastSeed{{ActorName: "Internet Archive", CharacterName: "Fuente", OrderIndex: 0}},
-		SeasonsCount:  0,
-		Episodes:      []provider.EpisodeSeed{},
+func defaultMovieSearchQueries() []string {
+	return []string{
+		`mediatype:movies AND format:mp4 AND title:(charlie chaplin)`,
+		`mediatype:movies AND format:mp4 AND title:(public domain movie)`,
+		`mediatype:movies AND format:mp4 AND title:(silent film)`,
 	}
 }
 
-func fallbackSeriesSeed(index int, title string, episodeLimit int) provider.ContentSeed {
-	if episodeLimit <= 0 || episodeLimit > 5 {
-		episodeLimit = 5
-	}
-	episodes := make([]provider.EpisodeSeed, 0, episodeLimit)
-	for i := 1; i <= episodeLimit; i++ {
-		episodes = append(episodes, provider.EpisodeSeed{
-			SeasonNumber:   1,
-			EpisodeNumber:  i,
-			Title:          fmt.Sprintf("Capitulo %d", i),
-			Overview:       "Capitulo de respaldo con URL directa a archivo multimedia de Internet Archive.",
-			RuntimeMinutes: 0,
-			MediaURL:       fallbackVideoURL(),
-			MediaMimeType:  "video/mp4",
-		})
-	}
-	seriesTitle := strings.TrimSpace(title)
-	if seriesTitle == "" {
-		seriesTitle = fmt.Sprintf("Serie Archivo %02d", index)
-	}
-	return provider.ContentSeed{
-		ExternalID:    fmt.Sprintf("%s-series-%02d", sanitizeExternalID(seriesTitle), index),
-		Provider:      "archive.org",
-		Type:          "series",
-		Title:         fmt.Sprintf("%s", seriesTitle),
-		Overview:      "Serie de respaldo con capitulos que apuntan directamente a archivos multimedia alojados en archive.org/download.",
-		PosterPath:    "",
-		ReleaseDate:   "",
-		MediaURL:      fallbackVideoURL(),
-		MediaMimeType: "video/mp4",
-		SourcePageURL: "https://archive.org/details/MPEG4_File",
-		Genres:        []string{"Archivo", "Dominio publico", "Serie"},
-		Cast:          []provider.CastSeed{{ActorName: "Internet Archive", CharacterName: "Fuente", OrderIndex: 0}},
-		SeasonsCount:  1,
-		Episodes:      episodes,
+func defaultSeriesSearchDefinitions() []seriesSearchDefinition {
+	return []seriesSearchDefinition{
+		{Title: "Popeye Classics", Query: `mediatype:movies AND format:mp4 AND title:popeye`},
+		{Title: "Betty Boop Classics", Query: `mediatype:movies AND format:mp4 AND title:(betty boop)`},
+		{Title: "Superman Cartoons", Query: `mediatype:movies AND format:mp4 AND title:(superman cartoon)`},
+		{Title: "Felix The Cat", Query: `mediatype:movies AND format:mp4 AND title:(felix cat)`},
+		{Title: "Charlie Chaplin Shorts", Query: `mediatype:movies AND format:mp4 AND title:(charlie chaplin)`},
+		{Title: "Classic Cartoons", Query: `mediatype:movies AND format:mp4 AND title:(classic cartoon)`},
+		{Title: "Public Domain Shorts", Query: `mediatype:movies AND format:mp4 AND title:(public domain)`},
+		{Title: "Silent Film Shorts", Query: `mediatype:movies AND format:mp4 AND title:(silent film)`},
+		{Title: "Animation Archive", Query: `mediatype:movies AND format:mp4 AND title:animation`},
+		{Title: "Vintage Cinema", Query: `mediatype:movies AND format:mp4 AND title:(vintage film)`},
 	}
 }
 
-func fallbackVideoURL() string {
-	return "https://archive.org/download/MPEG4_File/videotest.mp4"
+func isRealMP4Seed(seed provider.ContentSeed) bool {
+	return strings.HasPrefix(seed.MediaURL, "https://archive.org/download/") && strings.HasSuffix(strings.ToLower(seed.MediaURL), ".mp4") && seed.MediaMimeType == "video/mp4"
+}
+
+func isRealMP4Series(seed provider.ContentSeed) bool {
+	if !isRealMP4Seed(seed) || len(seed.Episodes) < 3 || len(seed.Episodes) > 15 {
+		return false
+	}
+	for _, ep := range seed.Episodes {
+		if !strings.HasPrefix(ep.MediaURL, "https://archive.org/download/") || !strings.HasSuffix(strings.ToLower(ep.MediaURL), ".mp4") || ep.MediaMimeType != "video/mp4" {
+			return false
+		}
+	}
+	return true
+}
+
+func uniqueSeriesExternalID(base string, index int) string {
+	base = sanitizeExternalID(base)
+	return fmt.Sprintf("%s-series-real-%02d", base, index)
 }
 
 func sanitizeExternalID(value string) string {
