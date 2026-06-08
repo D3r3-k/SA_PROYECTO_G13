@@ -26,7 +26,7 @@ func main() {
 	}
 
 	repo := repository.Repository{DB: pool}
-	archiveClient := provider.NewArchiveClient(cfg.ArchiveMetadataBaseURL, cfg.ArchiveDownloadBaseURL)
+	archiveClient := provider.NewArchiveClient(cfg.ArchiveMetadataBaseURL, cfg.ArchiveDownloadBaseURL, cfg.ArchiveImageBaseURL)
 	svc := service.Service{
 		Repo:                     repo,
 		Archive:                  archiveClient,

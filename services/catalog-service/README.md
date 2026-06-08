@@ -36,6 +36,7 @@ CATALOG_GRPC_PORT=50055
 DATABASE_URL=postgresql://catalog_user:catalog_password@catalog-db:5432/catalog_db
 ARCHIVE_METADATA_BASE_URL=https://archive.org/metadata
 ARCHIVE_DOWNLOAD_BASE_URL=https://archive.org/download
+ARCHIVE_IMAGE_BASE_URL=https://archive.org/services/img
 ARCHIVE_MOVIE_TARGET=5
 ARCHIVE_SERIES_TARGET=10
 ARCHIVE_MOVIE_IDENTIFIERS=charlie-chaplin-the-champion-1915,charliechaplin_theimmigrant_20190819,night_of_the_living_dead,TheGeneral,Nosferatu1922
@@ -72,3 +73,8 @@ Objetos principales:
 ## Nota de listado de catalogo
 
 `GET /api/catalog` retorna hasta 100 contenidos sin paginacion por defecto para facilitar la demo del set sincronizado completo: 5 peliculas y 10 series. Los filtros `type` y `genre` se mantienen. La busqueda `GET /api/catalog/search` conserva parametros de paginacion.
+
+
+## Caratulas de contenido
+
+El catalog-service llena `poster_path` con una imagen obtenida desde los metadatos de archive.org cuando existe. Si el item no trae un archivo de imagen claro, usa la URL publica `ARCHIVE_IMAGE_BASE_URL/{identifier}` para exponer una caratula generada por Internet Archive. El frontend debe renderizar `poster_path` como imagen y usar `media_url` solo para reproducir video.
