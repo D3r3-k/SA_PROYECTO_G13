@@ -1,11 +1,13 @@
 import { useState, type FormEvent } from 'react'
+import { useNavigate } from 'react-router-dom'
 import AppLayout from '../layouts/AppLayout'
 import { useAuth } from '../hooks/useAuth'
 import { authService } from '../services/auth.service'
 import styles from './AccountPage.module.css'
 
 export default function AccountPage() {
-  const { user } = useAuth()
+  const { user, logout } = useAuth()
+  const navigate = useNavigate()
   const [currentPwd, setCurrentPwd] = useState('')
   const [newPwd, setNewPwd] = useState('')
   const [confirmPwd, setConfirmPwd] = useState('')
@@ -31,10 +33,10 @@ export default function AccountPage() {
         current_password: currentPwd,
         new_password: newPwd,
       })
-      setMessage({ type: 'success', text: 'Contraseña actualizada. Inicia sesión de nuevo.' })
-      setCurrentPwd('')
-      setNewPwd('')
-      setConfirmPwd('')
+      // El JWT actual queda inválido tras el cambio — cerrar sesión
+      // y redirigir para evitar el bucle 401 al hacer cualquier llamada.
+      await logout()
+      navigate('/login', { state: { message: 'Contraseña actualizada. Inicia sesión de nuevo.' } })
     } catch (err: unknown) {
       const msg =
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message
