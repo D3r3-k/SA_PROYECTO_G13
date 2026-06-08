@@ -58,6 +58,10 @@ function getBusinessStatus(message: string): number {
     return 400;
   }
 
+  if (normalizedMessage.includes("not found")) {
+    return 404;
+  }
+
   return 400;
 }
 

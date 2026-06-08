@@ -1,36 +1,32 @@
-# fx-service
+# Servicio FX
 
-Servicio de tipos de cambio con caché en Redis.
+Microservicio gRPC que obtiene tipos de cambio desde el proveedor configurado y almacena resultados en Redis con TTL. El cliente externo no llama a este servicio directamente; las pruebas se hacen por el API Gateway.
 
 ## Variables de entorno
 
-Copiar `.env.example` a `.env` y ajustar valores si es necesario.
-
-- `REDIS_URL`: URL de Redis.
+- `REDIS_URL`: URL interna de Redis, por ejemplo `redis://redis:6379/0`.
 - `FX_CACHE_TTL`: TTL de la caché en segundos.
-- `FX_API_BASE_URL`: API pública de divisas. Valor actual recomendado: `https://api.frankfurter.dev/v1`.
+- `FX_API_BASE_URL`: URL base del proveedor FX, por defecto `https://api.frankfurter.dev/v2`.
+
+## Archivos de interés
+
+- `src/grpc_server.py`: servidor gRPC `FxService`.
+- `src/provider.py`: integración con Frankfurter v2.
+- `src/cache.py`: wrapper de Redis para `get/set` con TTL.
 
 ## Ejecutar localmente
 
-Desde la raíz del repo:
-
-```powershell
-docker compose -f infra/docker-compose.local.yml up --build -d redis postgres fx-service
+```bash
+docker compose -f infra/docker-compose.local.yml up --build -d redis fx-service api-gateway
 ```
 
-## Probar endpoints
+## Probar por Gateway
 
-Health:
+Primero iniciar sesión y guardar cookies. Luego:
 
-```powershell
-Invoke-RestMethod -Uri http://localhost:8001/health
+```bash
+curl -i -b cookies.txt http://localhost:3000/api/rates/USD/GTQ
+curl -i -b cookies.txt http://localhost:3000/api/rates/USD/GTQ
 ```
 
-Consultar una tasa:
-
-```powershell
-Invoke-RestMethod -Uri http://localhost:8001/rates/USD/EUR
-Invoke-RestMethod -Uri http://localhost:8001/rates/USD/EUR
-```
-
-La primera llamada debería registrar `cache miss` y la segunda `cache hit` en los logs del contenedor.
+La primera llamada debe resolver desde proveedor y devolver `cached: false`; la segunda debe resolver desde Redis y devolver `cached: true`.

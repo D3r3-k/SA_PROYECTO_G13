@@ -5,6 +5,7 @@ Microservicio responsable de usuarios, autenticación y perfiles.
 ## Responsabilidades
 
 - Registrar usuarios.
+- Enviar confirmación de registro por correo automáticamente.
 - Iniciar sesión.
 - Generar JWT.
 - Validar JWT.
@@ -54,6 +55,7 @@ El servicio Identity implementa los siguientes métodos gRPC:
 | `RegisterUser` | Registra usuario con email, contraseña y nombre completo |
 | `Login` | Valida credenciales y genera JWT |
 | `ValidateToken` | Valida JWT interno |
+| `GetUserById` | Devuelve email y nombre completo para integraciones internas |
 | `CreateProfile` | Crea perfil asociado a usuario |
 | `ListProfiles` | Lista perfiles de un usuario |
 | `SelectProfile` | Valida que un perfil pertenezca a un usuario |
