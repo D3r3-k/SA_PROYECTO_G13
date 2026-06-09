@@ -122,6 +122,23 @@ def initialize_database() -> None:
         
 
 
+def update_plan(plan_id: int, name: str, price_usd: float) -> dict:
+    with get_cursor() as cursor:
+        cursor.execute(
+            """
+            UPDATE plans
+            SET name = %s, price_usd = %s
+            WHERE id = %s AND is_active = TRUE
+            RETURNING id, name, price_usd, is_active;
+            """,
+            (name, price_usd, plan_id),
+        )
+        plan = cursor.fetchone()
+        if plan is None:
+            raise ValueError("plan not found")
+        return dict(plan)
+
+
 def list_plans() -> list[dict]:
     with get_cursor() as cursor:
         cursor.execute(
