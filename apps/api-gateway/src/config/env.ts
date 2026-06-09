@@ -38,6 +38,7 @@ export const env = {
     "SUBSCRIPTION_GRPC_URL",
     "subscription-service:50053"
   ),
+  paymentGrpcUrl: requiredEnv("PAYMENT_GRPC_URL", "payment-gateway-service:50057"),
   notificationGrpcUrl: requiredEnv(
     "NOTIFICATION_GRPC_URL",
     "notification-service:50054"

@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+package payment;
+
+service PaymentGatewayService {
+  rpc Health (PaymentHealthRequest) returns (PaymentHealthResponse);
+  rpc AuthorizePayment (AuthorizePaymentRequest) returns (AuthorizePaymentResponse);
+}
+
+message PaymentHealthRequest {}
+
+message PaymentHealthResponse {
+  bool success = 1;
+  string status = 2;
+  string provider = 3;
+}
+
+message AuthorizePaymentRequest {
+  string user_id = 1;
+  string email = 2;
+  int32 plan_id = 3;
+  double amount = 4;
+  string currency = 5;
+  string card_number = 6;
+  string card_holder = 7;
+  int32 exp_month = 8;
+  int32 exp_year = 9;
+  string cvv = 10;
+}
+
+message AuthorizePaymentResponse {
+  bool success = 1;
+  string message = 2;
+  string provider = 3;
+  string status = 4;
+  string transaction_id = 5;
+  string authorization_code = 6;
+  double amount = 7;
+  string currency = 8;
+  string card_last4 = 9;
+}

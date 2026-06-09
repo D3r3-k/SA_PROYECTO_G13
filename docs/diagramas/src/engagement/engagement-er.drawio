@@ -1,0 +1,250 @@
+<mxfile host="65bd71144e">
+    <diagram id="afEe6a398eQuRwN6fEJh" name="Page-1">
+        <mxGraphModel dx="1732" dy="1144" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="title" value="Engagement Service - ER" style="text;html=1;strokeColor=none;fillColor=none;fontSize=20;fontStyle=1;align=center;" parent="1" vertex="1">
+                    <mxGeometry x="190" y="40" width="460" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="ratings" value="ratings" style="shape=table;startSize=30;container=1;collapsible=1;childLayout=tableLayout;fixedRows=1;rowLines=0;fontStyle=1;align=center;resizeLast=1;" parent="1" vertex="1">
+                    <mxGeometry x="70" y="160" width="300" height="210" as="geometry"/>
+                </mxCell>
+                <mxCell id="ratings_id" value="" style="shape=partialRectangle;collapsible=0;dropTarget=0;pointerEvents=0;fillColor=none;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;top=0;left=0;right=0;bottom=1;" parent="ratings" vertex="1">
+                    <mxGeometry y="30" width="300" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="ratings_id_k" value="PK" style="shape=partialRectangle;overflow=hidden;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;fontStyle=1;" parent="ratings_id" vertex="1">
+                    <mxGeometry width="40" height="30" as="geometry">
+                        <mxRectangle width="40" height="30" as="alternateBounds"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="ratings_id_v" value="id UUID NOT NULL" style="shape=partialRectangle;overflow=hidden;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=6;fontStyle=5;" parent="ratings_id" vertex="1">
+                    <mxGeometry x="40" width="260" height="30" as="geometry">
+                        <mxRectangle width="260" height="30" as="alternateBounds"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="ratings_profile" value="" style="shape=partialRectangle;collapsible=0;dropTarget=0;pointerEvents=0;fillColor=none;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;top=0;left=0;right=0;bottom=0;" parent="ratings" vertex="1">
+                    <mxGeometry y="60" width="300" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="ratings_profile_k" value="UQ" style="shape=partialRectangle;overflow=hidden;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;" parent="ratings_profile" vertex="1">
+                    <mxGeometry width="40" height="30" as="geometry">
+                        <mxRectangle width="40" height="30" as="alternateBounds"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="ratings_profile_v" value="profile_id TEXT NOT NULL" style="shape=partialRectangle;overflow=hidden;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=6;" parent="ratings_profile" vertex="1">
+                    <mxGeometry x="40" width="260" height="30" as="geometry">
+                        <mxRectangle width="260" height="30" as="alternateBounds"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="ratings_content" value="" style="shape=partialRectangle;collapsible=0;dropTarget=0;pointerEvents=0;fillColor=none;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;top=0;left=0;right=0;bottom=0;" parent="ratings" vertex="1">
+                    <mxGeometry y="90" width="300" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="ratings_content_k" value="UQ" style="shape=partialRectangle;overflow=hidden;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;" parent="ratings_content" vertex="1">
+                    <mxGeometry width="40" height="30" as="geometry">
+                        <mxRectangle width="40" height="30" as="alternateBounds"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="ratings_content_v" value="content_id TEXT NOT NULL" style="shape=partialRectangle;overflow=hidden;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=6;" parent="ratings_content" vertex="1">
+                    <mxGeometry x="40" width="260" height="30" as="geometry">
+                        <mxRectangle width="260" height="30" as="alternateBounds"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="ratings_rating" value="" style="shape=partialRectangle;collapsible=0;dropTarget=0;pointerEvents=0;fillColor=none;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;top=0;left=0;right=0;bottom=0;" parent="ratings" vertex="1">
+                    <mxGeometry y="120" width="300" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="ratings_rating_k" value="" style="shape=partialRectangle;overflow=hidden;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;" parent="ratings_rating" vertex="1">
+                    <mxGeometry width="40" height="30" as="geometry">
+                        <mxRectangle width="40" height="30" as="alternateBounds"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="ratings_rating_v" value="rating TEXT NOT NULL" style="shape=partialRectangle;overflow=hidden;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=6;" parent="ratings_rating" vertex="1">
+                    <mxGeometry x="40" width="260" height="30" as="geometry">
+                        <mxRectangle width="260" height="30" as="alternateBounds"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="ratings_unique" value="" style="shape=partialRectangle;collapsible=0;dropTarget=0;pointerEvents=0;fillColor=none;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;top=0;left=0;right=0;bottom=0;" parent="ratings" vertex="1">
+                    <mxGeometry y="150" width="300" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="ratings_unique_k" value="UQ" style="shape=partialRectangle;overflow=hidden;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;" parent="ratings_unique" vertex="1">
+                    <mxGeometry width="40" height="30" as="geometry">
+                        <mxRectangle width="40" height="30" as="alternateBounds"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="ratings_unique_v" value="profile_id, content_id" style="shape=partialRectangle;overflow=hidden;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=6;" parent="ratings_unique" vertex="1">
+                    <mxGeometry x="40" width="260" height="30" as="geometry">
+                        <mxRectangle width="260" height="30" as="alternateBounds"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="ratings_dates" value="" style="shape=partialRectangle;collapsible=0;dropTarget=0;pointerEvents=0;fillColor=none;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;top=0;left=0;right=0;bottom=0;" parent="ratings" vertex="1">
+                    <mxGeometry y="180" width="300" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="ratings_dates_k" value="" style="shape=partialRectangle;overflow=hidden;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;" parent="ratings_dates" vertex="1">
+                    <mxGeometry width="40" height="30" as="geometry">
+                        <mxRectangle width="40" height="30" as="alternateBounds"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="ratings_dates_v" value="created_at, updated_at TIMESTAMPTZ" style="shape=partialRectangle;overflow=hidden;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=6;" parent="ratings_dates" vertex="1">
+                    <mxGeometry x="40" width="260" height="30" as="geometry">
+                        <mxRectangle width="260" height="30" as="alternateBounds"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="audit" value="rating_audit" style="shape=table;startSize=30;container=1;collapsible=1;childLayout=tableLayout;fixedRows=1;rowLines=0;fontStyle=1;align=center;resizeLast=1;" parent="1" vertex="1">
+                    <mxGeometry x="490" y="130" width="300" height="210" as="geometry"/>
+                </mxCell>
+                <mxCell id="audit_id" value="" style="shape=partialRectangle;collapsible=0;dropTarget=0;pointerEvents=0;fillColor=none;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;top=0;left=0;right=0;bottom=1;" parent="audit" vertex="1">
+                    <mxGeometry y="30" width="300" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="audit_id_k" value="PK" style="shape=partialRectangle;overflow=hidden;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;fontStyle=1;" parent="audit_id" vertex="1">
+                    <mxGeometry width="40" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="audit_id_v" value="id UUID NOT NULL" style="shape=partialRectangle;overflow=hidden;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=6;fontStyle=5;" parent="audit_id" vertex="1">
+                    <mxGeometry x="40" width="260" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="audit_rating" value="" style="shape=partialRectangle;collapsible=0;dropTarget=0;pointerEvents=0;fillColor=none;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;top=0;left=0;right=0;bottom=0;" parent="audit" vertex="1">
+                    <mxGeometry y="60" width="300" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="audit_rating_k" value="REF" style="shape=partialRectangle;overflow=hidden;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;" parent="audit_rating" vertex="1">
+                    <mxGeometry width="40" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="audit_rating_v" value="rating_id UUID NOT NULL" style="shape=partialRectangle;overflow=hidden;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=6;" parent="audit_rating" vertex="1">
+                    <mxGeometry x="40" width="260" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="audit_profile" value="" style="shape=partialRectangle;collapsible=0;dropTarget=0;pointerEvents=0;fillColor=none;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;top=0;left=0;right=0;bottom=0;" parent="audit" vertex="1">
+                    <mxGeometry y="90" width="300" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="audit_profile_k" value="" style="shape=partialRectangle;overflow=hidden;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;" parent="audit_profile" vertex="1">
+                    <mxGeometry width="40" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="audit_profile_v" value="profile_id, content_id TEXT" style="shape=partialRectangle;overflow=hidden;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=6;" parent="audit_profile" vertex="1">
+                    <mxGeometry x="40" width="260" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="audit_values" value="" style="shape=partialRectangle;collapsible=0;dropTarget=0;pointerEvents=0;fillColor=none;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;top=0;left=0;right=0;bottom=0;" parent="audit" vertex="1">
+                    <mxGeometry y="120" width="300" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="audit_values_k" value="" style="shape=partialRectangle;overflow=hidden;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;" parent="audit_values" vertex="1">
+                    <mxGeometry width="40" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="audit_values_v" value="old_rating, new_rating TEXT" style="shape=partialRectangle;overflow=hidden;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=6;" parent="audit_values" vertex="1">
+                    <mxGeometry x="40" width="260" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="audit_changed" value="" style="shape=partialRectangle;collapsible=0;dropTarget=0;pointerEvents=0;fillColor=none;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;top=0;left=0;right=0;bottom=0;" parent="audit" vertex="1">
+                    <mxGeometry y="150" width="300" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="audit_changed_k" value="" style="shape=partialRectangle;overflow=hidden;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;" parent="audit_changed" vertex="1">
+                    <mxGeometry width="40" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="audit_changed_v" value="changed_at TIMESTAMPTZ" style="shape=partialRectangle;overflow=hidden;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=6;" parent="audit_changed" vertex="1">
+                    <mxGeometry x="40" width="260" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="progress" value="watch_progress" style="shape=table;startSize=30;container=1;collapsible=1;childLayout=tableLayout;fixedRows=1;rowLines=0;fontStyle=1;align=center;resizeLast=1;" parent="1" vertex="1">
+                    <mxGeometry x="70" y="440" width="300" height="240" as="geometry"/>
+                </mxCell>
+                <mxCell id="progress_id" value="" style="shape=partialRectangle;collapsible=0;dropTarget=0;pointerEvents=0;fillColor=none;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;top=0;left=0;right=0;bottom=1;" parent="progress" vertex="1">
+                    <mxGeometry y="30" width="300" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="progress_id_k" value="PK" style="shape=partialRectangle;overflow=hidden;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;fontStyle=1;" parent="progress_id" vertex="1">
+                    <mxGeometry width="40" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="progress_id_v" value="id UUID NOT NULL" style="shape=partialRectangle;overflow=hidden;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=6;fontStyle=5;" parent="progress_id" vertex="1">
+                    <mxGeometry x="40" width="260" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="progress_profile" value="" style="shape=partialRectangle;collapsible=0;dropTarget=0;pointerEvents=0;fillColor=none;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;top=0;left=0;right=0;bottom=0;" parent="progress" vertex="1">
+                    <mxGeometry y="60" width="300" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="progress_profile_k" value="UQ" style="shape=partialRectangle;overflow=hidden;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;" parent="progress_profile" vertex="1">
+                    <mxGeometry width="40" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="progress_profile_v" value="profile_id TEXT NOT NULL" style="shape=partialRectangle;overflow=hidden;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=6;" parent="progress_profile" vertex="1">
+                    <mxGeometry x="40" width="260" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="progress_content" value="" style="shape=partialRectangle;collapsible=0;dropTarget=0;pointerEvents=0;fillColor=none;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;top=0;left=0;right=0;bottom=0;" parent="progress" vertex="1">
+                    <mxGeometry y="90" width="300" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="progress_content_k" value="UQ" style="shape=partialRectangle;overflow=hidden;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;" parent="progress_content" vertex="1">
+                    <mxGeometry width="40" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="progress_content_v" value="content_id TEXT NOT NULL" style="shape=partialRectangle;overflow=hidden;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=6;" parent="progress_content" vertex="1">
+                    <mxGeometry x="40" width="260" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="progress_ep" value="" style="shape=partialRectangle;collapsible=0;dropTarget=0;pointerEvents=0;fillColor=none;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;top=0;left=0;right=0;bottom=0;" parent="progress" vertex="1">
+                    <mxGeometry y="120" width="300" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="progress_ep_k" value="" style="shape=partialRectangle;overflow=hidden;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;" parent="progress_ep" vertex="1">
+                    <mxGeometry width="40" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="progress_ep_v" value="season_number, episode_number INT" style="shape=partialRectangle;overflow=hidden;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=6;" parent="progress_ep" vertex="1">
+                    <mxGeometry x="40" width="260" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="progress_min" value="" style="shape=partialRectangle;collapsible=0;dropTarget=0;pointerEvents=0;fillColor=none;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;top=0;left=0;right=0;bottom=0;" parent="progress" vertex="1">
+                    <mxGeometry y="150" width="300" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="progress_min_k" value="" style="shape=partialRectangle;overflow=hidden;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;" parent="progress_min" vertex="1">
+                    <mxGeometry width="40" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="progress_min_v" value="minute INTEGER NOT NULL" style="shape=partialRectangle;overflow=hidden;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=6;" parent="progress_min" vertex="1">
+                    <mxGeometry x="40" width="260" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="progress_unique" value="" style="shape=partialRectangle;collapsible=0;dropTarget=0;pointerEvents=0;fillColor=none;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;top=0;left=0;right=0;bottom=0;" parent="progress" vertex="1">
+                    <mxGeometry y="180" width="300" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="progress_unique_k" value="UQ" style="shape=partialRectangle;overflow=hidden;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;" parent="progress_unique" vertex="1">
+                    <mxGeometry width="40" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="progress_unique_v" value="profile_id, content_id" style="shape=partialRectangle;overflow=hidden;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=6;" parent="progress_unique" vertex="1">
+                    <mxGeometry x="40" width="260" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="progress_dates" value="" style="shape=partialRectangle;collapsible=0;dropTarget=0;pointerEvents=0;fillColor=none;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;top=0;left=0;right=0;bottom=0;" parent="progress" vertex="1">
+                    <mxGeometry y="210" width="300" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="progress_dates_k" value="" style="shape=partialRectangle;overflow=hidden;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;" parent="progress_dates" vertex="1">
+                    <mxGeometry width="40" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="progress_dates_v" value="created_at, updated_at TIMESTAMPTZ" style="shape=partialRectangle;overflow=hidden;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=6;" parent="progress_dates" vertex="1">
+                    <mxGeometry x="40" width="260" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="objects" value="Objetos BD - engagement-service" style="shape=table;startSize=30;container=1;collapsible=1;childLayout=tableLayout;fixedRows=1;rowLines=0;fontStyle=1;align=center;resizeLast=1;" parent="1" vertex="1">
+                    <mxGeometry x="70" y="740" width="720" height="150" as="geometry"/>
+                </mxCell>
+                <mxCell id="obj_sp" value="" style="shape=partialRectangle;collapsible=0;dropTarget=0;pointerEvents=0;fillColor=none;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;top=0;left=0;right=0;bottom=1;" parent="objects" vertex="1">
+                    <mxGeometry y="30" width="720" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="obj_sp_k" value="SP" style="shape=partialRectangle;overflow=hidden;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;fontStyle=1;" parent="obj_sp" vertex="1">
+                    <mxGeometry width="45" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="obj_sp_v" value="sp_rate_content, sp_save_watch_progress" style="shape=partialRectangle;overflow=hidden;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=6;" parent="obj_sp" vertex="1">
+                    <mxGeometry x="45" width="675" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="obj_fn" value="" style="shape=partialRectangle;collapsible=0;dropTarget=0;pointerEvents=0;fillColor=none;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;top=0;left=0;right=0;bottom=0;" parent="objects" vertex="1">
+                    <mxGeometry y="60" width="720" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="obj_fn_k" value="FN" style="shape=partialRectangle;overflow=hidden;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;fontStyle=1;" parent="obj_fn" vertex="1">
+                    <mxGeometry width="45" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="obj_fn_v" value="fn_recommendation_percentage, fn_get_rating_summary, fn_get_recent_history, fn_resume_content, fn_*_updated_at, fn_audit_rating_changes" style="shape=partialRectangle;overflow=hidden;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=6;" parent="obj_fn" vertex="1">
+                    <mxGeometry x="45" width="675" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="obj_vw" value="" style="shape=partialRectangle;collapsible=0;dropTarget=0;pointerEvents=0;fillColor=none;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;top=0;left=0;right=0;bottom=0;" parent="objects" vertex="1">
+                    <mxGeometry y="90" width="720" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="obj_vw_k" value="VW" style="shape=partialRectangle;overflow=hidden;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;fontStyle=1;" parent="obj_vw" vertex="1">
+                    <mxGeometry width="45" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="obj_vw_v" value="vw_recent_profile_history" style="shape=partialRectangle;overflow=hidden;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=6;" parent="obj_vw" vertex="1">
+                    <mxGeometry x="45" width="675" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="obj_trg" value="" style="shape=partialRectangle;collapsible=0;dropTarget=0;pointerEvents=0;fillColor=none;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;top=0;left=0;right=0;bottom=0;" parent="objects" vertex="1">
+                    <mxGeometry y="120" width="720" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="obj_trg_k" value="TRG" style="shape=partialRectangle;overflow=hidden;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;fontStyle=1;" parent="obj_trg" vertex="1">
+                    <mxGeometry width="45" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="obj_trg_v" value="trg_rating_updated_at, trg_watch_progress_updated_at, trg_audit_rating_changes" style="shape=partialRectangle;overflow=hidden;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=6;" parent="obj_trg" vertex="1">
+                    <mxGeometry x="45" width="675" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="rel_audit" style="edgeStyle=entityRelationEdgeStyle;endArrow=ERzeroToMany;startArrow=ERone;endFill=1;startFill=0;rounded=0;" parent="1" source="ratings_id" target="audit_rating" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>
