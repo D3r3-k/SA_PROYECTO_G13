@@ -14,6 +14,7 @@ from src.repository import (
     get_subscriptions_by_user,
     initialize_database,
     list_plans,
+    update_plan,
     update_subscription_plan,
 )
 
@@ -111,6 +112,35 @@ class SubscriptionServiceServicer(subscription_pb2_grpc.SubscriptionServiceServi
                 success=False,
                 status="degraded",
                 database=False
+            )
+
+    async def UpdatePlan(self, request, context):
+        if request.id <= 0:
+            return subscription_pb2.UpdatePlanResponse(
+                success=False, message="id must be positive"
+            )
+        if not request.name or not request.name.strip():
+            return subscription_pb2.UpdatePlanResponse(
+                success=False, message="name is required"
+            )
+        if request.price_usd < 0:
+            return subscription_pb2.UpdatePlanResponse(
+                success=False, message="price_usd must be non-negative"
+            )
+
+        try:
+            plan = update_plan(request.id, request.name.strip(), request.price_usd)
+            return subscription_pb2.UpdatePlanResponse(
+                success=True,
+                message="plan updated successfully",
+                plan=_to_plan_message(plan),
+            )
+        except ValueError as exc:
+            return subscription_pb2.UpdatePlanResponse(success=False, message=str(exc))
+        except Exception:
+            logger.exception("failed to update plan")
+            return subscription_pb2.UpdatePlanResponse(
+                success=False, message="could not update plan"
             )
 
     async def ListPlans(self, request, context):

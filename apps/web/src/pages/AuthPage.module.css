@@ -25,6 +25,15 @@
   padding: 0.75rem 1rem;
 }
 
+.infoMsg {
+  font-size: var(--fs-sm);
+  color: #34d399;
+  background: rgba(52, 211, 153, 0.1);
+  border: 1px solid rgba(52, 211, 153, 0.3);
+  border-radius: var(--radius-md);
+  padding: 0.75rem 1rem;
+}
+
 .switchLink {
   text-align: center;
   margin-top: var(--space-5);

@@ -5,6 +5,7 @@ package subscription;
 service SubscriptionService {
   rpc Health (SubscriptionHealthRequest) returns (SubscriptionHealthResponse);
   rpc ListPlans (ListPlansRequest) returns (ListPlansResponse);
+  rpc UpdatePlan (UpdatePlanRequest) returns (UpdatePlanResponse);
   rpc CreateSubscription (CreateSubscriptionRequest) returns (SubscriptionResponse);
   rpc UpdateSubscription (UpdateSubscriptionRequest) returns (SubscriptionResponse);
   rpc ListUserSubscriptions (ListUserSubscriptionsRequest) returns (ListUserSubscriptionsResponse);
@@ -20,6 +21,18 @@ message SubscriptionHealthResponse {
 }
 
 message ListPlansRequest {}
+
+message UpdatePlanRequest {
+  int32 id = 1;
+  string name = 2;
+  double price_usd = 3;
+}
+
+message UpdatePlanResponse {
+  bool success = 1;
+  string message = 2;
+  Plan plan = 3;
+}
 
 message Plan {
   int32 id = 1;

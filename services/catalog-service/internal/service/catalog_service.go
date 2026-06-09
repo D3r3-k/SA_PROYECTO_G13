@@ -160,7 +160,13 @@ func (s Service) archiveSeeds() ([]provider.ContentSeed, error) {
 
 	moviesLoaded := len(seedsOfType(seeds, "movie"))
 	seriesLoaded := len(seedsOfType(seeds, "series"))
-	if moviesLoaded < 2 || seriesLoaded < 1 {
+	minMovies := 2
+	minSeries := 1
+	if s.AllowFallback {
+		minMovies = 1
+		minSeries = 0
+	}
+	if moviesLoaded < minMovies || seriesLoaded < minSeries {
 		return nil, fmt.Errorf("insufficient real archive.org mp4 catalog: movies=%d/%d series=%d/%d movie_errors=[%s] series_errors=[%s]", moviesLoaded, movieTarget, seriesLoaded, seriesTarget, strings.Join(movieErrors, " | "), strings.Join(seriesErrors, " | "))
 	}
 	return seeds, nil
