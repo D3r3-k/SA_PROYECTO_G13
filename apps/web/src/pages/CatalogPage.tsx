@@ -1,41 +1,54 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import AppLayout from '../layouts/AppLayout'
+import { catalogService, type ContentCard } from '../services/catalog.service'
 import styles from './CatalogPage.module.css'
 
-interface ContentItem {
-  id: string
-  title: string
-  genre: string
-  year: number
-  rating: number
-  type: 'movie' | 'series'
-  thumbnail: string
+type TypeFilter = 'all' | 'movie' | 'series'
+
+function releaseYear(date: string): string {
+  if (!date) return ''
+  const y = new Date(date).getFullYear()
+  return isNaN(y) ? '' : String(y)
 }
 
-const MOCK_CONTENT: ContentItem[] = [
-  { id: '1', title: 'El Origen del Tiempo', genre: 'Ciencia Ficción', year: 2023, rating: 95, type: 'movie',  thumbnail: 'https://picsum.photos/seed/movie1/300/450' },
-  { id: '2', title: 'Sombras del Pasado',  genre: 'Drama',           year: 2022, rating: 88, type: 'series', thumbnail: 'https://picsum.photos/seed/series1/300/450' },
-  { id: '3', title: 'La Gran Aventura',    genre: 'Aventura',        year: 2024, rating: 91, type: 'movie',  thumbnail: 'https://picsum.photos/seed/movie2/300/450' },
-  { id: '4', title: 'Noches de Neón',      genre: 'Thriller',        year: 2023, rating: 84, type: 'series', thumbnail: 'https://picsum.photos/seed/series2/300/450' },
-  { id: '5', title: 'El Último Horizonte', genre: 'Acción',          year: 2024, rating: 92, type: 'movie',  thumbnail: 'https://picsum.photos/seed/movie3/300/450' },
-  { id: '6', title: 'Mundos Paralelos',    genre: 'Ciencia Ficción', year: 2022, rating: 87, type: 'series', thumbnail: 'https://picsum.photos/seed/series3/300/450' },
-  { id: '7', title: 'Sin Retorno',         genre: 'Suspense',        year: 2023, rating: 79, type: 'movie',  thumbnail: 'https://picsum.photos/seed/movie4/300/450' },
-  { id: '8', title: 'La Familia Pérez',    genre: 'Comedia',         year: 2024, rating: 83, type: 'series', thumbnail: 'https://picsum.photos/seed/series4/300/450' },
-]
-
-const GENRES = ['Todos', 'Acción', 'Aventura', 'Ciencia Ficción', 'Comedia', 'Drama', 'Suspense', 'Thriller']
-
 export default function CatalogPage() {
-  const [search, setSearch] = useState('')
-  const [genre, setGenre] = useState('Todos')
-  const [typeFilter, setTypeFilter] = useState<'all' | 'movie' | 'series'>('all')
+  const navigate = useNavigate()
 
-  const filtered = MOCK_CONTENT.filter((item) => {
-    const matchSearch = item.title.toLowerCase().includes(search.toLowerCase())
-    const matchGenre  = genre === 'Todos' || item.genre === genre
-    const matchType   = typeFilter === 'all' || item.type === typeFilter
-    return matchSearch && matchGenre && matchType
-  })
+  const [items, setItems]         = useState<ContentCard[]>([])
+  const [loading, setLoading]     = useState(true)
+  const [error, setError]         = useState('')
+  const [search, setSearch]       = useState('')
+  const [genre, setGenre]         = useState('Todos')
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>('all')
+
+  useEffect(() => {
+    catalogService
+      .list()
+      .then((res) => setItems(res.data.items ?? []))
+      .catch(() => setError('El servicio de catálogo no está disponible.'))
+      .finally(() => setLoading(false))
+  }, [])
+
+  const byType = useMemo(
+    () => (typeFilter === 'all' ? items : items.filter((i) => i.type === typeFilter)),
+    [items, typeFilter],
+  )
+
+  const genres = useMemo(() => {
+    const set = new Set<string>()
+    byType.forEach((item) => item.genres?.forEach((g) => set.add(g.name)))
+    return ['Todos', ...Array.from(set).sort()]
+  }, [byType])
+
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase()
+    return byType.filter((item) => {
+      const matchSearch = !q || item.title.toLowerCase().includes(q)
+      const matchGenre  = genre === 'Todos' || item.genres?.some((g) => g.name === genre)
+      return matchSearch && matchGenre
+    })
+  }, [byType, search, genre])
 
   return (
     <AppLayout>
@@ -57,57 +70,123 @@ export default function CatalogPage() {
 
       <div className="container section">
         <div className={styles.filters}>
-          <div className={styles.filterGroup}>
-            {(['all', 'movie', 'series'] as const).map((t) => (
-              <button
-                key={t}
-                className={`btn btn-sm ${typeFilter === t ? 'btn-primary' : 'btn-ghost'}`}
-                onClick={() => setTypeFilter(t)}
-              >
-                {t === 'all' ? 'Todo' : t === 'movie' ? 'Películas' : 'Series'}
-              </button>
-            ))}
+          <div className={styles.filterRow}>
+            <span className={styles.filterLabel}>Tipo</span>
+            <div className={styles.filterGroup}>
+              {(['all', 'movie', 'series'] as TypeFilter[]).map((t) => (
+                <button
+                  key={t}
+                  className={`btn btn-sm ${typeFilter === t ? 'btn-primary' : 'btn-ghost'}`}
+                  onClick={() => { setTypeFilter(t); setGenre('Todos') }}
+                >
+                  {t === 'all' ? 'Todo' : t === 'movie' ? 'Películas' : 'Series'}
+                </button>
+              ))}
+            </div>
           </div>
 
-          <div className={styles.genreScroll}>
-            {GENRES.map((g) => (
-              <button
-                key={g}
-                className={`btn btn-sm ${genre === g ? 'btn-secondary' : 'btn-ghost'}`}
-                onClick={() => setGenre(g)}
-              >
-                {g}
-              </button>
-            ))}
+          <div className={styles.filterDivider} />
+
+          <div className={styles.filterRow}>
+            <span className={styles.filterLabel}>Género</span>
+            <div className={styles.genreScroll}>
+              {genres.map((g) => (
+                <button
+                  key={g}
+                  className={`btn btn-sm ${genre === g ? 'btn-primary' : 'btn-ghost'}`}
+                  onClick={() => setGenre(g)}
+                >
+                  {g}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
-        {filtered.length === 0 ? (
+        {loading && (
           <div className={styles.empty}>
-            <p>No se encontraron resultados para tu búsqueda.</p>
+            <p>Cargando catálogo...</p>
           </div>
-        ) : (
+        )}
+
+        {!loading && error && (
+          <div className={styles.empty}>
+            <p>{error}</p>
+            <button
+              className="btn btn-primary btn-sm"
+              style={{ marginTop: '1rem' }}
+              onClick={() => {
+                setLoading(true)
+                setError('')
+                catalogService
+                  .list()
+                  .then((res) => setItems(res.data.items ?? []))
+                  .catch(() => setError('El servicio de catálogo no está disponible.'))
+                  .finally(() => setLoading(false))
+              }}
+            >
+              Reintentar
+            </button>
+          </div>
+        )}
+
+        {!loading && !error && filtered.length === 0 && (
+          <div className={styles.empty}>
+            <p>
+              {items.length === 0
+                ? 'El catálogo está vacío. Un administrador debe sincronizar el contenido.'
+                : 'No se encontraron resultados para tu búsqueda.'}
+            </p>
+          </div>
+        )}
+
+        {!loading && !error && filtered.length > 0 && (
           <div className={styles.grid}>
-            {filtered.map((item) => (
-              <div key={item.id} className={styles.card}>
-                <div className={styles.thumbnail}>
-                  <img src={item.thumbnail} alt={item.title} loading="lazy" />
-                  <div className={styles.overlay}>
-                    <button className="btn btn-primary btn-sm">Reproducir</button>
+            {filtered.map((item) => {
+              const year = releaseYear(item.release_date)
+              const firstGenre = item.genres?.[0]?.name ?? ''
+
+              return (
+                <div
+                  key={item.content_id}
+                  className={styles.card}
+                  onClick={() => navigate(`/catalog/${item.content_id}`)}
+                  style={{ cursor: 'pointer' }}
+                >
+                  <div className={styles.thumbnail}>
+                    {item.poster_path ? (
+                      <img src={item.poster_path} alt={item.title} loading="lazy" />
+                    ) : (
+                      <div
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '3rem',
+                          background: 'var(--color-surface-light)',
+                        }}
+                      >
+                        {item.type === 'movie' ? '🎬' : '📺'}
+                      </div>
+                    )}
+                    <div className={styles.overlay}>
+                      <button className="btn btn-primary btn-sm">Ver ahora</button>
+                    </div>
+                    <span className={`badge badge-info ${styles.typeBadge}`}>
+                      {item.type === 'movie' ? 'Película' : 'Serie'}
+                    </span>
                   </div>
-                  <span className={`badge badge-info ${styles.typeBadge}`}>
-                    {item.type === 'movie' ? 'Película' : 'Serie'}
-                  </span>
-                  <span className={styles.ratingBadge}>
-                    {item.rating}% 👍
-                  </span>
+                  <div className={styles.info}>
+                    <h3 className={styles.itemTitle}>{item.title}</h3>
+                    <p className={styles.itemMeta}>
+                      {[firstGenre, year].filter(Boolean).join(' · ')}
+                    </p>
+                  </div>
                 </div>
-                <div className={styles.info}>
-                  <h3 className={styles.itemTitle}>{item.title}</h3>
-                  <p className={styles.itemMeta}>{item.genre} · {item.year}</p>
-                </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </div>

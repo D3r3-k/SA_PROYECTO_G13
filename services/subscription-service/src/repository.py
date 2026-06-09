@@ -43,6 +43,7 @@ def initialize_database() -> None:
             """
         )
 
+        cursor.execute("DROP VIEW IF EXISTS vw_user_active_subscription;")
         cursor.execute("ALTER TABLE subscriptions ALTER COLUMN user_id TYPE TEXT USING user_id::text;")
 
         cursor.execute(

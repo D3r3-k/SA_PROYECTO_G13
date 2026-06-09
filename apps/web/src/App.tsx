@@ -2,13 +2,16 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './hooks/useAuth'
 import ProtectedRoute from './routes/ProtectedRoute'
 
-import LoginPage        from './pages/LoginPage'
-import RegisterPage     from './pages/RegisterPage'
-import ProfilesPage     from './pages/ProfilesPage'
-import CatalogPage      from './pages/CatalogPage'
-import SubscriptionsPage from './pages/SubscriptionsPage'
-import HistoryPage      from './pages/HistoryPage'
-import AccountPage      from './pages/AccountPage'
+import LoginPage          from './pages/LoginPage'
+import RegisterPage       from './pages/RegisterPage'
+import ProfilesPage       from './pages/ProfilesPage'
+import CatalogPage        from './pages/CatalogPage'
+import ContentDetailPage  from './pages/ContentDetailPage'
+import SubscriptionsPage  from './pages/SubscriptionsPage'
+import HistoryPage        from './pages/HistoryPage'
+import AccountPage        from './pages/AccountPage'
+import AdminLoginPage     from './pages/AdminLoginPage'
+import AdminPage          from './pages/AdminPage'
 
 export default function App() {
   return (
@@ -16,8 +19,10 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           {/* Rutas públicas */}
-          <Route path="/login"    element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/login"       element={<LoginPage />} />
+          <Route path="/register"    element={<RegisterPage />} />
+          <Route path="/login/admin" element={<AdminLoginPage />} />
+          <Route path="/admin"       element={<AdminPage />} />
 
           {/* Rutas protegidas */}
           <Route path="/profiles" element={
@@ -25,6 +30,9 @@ export default function App() {
           } />
           <Route path="/catalog" element={
             <ProtectedRoute><CatalogPage /></ProtectedRoute>
+          } />
+          <Route path="/catalog/:contentId" element={
+            <ProtectedRoute><ContentDetailPage /></ProtectedRoute>
           } />
           <Route path="/subscriptions" element={
             <ProtectedRoute><SubscriptionsPage /></ProtectedRoute>
