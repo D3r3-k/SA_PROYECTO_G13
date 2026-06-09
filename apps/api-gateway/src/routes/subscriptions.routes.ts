@@ -3,6 +3,8 @@ import {
   AuthenticatedRequest,
   authMiddleware
 } from "../middleware/auth.middleware";
+import { callFxMethod } from "../grpc/fx.client";
+import { callPaymentMethod } from "../grpc/payment.client";
 import { callSubscriptionMethod } from "../grpc/subscription.client";
 
 export const subscriptionRoutes = Router();
@@ -20,6 +22,44 @@ type ListPlansResponse = {
   plans: Plan[];
 };
 
+type RateResponse = {
+  success: boolean;
+  message: string;
+  base: string;
+  target: string;
+  rate: number;
+  timestamp: number;
+  cached: boolean;
+};
+
+type PaymentPayload = {
+  card_number: string;
+  card_holder: string;
+  exp_month: number;
+  exp_year: number;
+  cvv: string;
+};
+
+type AuthorizePaymentRequest = PaymentPayload & {
+  user_id: string;
+  email: string;
+  plan_id: number;
+  amount: number;
+  currency: string;
+};
+
+type PaymentResponse = {
+  success: boolean;
+  message: string;
+  provider: string;
+  status: string;
+  transaction_id: string;
+  authorization_code: string;
+  amount: number;
+  currency: string;
+  card_last4: string;
+};
+
 type Subscription = {
   id: number;
   user_id: string;
@@ -35,6 +75,7 @@ type SubscriptionResponse = {
   success: boolean;
   message: string;
   subscription?: Subscription;
+  payment?: PaymentResponse;
 };
 
 type ListUserSubscriptionsResponse = {
@@ -80,9 +121,19 @@ function getBusinessStatus(message: string): number {
   if (
     normalized.includes("required") ||
     normalized.includes("positive") ||
-    normalized.includes("invalid")
+    normalized.includes("invalid") ||
+    normalized.includes("expired") ||
+    normalized.includes("unsupported")
   ) {
     return 400;
+  }
+
+  if (
+    normalized.includes("declined") ||
+    normalized.includes("funds") ||
+    normalized.includes("issuer")
+  ) {
+    return 402;
   }
 
   return 400;
@@ -101,6 +152,80 @@ function getAuthenticatedUser(req: AuthenticatedRequest): {
 function getSubscriptionId(value: string | string[] | undefined): number {
   const rawValue = Array.isArray(value) ? value[0] : value;
   return Number(rawValue);
+}
+
+function getString(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function getCurrency(req: AuthenticatedRequest): string {
+  const body = req.body as Record<string, unknown>;
+  const payment = body.payment as Record<string, unknown> | undefined;
+  const currency = getString(body.currency) || getString(payment?.currency) || "USD";
+  return currency.toUpperCase();
+}
+
+function getPaymentPayload(req: AuthenticatedRequest): PaymentPayload | null {
+  const body = req.body as Record<string, unknown>;
+  const source = (body.payment as Record<string, unknown> | undefined) || body;
+
+  const payload: PaymentPayload = {
+    card_number: getString(source.card_number),
+    card_holder: getString(source.card_holder),
+    exp_month: Number(source.exp_month),
+    exp_year: Number(source.exp_year),
+    cvv: getString(source.cvv)
+  };
+
+  if (
+    !payload.card_number ||
+    !payload.card_holder ||
+    !Number.isInteger(payload.exp_month) ||
+    !Number.isInteger(payload.exp_year) ||
+    !payload.cvv
+  ) {
+    return null;
+  }
+
+  return payload;
+}
+
+function roundMoney(value: number): number {
+  return Math.round((value + Number.EPSILON) * 100) / 100;
+}
+
+async function getPlanById(planId: number): Promise<Plan | null> {
+  const response = await callSubscriptionMethod<Record<string, never>, ListPlansResponse>(
+    "ListPlans",
+    {}
+  );
+
+  if (!response.success) {
+    throw new Error(response.message || "could not list plans");
+  }
+
+  return response.plans.find((plan) => Number(plan.id) === planId) || null;
+}
+
+async function convertAmountFromUsd(amountUsd: number, currency: string): Promise<number> {
+  if (currency === "USD") {
+    return roundMoney(amountUsd);
+  }
+
+  // OBTENER VALORES DE FX
+  const response = await callFxMethod<{ base: string; target: string }, RateResponse>(
+    "GetRate",
+    {
+      base: "USD",
+      target: currency
+    }
+  );
+
+  if (!response.success) {
+    throw new Error(response.message || "could not convert amount");
+  }
+
+  return roundMoney(amountUsd * response.rate);
 }
 
 subscriptionRoutes.get("/plans", authMiddleware, async (_req, res) => {
@@ -131,6 +256,8 @@ subscriptionRoutes.post(
   async (req: AuthenticatedRequest, res) => {
     const { userId, email } = getAuthenticatedUser(req);
     const planId = Number(req.body.plan_id);
+    const currency = getCurrency(req);
+    const paymentPayload = getPaymentPayload(req);
 
     if (!userId) {
       return res.status(401).json({
@@ -153,7 +280,45 @@ subscriptionRoutes.post(
       });
     }
 
+    if (!paymentPayload) {
+      return res.status(400).json({
+        success: false,
+        message: "payment data is required before creating a subscription"
+      });
+    }
+
     try {
+      const plan = await getPlanById(planId);
+
+      if (!plan) {
+        return res.status(404).json({
+          success: false,
+          message: "plan not found"
+        });
+      }
+
+      const amount = await convertAmountFromUsd(Number(plan.price_usd), currency);
+
+      const payment = await callPaymentMethod<AuthorizePaymentRequest, PaymentResponse>(
+        "AuthorizePayment",
+        {
+          ...paymentPayload,
+          user_id: userId,
+          email,
+          plan_id: planId,
+          amount,
+          currency
+        }
+      );
+
+      if (!payment.success) {
+        return res.status(getBusinessStatus(payment.message)).json({
+          success: false,
+          message: payment.message,
+          payment
+        });
+      }
+
       const response = await callSubscriptionMethod<
         CreateSubscriptionRequest,
         SubscriptionResponse
@@ -164,16 +329,22 @@ subscriptionRoutes.post(
       });
 
       if (!response.success) {
-        return res.status(getBusinessStatus(response.message)).json(response);
+        return res.status(getBusinessStatus(response.message)).json({
+          ...response,
+          payment
+        });
       }
 
-      return res.status(201).json(response);
+      return res.status(201).json({
+        ...response,
+        payment
+      });
     } catch (error) {
-      console.error("Create subscription gRPC failed", error);
+      console.error("Create subscription with payment failed", error);
 
       return res.status(503).json({
         success: false,
-        message: "Subscription Service unavailable"
+        message: "Payment or Subscription Service unavailable"
       });
     }
   }

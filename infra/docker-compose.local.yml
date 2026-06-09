@@ -140,6 +140,20 @@ services:
     networks:
       - sa_net
 
+  payment-gateway-service:
+    build:
+      context: ..
+      dockerfile: services/payment-gateway-service/Dockerfile
+    container_name: payment-gateway-service
+    environment:
+      PAYMENT_GRPC_PORT: ${PAYMENT_GRPC_PORT}
+      PAYMENT_PROVIDER_NAME: ${PAYMENT_PROVIDER_NAME}
+      PAYMENT_APPROVAL_DELAY_MS: ${PAYMENT_APPROVAL_DELAY_MS}
+    expose:
+      - "${PAYMENT_GRPC_PORT}"
+    networks:
+      - sa_net
+
   subscription-service:
     build:
       context: ..
@@ -242,12 +256,14 @@ services:
       SUBSCRIPTION_GRPC_URL: ${SUBSCRIPTION_GRPC_URL}
       CATALOG_GRPC_URL: ${CATALOG_GRPC_URL}
       ENGAGEMENT_GRPC_URL: ${ENGAGEMENT_GRPC_URL}
+      PAYMENT_GRPC_URL: ${PAYMENT_GRPC_URL}
     ports:
       - "${API_GATEWAY_PORT}:${API_GATEWAY_PORT}"
     depends_on:
       - identity-service
       - fx-service
       - subscription-service
+      - payment-gateway-service
       - catalog-service
       - engagement-service
     networks:
