@@ -1,6 +1,6 @@
 # Diagrama de Componentes
 
-![Diagrama de Actividades](../00_assets/diagrams/04_diagramas/diagramacomponentes.png)
+![Diagrama de Componentes](../00_assets/diagrams/04_diagramas/diagramacomponentes.png)
 
 Este diagrama describe la estructura interna del sistema, mostrando todos los componentes de software, sus responsabilidades, las interfaces que exponen y cómo se interconectan entre sí. Está organizado en tres columnas: la capa del cliente a la izquierda, la capa de entrada al centro-izquierda, los microservicios al centro-derecha y los recursos externos a la derecha.
 
