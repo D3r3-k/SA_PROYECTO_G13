@@ -5,15 +5,82 @@
 
 ### Diagrama de Secuencia — Login y Validacion JWT
 
-![Diagrama de Secuencia Login y JWT](../00_assets/diagrams/04_diagramas/secuencialoginjwt.png)
+![Diagrama de Secuencia General](../00_assets/diagrams/04_diagramas/diagrama_secuenciafull.png)
+
+
+### Diagrama de Secuencia Completo
+
+Este diagrama unifica todos los flujos del sistema en una sola vista temporal, mostrando la interaccion entre diez participantes: Browser, API Gateway, Identity Service, Catalog Service, Subscription Service, FX Service, Engagement Service, Redis, Notification Service y las Bases de Datos PostgreSQL. El diagrama cubre nueve modulos en orden cronologico tal como los experimenta un usuario real.
+
+---
+
+#### Modulo 1 — Registro de Usuario
+
+El Browser envia `POST /api/auth/register` con email, password y full_name. El Gateway llama a `gRPC RegisterUser` al Identity Service, que verifica que el email no exista con `sp_find_user_by_email`, hashea la contrasena con bcrypt salt=10 y ejecuta `sp_register_user` para persistir el usuario. Inmediatamente despues publica un evento `registration` en Redis con `RPUSH notification:queue`. Genera un JWT con `signIdentityToken({user_id, email})` y lo retorna al Gateway, que establece la cookie `httpOnly sameSite secure` y responde 200 OK.
+
+---
+
+#### Modulo 2 — Login y Validacion JWT
+
+El Browser envia `POST /api/auth/login`. El Gateway llama a `gRPC Login`, que busca al usuario con `sp_find_user_by_email` y compara la contrasena con `bcrypt.compare`. Si las credenciales son validas genera un nuevo JWT y lo retorna. El Gateway establece la cookie y responde 200 OK. En cada request posterior a rutas protegidas, el `authMiddleware` del Gateway llama a `gRPC ValidateToken` al Identity Service, que ejecuta `verifyIdentityToken` con `jwt.verify`. Si el token es valido adjunta `{user_id, email, profile_id}` al request y continua al servicio destino.
+
+---
+
+#### Modulo 3 — Gestion de Perfiles
+
+El Browser solicita crear un perfil con `POST /api/profiles`. El Gateway valida el JWT y llama a `gRPC CreateProfile(user_id, name)` al Identity Service. El servicio verifica que el usuario no haya alcanzado el limite de perfiles con `fn_can_create_profile` y crea el perfil con `sp_create_profile`. Al seleccionar el perfil activo, el Identity Service genera un nuevo JWT que incluye el `profile_id` ademas del `user_id`, actualizando la cookie del Browser. Todos los requests posteriores incluyen este `profile_id` en el token para que los servicios de Engagement sepan a que perfil pertenecen las acciones.
+
+---
+
+#### Modulo 4 — Catalogo, Busqueda y Detalle de Contenido
+
+El Browser solicita el catalogo con `GET /api/catalog?type=movie&genre=drama`. El Gateway llama a `gRPC ListContent(type, genre, limit:100, offset:0)` al Catalog Service, que ejecuta `fn_catalog_list` sobre la vista `vw_catalog_card` y retorna la lista paginada. Al seleccionar un contenido, el Gateway ejecuta dos llamadas en paralelo: `gRPC GetContentDetail` al Catalog Service que ejecuta `fn_catalog_detail` y `fn_catalog_cast`, y `gRPC GetContentRatingSummary` al Engagement Service que ejecuta `fn_get_rating_summary` y `fn_recommendation_percentage`. El Gateway consolida ambas respuestas y retorna la ficha tecnica completa con actores y porcentaje de recomendacion.
+
+---
+
+#### Modulo 5 — Planes, FX-Service y Suscripcion
+
+El Browser solicita los planes disponibles con `GET /api/subscriptions/plans`. El Gateway llama a `gRPC ListPlans` al Subscription Service, que consulta la tabla `plans` filtrando activos. Simultaneamente el Gateway llama a `gRPC GetRate(base:USD, target:GTQ)` al FX Service. El FX Service construye la cache key `fx:rate:USD:GTQ` y consulta Redis. Si hay cache hit retorna la tasa directamente. Si hay cache miss consulta la API Frankfurter con fallback entre endpoint primario `/rate/{BASE}/{TARGET}` y el secundario `/rates?base=X&quotes=Y`, guarda el resultado con `set_json(key, rate, TTL=3600)` y retorna la tasa. El Gateway calcula los precios locales y retorna los planes con conversion. Al confirmar la suscripcion, `gRPC CreateSubscription` verifica que no exista suscripcion activa con `vw_user_active_subscription`, inserta el registro, el trigger `trg_audit_subscription_change` registra el evento en `subscription_audit` y publica `RPUSH notification:queue {type:purchase_receipt, plan_name, price_usd}`.
+
+---
+
+#### Modulo 6 — Reproduccion, Reanudar y Guardar Progreso
+
+El Browser solicita reproducir un contenido. El Gateway llama a `gRPC ResumeContent(profile_id, content_id)` al Engagement Service, que ejecuta `fn_resume_content` buscando en `watch_progress`. Si existe progreso previo retorna `{found:true, season, episode, minute}` y el frontend inicia desde ese punto exacto. Si no existe retorna `{found:false}` e inicia desde el principio. Durante la reproduccion el frontend envia periodicamente `POST /api/engagement/content/:id/progress` con season, episode y minute actuales. El Gateway llama a `gRPC SaveProgress` y el Engagement Service ejecuta `sp_save_watch_progress` con un UPSERT en `watch_progress`. El trigger `trg_watch_progress_updated_at` actualiza automaticamente el timestamp.
+
+---
+
+#### Modulo 7 — Calificar Contenido
+
+El Browser envia una calificacion con `POST /api/engagement/content/:id/rating {profile_id, rating:thumbs_up}`. El Gateway normaliza el valor a `THUMBS_UP` y llama a `gRPC RateContent(profile_id, content_id, THUMBS_UP)` al Engagement Service. El servicio ejecuta `sp_rate_content` con un UPSERT en la tabla `ratings`. El trigger `trg_audit_rating_changes` inserta automaticamente un registro en `rating_audit` con el valor anterior y el nuevo. El sistema retorna `calificacionRegistrada(success:true)`.
+
+---
+
+#### Modulo 8 — Historial de Reproduccion
+
+El Browser solicita la seccion de continuar viendo con `GET /api/engagement/profiles/:id/history?limit=10`. El Gateway llama a `gRPC GetRecentHistory(profile_id, limit:10)` al Engagement Service, que consulta `fn_get_recent_history` sobre la vista `vw_recent_profile_history`. Esta vista une `watch_progress` con los datos de contenido y retorna los registros ordenados por `updated_at` descendente. El Gateway retorna la lista al Browser con `content_id`, `season`, `episode`, `minute` y `updated_at` para que el frontend muestre el progreso de cada titulo.
+
+---
+
+#### Modulo 9 — Notificaciones por Correo (Flujo Asincrono)
+
+Este modulo corre en paralelo e independiente de todos los anteriores. El Notification Worker ejecuta un loop de `asyncio` que consume eventos de Redis con `BLPOP notification:queue` con timeout de 5 segundos. Cuando llega un mensaje, deserializa el JSON con `json.loads`, detecta el tipo de evento entre los cuatro posibles: `registration`, `purchase_receipt`, `subscription_update` o `content-publication`, y llama a `_build_notification_content` que genera el subject y el body especificos para cada tipo. Si SMTP esta configurado envia el email HTML con el template de Quetxal TV via `aiosmtplib.send`. Si no esta configurado usa console fallback con `logger.info(payload)`. El Gateway y los servicios productores nunca esperan confirmacion del Notification Worker, Redis actua como buffer desacoplado que garantiza que ninguna notificacion se pierda aunque el worker este temporalmente fuera de servicio.
+
+
+---
+## Diagrama de Secuencia por Modulos
+
+### Diagrama de Secuencia — Login y JWT
+
+![Diagrama de Secuencia Login y JWT](../00_assets/diagrams/04_diagramas/diagrama_secuencia_login.png)
 
 Este diagrama muestra la interaccion temporal entre cinco participantes: Browser, API Gateway, Identity Service, DB Identity y Redis, cubriendo los tres flujos criticos de autenticacion del sistema.
 
-En el flujo de registro el Browser envia `POST /api/auth/register` con email, password y full_name. El Gateway lo recibe y llama a `gRPC RegisterUser` al Identity Service. El servicio valida el formato del email y la longitud del password, llama a `sp_find_user_by_email` para verificar que no exista, hashea la contrasena con bcrypt, ejecuta `sp_register_user` para persistir el usuario, genera un JWT con `signIdentityToken` y en paralelo publica un evento `registration` en Redis. Retorna el token al Gateway, que establece la cookie `httpOnly sameSite secure` y responde con 200 OK.
+En el flujo de registro el Browser envia `POST /api/auth/register` con email, password y full_name. El Gateway lo recibe y llama a `gRPC RegisterUser` al Identity Service. El servicio valida el formato del email y la longitud del password, llama a `sp_find_user_by_email` para verificar que no exista, hashea la contrasena con bcrypt salt=10, ejecuta `sp_register_user` para persistir el usuario, genera un JWT con `signIdentityToken` y en paralelo publica un evento `registration` en Redis. Retorna el token al Gateway, que establece la cookie `httpOnly sameSite secure` y responde 200 OK.
 
 En el flujo de login el Browser envia `POST /api/auth/login`. El Gateway llama a `gRPC Login`. El Identity Service busca al usuario con `sp_find_user_by_email`, compara la contrasena con `bcrypt.compare`, genera un nuevo JWT con `signIdentityToken` y lo retorna. El Gateway establece la cookie y responde 200 OK.
 
-En el flujo de validacion JWT, que ocurre en cada request a ruta protegida, el Gateway ejecuta `authMiddleware` que lee la cookie, llama a `gRPC ValidateToken` al Identity Service, que ejecuta `verifyIdentityToken` usando `jwt.verify`. Si el token es valido retorna `{valid:true, user_id, email, profile_id}`, el Gateway adjunta esos datos al request con `req.user` y continua al servicio destino con `next()`. Si el token es invalido o expirado retorna 401. Si la cookie no esta presente el Gateway retorna 401 directamente sin llamar al Identity Service. Si el Identity Service no esta disponible retorna 503.
+En el flujo de validacion JWT, que ocurre en cada request a ruta protegida, el Gateway ejecuta `authMiddleware` que lee la cookie, llama a `gRPC ValidateToken` al Identity Service, que ejecuta `verifyIdentityToken` usando `jwt.verify`. Si el token es valido retorna `{valid:true, user_id, email, profile_id}`, el Gateway adjunta esos datos al request con `req.user` y continua al servicio destino con `next()`. Si el token es invalido o expirado retorna 401. Si la cookie no esta presente el Gateway retorna 401 directamente sin llamar al Identity Service.
 
 ---
 ### Diagrama de Secuencia — Consumo de video
@@ -54,7 +121,7 @@ El sistema consulta el historial reciente de visualización del perfil y retorna
 ---
 ### Diagrama de Secuencia — Suscripciones y Pagos
 
-![Diagrama de Secuencia Suscipciones y Pagos](../00_assets/diagrams/04_diagramas/diagramasecuencia_sucripciones.drawio.png)
+![Diagrama de Secuencia Suscipciones y Pagos](../00_assets/diagrams/04_diagramas/diagramasecuencia_sucripciones2.png)
 
 
 Este diagrama modela la interaccion temporal entre siete participantes: Usuario, API Gateway, Subscription Service, FX Service, Redis, DB Subscription y Notification Service, cubriendo el ciclo de vida completo de una suscripcion.
