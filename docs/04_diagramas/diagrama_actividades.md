@@ -2,7 +2,7 @@
 
 # Diagrama de Actividades
 
-![Diagrama de Actividades General](../00_assets/diagrams/04_diagramas/diagrama_actividades_general.png)
+![Diagrama de Actividades General](../00_assets/diagrams/04_diagramas/diagrama_actividades_full.png)
 
 
 ### Diagrama de Actividades — Login y Validacion JWT
@@ -19,7 +19,23 @@ El segundo flujo cubre el login, donde el Gateway llama a `Login` via gRPC. El I
 El tercer flujo cubre la validacion JWT en cada ruta protegida. El `authMiddleware` del Gateway lee la cookie del request, llama a `ValidateToken` via gRPC al Identity Service y si el token es valido adjunta `user_id`, `email` y `profile_id` al request antes de continuar al servicio de destino. Los flujos alternativos de error retornan 400, 401 o 503 segun el tipo de fallo.
 
 ----
+### Diagrama de Actividades — Admin Panel
 
+![Diagrama de Actividades - Admin Panel](../00_assets/diagrams/04_diagramas/diagrama_actividadesadmin.png)
+
+Este diagrama modela el flujo completo del panel de administracion de Quetxal TV, distribuido en seis carriles: Admin Browser, API Gateway, Subscription Service, Catalog Service, DB Subscription y API Externa (archive.org).
+
+En la primera seccion el administrador accede a `/login/admin` e ingresa las credenciales `admin / Admin1234#`. El `AdminLoginPage.tsx` valida las credenciales directamente en el frontend sin llamar al backend. Si son correctas guarda `adminAuthenticated:true` y `adminKey:Admin1234#` en `sessionStorage` y redirige a `/admin`. Si son incorrectas muestra el error en pantalla. Cada request posterior al backend incluye el header `x-admin-key: Admin1234#` que el `adminMiddleware` del Gateway valida contra `process.env.ADMIN_KEY`.
+
+En la segunda seccion el `AdminPage.tsx` ejecuta `fetchPlans()` al cargar. El Gateway valida el `x-admin-key`, llama a `gRPC ListPlans()` al Subscription Service y retorna todos los planes con `id`, `name`, `price_usd` e `is_active`.
+
+En la tercera seccion el administrador selecciona un plan, edita el nombre o el precio y guarda. El Gateway valida que `planId` sea entero positivo, `name` no este vacio y `price_usd` sea mayor o igual a cero. Si pasa las validaciones llama a `gRPC UpdatePlan(id, name.trim(), price_usd)` al Subscription Service que ejecuta `UPDATE plans` en la base de datos. Retorna 200 OK con el plan actualizado y el frontend refresca la lista.
+
+En la cuarta seccion el administrador hace clic en sincronizar catalogo con `force: true` o `false`. El Gateway llama a `gRPC SyncMinimumCatalog(force)` al Catalog Service. El servicio llama a `archive_client.FetchContent()` hacia archive.org. Si no hay contenido disponible registra el fallo con `sp_insert_sync_audit(success:false)`. Si hay contenido ejecuta `sp_upsert_content_from_external` con los datos del contenido en formato JSONB, el trigger `trg_catalog_updated_at` actualiza `updated_at=NOW()` y `sp_insert_sync_audit(success:true, contents_synced, episodes_synced)` registra el resultado. Retorna 201 Created con el conteo de contenidos y episodios sincronizados.
+
+En la quinta seccion el administrador cierra sesion. El frontend ejecuta `sessionStorage.removeItem('adminAuthenticated')` y redirige a `/login/admin`.
+
+---
 ### Diagrama de Actividades — Consumo de video
 
 ![Diagrama de Actividades Login y JWT](../00_assets/diagrams/04_diagramas/consumovideo.png)
@@ -44,7 +60,7 @@ El flujo tiene seis secciones. En la primera el perfil navega el catalogo median
 
 ### Diagrama de Actividades — Suscripciones y Pagos
 
-![Diagrama de Actividades Login y JWT](../00_assets/diagrams/04_diagramas/diagrama_actividades_suscripciones.png)
+![Diagrama de Actividades Login y JWT](../00_assets/diagrams/04_diagramas/actividades_suscripciones.png)
 
 
 Este diagrama modela el flujo completo del ciclo de vida de una suscripcion en Quetxal TV, distribuido en siete carriles: Usuario, API Gateway, Subscription Service, FX Service, Redis, DB Subscription y Notification Service.

@@ -5,7 +5,7 @@
 
 ### Diagrama de Secuencia — Login y Validacion JWT
 
-![Diagrama de Secuencia Login y JWT](../00_assets/diagrams/04_diagramas/diagrama_secuenciaegeneral.png)
+![Diagrama de Secuencia General](../00_assets/diagrams/04_diagramas/diagrama_secuenciafull.png)
 
 
 ### Diagrama de Secuencia Completo
@@ -121,7 +121,7 @@ El sistema consulta el historial reciente de visualización del perfil y retorna
 ---
 ### Diagrama de Secuencia — Suscripciones y Pagos
 
-![Diagrama de Secuencia Suscipciones y Pagos](../00_assets/diagrams/04_diagramas/diagramasecuencia_sucripciones.drawio.png)
+![Diagrama de Secuencia Suscipciones y Pagos](../00_assets/diagrams/04_diagramas/diagramasecuencia_sucripciones2.png)
 
 
 Este diagrama modela la interaccion temporal entre siete participantes: Usuario, API Gateway, Subscription Service, FX Service, Redis, DB Subscription y Notification Service, cubriendo el ciclo de vida completo de una suscripcion.
