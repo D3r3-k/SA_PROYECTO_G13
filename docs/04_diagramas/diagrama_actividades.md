@@ -2,6 +2,9 @@
 
 # Diagrama de Actividades
 
+![Diagrama de Actividades General](../00_assets/diagrams/04_diagramas/diagrama_actividades_general.png)
+
+
 ### Diagrama de Actividades — Login y Validacion JWT
 
 ![Diagrama de Actividades Login y JWT](../00_assets/diagrams/04_diagramas/loginjwt.png)
