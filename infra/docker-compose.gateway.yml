@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   api-gateway:
     build:
@@ -7,27 +5,22 @@ services:
       dockerfile: apps/api-gateway/Dockerfile
     container_name: api-gateway
     restart: unless-stopped
+    env_file:
+      - ./.env.gcp
     environment:
       NODE_ENV: ${NODE_ENV:-production}
       PORT: ${API_GATEWAY_PORT:-3000}
-      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:8080}
+      FRONTEND_URL: ${FRONTEND_URL:?FRONTEND_URL is required}
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
       COOKIE_NAME: ${COOKIE_NAME:-access_token}
       COOKIE_SECURE: ${COOKIE_SECURE:-true}
       COOKIE_SAME_SITE: ${COOKIE_SAME_SITE:-lax}
-      IDENTITY_GRPC_URL: ${IDENTITY_GRPC_URL:-identity-service:50051}
-      FX_GRPC_URL: ${FX_GRPC_URL:-fx-service:50052}
-      SUBSCRIPTION_GRPC_URL: ${SUBSCRIPTION_GRPC_URL:-subscription-service:50053}
-      NOTIFICATION_GRPC_URL: ${NOTIFICATION_GRPC_URL:-notification-service:50054}
-      CATALOG_GRPC_URL: ${CATALOG_GRPC_URL:-catalog-service:50055}
-      ENGAGEMENT_GRPC_URL: ${ENGAGEMENT_GRPC_URL:-engagement-service:50056}
-      PAYMENT_GRPC_URL: ${PAYMENT_GRPC_URL:-payment-gateway-service:50057}
+      IDENTITY_GRPC_URL: ${IDENTITY_GRPC_URL:?IDENTITY_GRPC_URL is required}
+      FX_GRPC_URL: ${FX_GRPC_URL:?FX_GRPC_URL is required}
+      SUBSCRIPTION_GRPC_URL: ${SUBSCRIPTION_GRPC_URL:?SUBSCRIPTION_GRPC_URL is required}
+      PAYMENT_GRPC_URL: ${PAYMENT_GRPC_URL:?PAYMENT_GRPC_URL is required}
+      NOTIFICATION_GRPC_URL: ${NOTIFICATION_GRPC_URL:?NOTIFICATION_GRPC_URL is required}
+      CATALOG_GRPC_URL: ${CATALOG_GRPC_URL:?CATALOG_GRPC_URL is required}
+      ENGAGEMENT_GRPC_URL: ${ENGAGEMENT_GRPC_URL:?ENGAGEMENT_GRPC_URL is required}
     ports:
-      - "${API_GATEWAY_PORT:-3000}:${API_GATEWAY_PORT:-3000}"
-    networks:
-      - sa_net
-
-networks:
-  sa_net:
-    name: sa_net
-    external: true
+      - "${API_GATEWAY_PORT:-3000}:3000"
