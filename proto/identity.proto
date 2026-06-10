@@ -1,0 +1,123 @@
+syntax = "proto3";
+
+package identity;
+
+service IdentityService {
+
+  rpc RegisterUser(RegisterUserRequest) returns (AuthResponse);
+  rpc Login(LoginRequest) returns (AuthResponse);
+  rpc ValidateToken(ValidateTokenRequest) returns (ValidateTokenResponse);
+  rpc GetUserById(GetUserByIdRequest) returns (UserResponse);
+
+  rpc CreateProfile(CreateProfileRequest) returns (ProfileResponse);
+  rpc ListProfiles(ListProfilesRequest) returns (ListProfilesResponse);
+  rpc SelectProfile(SelectProfileRequest) returns (SelectProfileResponse);
+
+  rpc UpdateCredentials(UpdateCredentialsRequest) returns (BasicResponse);
+
+  rpc UpdateProfile(UpdateProfileRequest) returns (ProfileResponse);
+  rpc DeleteProfile(DeleteProfileRequest) returns (BasicResponse);
+
+}
+
+message RegisterUserRequest {
+  string email = 1;
+  string password = 2;
+  string full_name = 3;
+}
+
+message LoginRequest {
+  string email = 1;
+  string password = 2;
+}
+
+message AuthResponse {
+  bool success = 1;
+  string message = 2;
+  string user_id = 3;
+  string token = 4;
+}
+
+message GetUserByIdRequest {
+  string user_id = 1;
+}
+
+message UserResponse {
+  bool success = 1;
+  string message = 2;
+  string user_id = 3;
+  string email = 4;
+  string full_name = 5;
+}
+
+message ValidateTokenRequest {
+  string token = 1;
+}
+
+message ValidateTokenResponse {
+  bool valid = 1;
+  string user_id = 2;
+  string email = 3;
+  string profile_id = 4;
+}
+
+message CreateProfileRequest {
+  string user_id = 1;
+  string name = 2;
+  string avatar_url = 3;
+}
+
+message ListProfilesRequest {
+  string user_id = 1;
+}
+
+message ListProfilesResponse {
+  repeated ProfileResponse profiles = 1;
+}
+
+message SelectProfileRequest {
+  string user_id = 1;
+  string profile_id = 2;
+}
+
+message ProfileResponse {
+  bool success = 1;
+  string message = 2;
+  string profile_id = 3;
+  string user_id = 4;
+  string name = 5;
+  string avatar_url = 6;
+}
+
+message SelectProfileResponse {
+  bool success = 1;
+  string message = 2;
+  string profile_id = 3;
+  string user_id = 4;
+  string name = 5;
+  string avatar_url = 6;
+  string token = 7;
+}
+
+message UpdateProfileRequest {
+  string user_id = 1;
+  string profile_id = 2;
+  string name = 3;
+  string avatar_url = 4;
+}
+
+message DeleteProfileRequest {
+  string user_id = 1;
+  string profile_id = 2;
+}
+
+message UpdateCredentialsRequest {
+  string user_id = 1;
+  string current_password = 2;
+  string new_password = 3;
+}
+
+message BasicResponse {
+  bool success = 1;
+  string message = 2;
+}

@@ -1,0 +1,9 @@
+﻿sa_fx_service  | INFO:     Started server process [1]
+sa_fx_service  | INFO:     Waiting for application startup.
+sa_fx_service  | INFO:     Application startup complete.
+sa_fx_service  | INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+sa_fx_service  | INFO:     172.18.0.1:39066 - "GET /health HTTP/1.1" 200 OK
+sa_fx_service  | 2026-06-07 00:10:16,361 INFO cache hit key=fx:rate:USD:EUR
+sa_fx_service  | INFO:     172.18.0.1:39066 - "GET /rates/USD/EUR HTTP/1.1" 200 OK
+sa_fx_service  | 2026-06-07 00:10:17,396 INFO cache hit key=fx:rate:USD:EUR
+sa_fx_service  | INFO:     172.18.0.1:39066 - "GET /rates/USD/EUR HTTP/1.1" 200 OK

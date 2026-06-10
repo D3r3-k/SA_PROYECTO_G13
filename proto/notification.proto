@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+package notification;
+
+service NotificationService {
+  rpc Health (NotificationHealthRequest) returns (NotificationHealthResponse);
+  rpc Send (NotifyRequest) returns (NotifyResponse);
+}
+
+message NotificationHealthRequest {}
+
+message NotificationHealthResponse {
+  bool success = 1;
+  string status = 2;
+  bool redis = 3;
+  bool smtp = 4;
+}
+
+message NotifyRequest {
+  string type = 1;
+  string user_id = 2;
+  string email = 3;
+  string subject = 4;
+  string body = 5;
+  map<string, string> metadata = 6;
+}
+
+message NotifyResponse {
+  bool accepted = 1;
+  string message_id = 2;
+  string message = 3;
+}

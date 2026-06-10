@@ -1,0 +1,308 @@
+version: "3.8"
+
+services:
+  redis:
+    image: redis:7
+    container_name: sa_redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    expose:
+      - "6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - sa_net
+
+  identity-db:
+    image: postgres:16-alpine
+    container_name: identity-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${IDENTITY_DB_NAME:-identity_db}
+      POSTGRES_USER: ${IDENTITY_DB_USER:-identity_user}
+      POSTGRES_PASSWORD: ${IDENTITY_DB_PASSWORD:-identity_password}
+    expose:
+      - "5432"
+    volumes:
+      - identity_db_data:/var/lib/postgresql/data
+      - ../services/identity-service/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - sa_net
+
+  subscription-db:
+    image: postgres:15
+    container_name: sa_subscription_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${SUBSCRIPTION_DB_NAME:-subscription_db}
+      POSTGRES_USER: ${SUBSCRIPTION_DB_USER:-sa_sub_user}
+      POSTGRES_PASSWORD: ${SUBSCRIPTION_DB_PASSWORD:-sa_sub_pass}
+    expose:
+      - "5432"
+    volumes:
+      - subscription_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - sa_net
+
+  catalog-db:
+    image: postgres:16-alpine
+    container_name: catalog-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${CATALOG_DB_NAME:-catalog_db}
+      POSTGRES_USER: ${CATALOG_DB_USER:-catalog_user}
+      POSTGRES_PASSWORD: ${CATALOG_DB_PASSWORD:-catalog_password}
+    expose:
+      - "5432"
+    volumes:
+      - catalog_pgdata:/var/lib/postgresql/data
+      - ../services/catalog-service/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - sa_net
+
+  engagement-db:
+    image: postgres:16-alpine
+    container_name: engagement-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${ENGAGEMENT_DB_NAME:-engagement_db}
+      POSTGRES_USER: ${ENGAGEMENT_DB_USER:-engagement_user}
+      POSTGRES_PASSWORD: ${ENGAGEMENT_DB_PASSWORD:-engagement_password}
+    expose:
+      - "5432"
+    volumes:
+      - engagement_pgdata:/var/lib/postgresql/data
+      - ../services/engagement-service/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - sa_net
+
+  identity-service:
+    build:
+      context: ..
+      dockerfile: services/identity-service/Dockerfile
+    container_name: identity-service
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      IDENTITY_GRPC_HOST: 0.0.0.0
+      IDENTITY_GRPC_PORT: 50051
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-1d}
+      DB_HOST: identity-db
+      DB_PORT: 5432
+      DB_NAME: ${IDENTITY_DB_NAME:-identity_db}
+      DB_USER: ${IDENTITY_DB_USER:-identity_user}
+      DB_PASSWORD: ${IDENTITY_DB_PASSWORD:-identity_password}
+      REDIS_URL: redis://redis:6379/0
+      NOTIFICATION_QUEUE_NAME: ${NOTIFICATION_QUEUE_NAME:-notification:queue}
+    expose:
+      - "50051"
+    depends_on:
+      redis:
+        condition: service_healthy
+      identity-db:
+        condition: service_healthy
+    networks:
+      - sa_net
+
+  fx-service:
+    build:
+      context: ..
+      dockerfile: services/fx-service/Dockerfile
+    container_name: sa_fx_service
+    restart: unless-stopped
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      FX_CACHE_TTL: ${FX_CACHE_TTL:-3600}
+      FX_API_BASE_URL: ${FX_API_BASE_URL:-https://api.frankfurter.dev/v2}
+    expose:
+      - "50052"
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - sa_net
+
+  payment-gateway-service:
+    build:
+      context: ..
+      dockerfile: services/payment-gateway-service/Dockerfile
+    container_name: payment-gateway-service
+    environment:
+      PAYMENT_GRPC_PORT: ${PAYMENT_GRPC_PORT}
+      PAYMENT_PROVIDER_NAME: ${PAYMENT_PROVIDER_NAME}
+      PAYMENT_APPROVAL_DELAY_MS: ${PAYMENT_APPROVAL_DELAY_MS}
+    expose:
+      - "${PAYMENT_GRPC_PORT}"
+    restart: unless-stopped
+    networks:
+      - sa_net
+
+  subscription-service:
+    build:
+      context: ..
+      dockerfile: services/subscription-service/Dockerfile
+    container_name: sa_subscription_service
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${SUBSCRIPTION_DB_USER:-sa_sub_user}:${SUBSCRIPTION_DB_PASSWORD:-sa_sub_pass}@subscription-db:5432/${SUBSCRIPTION_DB_NAME:-subscription_db}
+      REDIS_URL: redis://redis:6379/0
+      NOTIFICATION_QUEUE_NAME: ${NOTIFICATION_QUEUE_NAME:-notification:queue}
+    expose:
+      - "50053"
+    depends_on:
+      redis:
+        condition: service_healthy
+      subscription-db:
+        condition: service_healthy
+    networks:
+      - sa_net
+
+  catalog-service:
+    build:
+      context: ..
+      dockerfile: services/catalog-service/Dockerfile
+    container_name: catalog-service
+    restart: unless-stopped
+    environment:
+      CATALOG_GRPC_PORT: 50055
+      DATABASE_URL: postgresql://${CATALOG_DB_USER:-catalog_user}:${CATALOG_DB_PASSWORD:-catalog_password}@catalog-db:5432/${CATALOG_DB_NAME:-catalog_db}
+      ARCHIVE_METADATA_BASE_URL: ${ARCHIVE_METADATA_BASE_URL:-https://archive.org/metadata}
+      ARCHIVE_DOWNLOAD_BASE_URL: ${ARCHIVE_DOWNLOAD_BASE_URL:-https://archive.org/download}
+      ARCHIVE_IMAGE_BASE_URL: ${ARCHIVE_IMAGE_BASE_URL:-https://archive.org/services/img}
+      ARCHIVE_MOVIE_IDENTIFIERS: ${ARCHIVE_MOVIE_IDENTIFIERS:-charlie-chaplin-the-champion-1915,charliechaplin_theimmigrant_20190819,night_of_the_living_dead,TheGeneral,Nosferatu1922}
+      ARCHIVE_SERIES_IDENTIFIER: ${ARCHIVE_SERIES_IDENTIFIER:-BarbecueForTwo1960}
+      ARCHIVE_SERIES_IDENTIFIERS: ${ARCHIVE_SERIES_IDENTIFIERS:-BarbecueForTwo1960,Popeye_forPresident,popeye-meets-ali-baba-1937,PopeyePopeyeTheSailorMeetsSindbadTheSailor1936,PopeyeAncientFistory,popeye-private-eye-popeye-1954,popeye-little-sweepea-1936,popeye-greek-mirthology-1954,popeye-i-dont-scare-1956,popeye-spree-lunch-1957}
+      ARCHIVE_SERIES_EPISODE_IDENTIFIERS: ${ARCHIVE_SERIES_EPISODE_IDENTIFIERS:-}
+      ARCHIVE_SERIES_TITLE: ${ARCHIVE_SERIES_TITLE:-Serie Internet Archive}
+      ARCHIVE_MOVIE_TARGET: ${ARCHIVE_MOVIE_TARGET:-5}
+      ARCHIVE_SERIES_TARGET: ${ARCHIVE_SERIES_TARGET:-10}
+      ARCHIVE_SERIES_EPISODE_LIMIT: ${ARCHIVE_SERIES_EPISODE_LIMIT:-15}
+      ARCHIVE_ALLOW_FALLBACK: ${ARCHIVE_ALLOW_FALLBACK:-false}
+    expose:
+      - "50055"
+    depends_on:
+      catalog-db:
+        condition: service_healthy
+    networks:
+      - sa_net
+
+  engagement-service:
+    build:
+      context: ..
+      dockerfile: services/engagement-service/Dockerfile
+    container_name: engagement-service
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${ENGAGEMENT_DB_USER:-engagement_user}:${ENGAGEMENT_DB_PASSWORD:-engagement_password}@engagement-db:5432/${ENGAGEMENT_DB_NAME:-engagement_db}
+    expose:
+      - "50056"
+    depends_on:
+      engagement-db:
+        condition: service_healthy
+    networks:
+      - sa_net
+
+  notification-service:
+    build:
+      context: ..
+      dockerfile: services/notification-service/Dockerfile
+    container_name: sa_notification_service
+    restart: unless-stopped
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      NOTIFICATION_QUEUE_NAME: ${NOTIFICATION_QUEUE_NAME:-notification:queue}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-no-reply@quetxaltv.com}
+      SMTP_STARTTLS: ${SMTP_STARTTLS:-true}
+    expose:
+      - "50054"
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - sa_net
+
+  api-gateway:
+    build:
+      context: ..
+      dockerfile: apps/api-gateway/Dockerfile
+    container_name: api-gateway
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:8080}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      COOKIE_NAME: ${COOKIE_NAME:-access_token}
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+      COOKIE_SAME_SITE: ${COOKIE_SAME_SITE:-lax}
+      IDENTITY_GRPC_URL: identity-service:50051
+      FX_GRPC_URL: fx-service:50052
+      SUBSCRIPTION_GRPC_URL: subscription-service:50053
+      PAYMENT_GRPC_URL: ${PAYMENT_GRPC_URL}
+      CATALOG_GRPC_URL: catalog-service:50055
+      ENGAGEMENT_GRPC_URL: engagement-service:50056
+    ports:
+      - "${API_GATEWAY_PORT:-3000}:3000"
+    depends_on:
+      - identity-service
+      - fx-service
+      - subscription-service
+      - payment-gateway-service
+      - catalog-service
+      - engagement-service
+    networks:
+      - sa_net
+
+  web:
+    build:
+      context: ../apps/web
+      dockerfile: Dockerfile
+    container_name: sa_web
+    restart: unless-stopped
+    ports:
+      - "${WEB_PORT:-8080}:80"
+    depends_on:
+      - api-gateway
+    networks:
+      - sa_net
+
+volumes:
+  redis_data:
+  identity_db_data:
+  subscription_pgdata:
+  catalog_pgdata:
+  engagement_pgdata:
+
+networks:
+  sa_net:
+    driver: bridge

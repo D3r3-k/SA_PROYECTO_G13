@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package fx;
+
+service FxService {
+  rpc Health (FxHealthRequest) returns (FxHealthResponse);
+  rpc GetRate (RateRequest) returns (RateResponse);
+}
+
+message FxHealthRequest {}
+
+message FxHealthResponse {
+  bool success = 1;
+  string status = 2;
+  bool redis = 3;
+}
+
+message RateRequest {
+  string base = 1;
+  string target = 2;
+}
+
+message RateResponse {
+  bool success = 1;
+  string message = 2;
+  string base = 3;
+  string target = 4;
+  double rate = 5;
+  int64 timestamp = 6;
+  bool cached = 7;
+}

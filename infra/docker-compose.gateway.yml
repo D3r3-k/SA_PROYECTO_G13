@@ -1,0 +1,26 @@
+services:
+  api-gateway:
+    build:
+      context: ..
+      dockerfile: apps/api-gateway/Dockerfile
+    container_name: api-gateway
+    restart: unless-stopped
+    env_file:
+      - ./.env.gcp
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: ${API_GATEWAY_PORT:-3000}
+      FRONTEND_URL: ${FRONTEND_URL:?FRONTEND_URL is required}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      COOKIE_NAME: ${COOKIE_NAME:-access_token}
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+      COOKIE_SAME_SITE: ${COOKIE_SAME_SITE:-lax}
+      IDENTITY_GRPC_URL: ${IDENTITY_GRPC_URL:?IDENTITY_GRPC_URL is required}
+      FX_GRPC_URL: ${FX_GRPC_URL:?FX_GRPC_URL is required}
+      SUBSCRIPTION_GRPC_URL: ${SUBSCRIPTION_GRPC_URL:?SUBSCRIPTION_GRPC_URL is required}
+      PAYMENT_GRPC_URL: ${PAYMENT_GRPC_URL:?PAYMENT_GRPC_URL is required}
+      NOTIFICATION_GRPC_URL: ${NOTIFICATION_GRPC_URL:?NOTIFICATION_GRPC_URL is required}
+      CATALOG_GRPC_URL: ${CATALOG_GRPC_URL:?CATALOG_GRPC_URL is required}
+      ENGAGEMENT_GRPC_URL: ${ENGAGEMENT_GRPC_URL:?ENGAGEMENT_GRPC_URL is required}
+    ports:
+      - "${API_GATEWAY_PORT:-3000}:3000"

@@ -1,0 +1,9 @@
+services:
+  web:
+    build:
+      context: ../apps/web
+      dockerfile: Dockerfile
+    container_name: sa_web
+    restart: unless-stopped
+    ports:
+      - "${WEB_PORT:-80}:80"
