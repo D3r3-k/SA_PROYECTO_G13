@@ -356,6 +356,15 @@ gcloud projects add-iam-policy-binding $env:PROJECT_ID --member="serviceAccount:
 gcloud projects add-iam-policy-binding $env:PROJECT_ID --member="serviceAccount:$env:CICD_SA" --role="roles/storage.objectViewer"
 ```
 
+Permitir que GitHub Actions use el service account asignado a las VMs de Compute Engine:
+
+```powershell
+$env:PROJECT_NUMBER=(gcloud projects describe $env:PROJECT_ID --format="value(projectNumber)")
+$env:COMPUTE_SA="$env:PROJECT_NUMBER-compute@developer.gserviceaccount.com"
+
+gcloud iam service-accounts add-iam-policy-binding $env:COMPUTE_SA --member="serviceAccount:$env:CICD_SA" --role="roles/iam.serviceAccountUser" --project=$env:PROJECT_ID
+```
+
 Dar permiso al service account de Cloud SQL para escribir exports en el bucket:
 
 ```powershell
@@ -489,6 +498,12 @@ IDENTITY_DB_PORT=5432
 IDENTITY_DB_NAME=identity_db
 IDENTITY_DB_USER=identity_user
 IDENTITY_DB_PASSWORD=CAMBIAR_IDENTITY_PASSWORD
+
+DB_HOST=IP_PRIVADA_CLOUD_SQL
+DB_PORT=5432
+DB_NAME=identity_db
+DB_USER=identity_user
+DB_PASSWORD=CAMBIAR_IDENTITY_PASSWORD
 
 SUBSCRIPTION_DATABASE_URL=postgresql://subscription_user:CAMBIAR_SUBSCRIPTION_PASSWORD@IP_PRIVADA_CLOUD_SQL:5432/subscription_db
 CATALOG_DATABASE_URL=postgresql://catalog_user:CAMBIAR_CATALOG_PASSWORD@IP_PRIVADA_CLOUD_SQL:5432/catalog_db
