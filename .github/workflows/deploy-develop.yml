@@ -1,0 +1,362 @@
+name: Deploy develop to Compute Engine
+
+on:
+  push:
+    branches:
+      - develop
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE_NAMESPACE: ghcr.io/d3r3-k/sa_proyecto_g13
+  GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+  GCP_REGION: ${{ vars.GCP_REGION }}
+  GCP_ZONE: ${{ vars.GCP_ZONE }}
+  VM_FRONTEND_NAME: ${{ vars.VM_FRONTEND_NAME }}
+  VM_GATEWAY_NAME: ${{ vars.VM_GATEWAY_NAME }}
+  VM_SERVICES_NAME: ${{ vars.VM_SERVICES_NAME }}
+  GCS_BUCKET_NAME: ${{ vars.GCS_BUCKET_NAME }}
+
+jobs:
+  ci-checks:
+    name: CI checks
+    runs-on: ubuntu-latest
+    environment: develop
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Build web
+        working-directory: apps/web
+        run: |
+          npm ci
+          npm run build
+
+      - name: Build api gateway
+        working-directory: apps/api-gateway
+        run: |
+          npm ci
+          npm run build
+
+      - name: Build identity service
+        working-directory: services/identity-service
+        run: |
+          npm ci
+          npm run build
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+          cache-dependency-path: services/catalog-service/go.sum
+
+      - name: Test catalog service
+        working-directory: services/catalog-service
+        run: go test ./...
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Compile Python services
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          for service in \
+            services/fx-service \
+            services/subscription-service \
+            services/notification-service \
+            services/engagement-service \
+            services/payment-gateway-service
+          do
+            python -m pip install --upgrade pip
+            python -m pip install -r "${service}/requirements.txt"
+            python -m compileall "${service}/src"
+          done
+
+  backup-cloud-sql:
+    name: Backup Cloud SQL
+    runs-on: ubuntu-latest
+    environment: develop
+    needs: ci-checks
+
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+          project_id: ${{ env.GCP_PROJECT_ID }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure gcloud project
+        run: gcloud config set project "${GCP_PROJECT_ID}"
+
+      - name: Export operational databases
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          backup_prefix="gs://${GCS_BUCKET_NAME}/backups/develop/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+
+          for database in identity_db subscription_db catalog_db engagement_db
+          do
+            gcloud sql export sql qx-postgres "${backup_prefix}/${database}.sql" \
+              --database="${database}" \
+              --quiet
+          done
+
+  build-and-push:
+    name: Build and push images
+    runs-on: ubuntu-latest
+    environment: develop
+    needs: backup-cloud-sql
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - image: web
+            context: ./apps/web
+            dockerfile: ./apps/web/Dockerfile
+          - image: api-gateway
+            context: .
+            dockerfile: ./apps/api-gateway/Dockerfile
+          - image: identity-service
+            context: .
+            dockerfile: ./services/identity-service/Dockerfile
+          - image: fx-service
+            context: .
+            dockerfile: ./services/fx-service/Dockerfile
+          - image: subscription-service
+            context: .
+            dockerfile: ./services/subscription-service/Dockerfile
+          - image: notification-service
+            context: .
+            dockerfile: ./services/notification-service/Dockerfile
+          - image: catalog-service
+            context: .
+            dockerfile: ./services/catalog-service/Dockerfile
+          - image: engagement-service
+            context: .
+            dockerfile: ./services/engagement-service/Dockerfile
+          - image: payment-gateway-service
+            context: .
+            dockerfile: ./services/payment-gateway-service/Dockerfile
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: |
+            ${{ env.IMAGE_NAMESPACE }}/${{ matrix.image }}:latest
+            ${{ env.IMAGE_NAMESPACE }}/${{ matrix.image }}:${{ github.sha }}
+
+  deploy:
+    name: Deploy to VMs
+    runs-on: ubuntu-latest
+    environment: develop
+    needs: build-and-push
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+          project_id: ${{ env.GCP_PROJECT_ID }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure gcloud project
+        run: gcloud config set project "${GCP_PROJECT_ID}"
+
+      - name: Generate runtime env files
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p runtime-envs
+
+          CLOUD_SQL_PRIVATE_IP="$(gcloud sql instances describe qx-postgres --format='value(ipAddresses[0].ipAddress)')"
+          REDIS_HOST="$(gcloud redis instances describe qx-redis --region="${GCP_REGION}" --format='value(host)')"
+          REDIS_PORT="$(gcloud redis instances describe qx-redis --region="${GCP_REGION}" --format='value(port)')"
+          SERVICES_PRIVATE_IP="$(gcloud compute instances describe "${VM_SERVICES_NAME}" --zone="${GCP_ZONE}" --format='value(networkInterfaces[0].networkIP)')"
+          GATEWAY_PRIVATE_IP="$(gcloud compute instances describe "${VM_GATEWAY_NAME}" --zone="${GCP_ZONE}" --format='value(networkInterfaces[0].networkIP)')"
+          FRONTEND_PUBLIC_IP="$(gcloud compute instances describe "${VM_FRONTEND_NAME}" --zone="${GCP_ZONE}" --format='value(networkInterfaces[0].accessConfigs[0].natIP)')"
+
+          cat > runtime-envs/services.env <<EOF
+          NODE_ENV=production
+          JWT_SECRET=${{ secrets.JWT_SECRET }}
+          JWT_EXPIRES_IN=1d
+
+          IDENTITY_GRPC_HOST=0.0.0.0
+          IDENTITY_GRPC_PORT=50051
+          FX_GRPC_PORT=50052
+          SUBSCRIPTION_GRPC_PORT=50053
+          NOTIFICATION_GRPC_PORT=50054
+          CATALOG_GRPC_PORT=50055
+          ENGAGEMENT_GRPC_PORT=50056
+          PAYMENT_GRPC_PORT=50057
+
+          IDENTITY_DB_HOST=${CLOUD_SQL_PRIVATE_IP}
+          IDENTITY_DB_PORT=5432
+          IDENTITY_DB_NAME=identity_db
+          IDENTITY_DB_USER=identity_user
+          IDENTITY_DB_PASSWORD=${{ secrets.IDENTITY_DB_PASSWORD }}
+
+          SUBSCRIPTION_DATABASE_URL=postgresql://subscription_user:${{ secrets.SUBSCRIPTION_DB_PASSWORD }}@${CLOUD_SQL_PRIVATE_IP}:5432/subscription_db
+          CATALOG_DATABASE_URL=postgresql://catalog_user:${{ secrets.CATALOG_DB_PASSWORD }}@${CLOUD_SQL_PRIVATE_IP}:5432/catalog_db
+          ENGAGEMENT_DATABASE_URL=postgresql://engagement_user:${{ secrets.ENGAGEMENT_DB_PASSWORD }}@${CLOUD_SQL_PRIVATE_IP}:5432/engagement_db
+
+          REDIS_URL=redis://${REDIS_HOST}:${REDIS_PORT}/0
+          NOTIFICATION_QUEUE_NAME=notification:queue
+          FX_CACHE_TTL=3600
+          FX_API_BASE_URL=https://api.frankfurter.dev/v2
+
+          GCS_BUCKET_NAME=${GCS_BUCKET_NAME}
+          GOOGLE_CLOUD_PROJECT=${GCP_PROJECT_ID}
+
+          PAYMENT_PROVIDER_NAME=QuetxalPay Sandbox
+          PAYMENT_APPROVAL_DELAY_MS=500
+
+          SMTP_HOST=${{ secrets.SMTP_HOST }}
+          SMTP_PORT=${{ vars.SMTP_PORT || '587' }}
+          SMTP_USERNAME=${{ secrets.SMTP_USERNAME }}
+          SMTP_PASSWORD=${{ secrets.SMTP_PASSWORD }}
+          SMTP_FROM=${{ secrets.SMTP_FROM }}
+          SMTP_STARTTLS=${{ vars.SMTP_STARTTLS || 'true' }}
+          EOF
+
+          cat > runtime-envs/gateway.env <<EOF
+          NODE_ENV=production
+          API_GATEWAY_PORT=3000
+          FRONTEND_URL=http://${FRONTEND_PUBLIC_IP}
+          JWT_SECRET=${{ secrets.JWT_SECRET }}
+          COOKIE_NAME=access_token
+          COOKIE_SECURE=false
+          COOKIE_SAME_SITE=lax
+
+          IDENTITY_GRPC_URL=${SERVICES_PRIVATE_IP}:50051
+          FX_GRPC_URL=${SERVICES_PRIVATE_IP}:50052
+          SUBSCRIPTION_GRPC_URL=${SERVICES_PRIVATE_IP}:50053
+          NOTIFICATION_GRPC_URL=${SERVICES_PRIVATE_IP}:50054
+          CATALOG_GRPC_URL=${SERVICES_PRIVATE_IP}:50055
+          ENGAGEMENT_GRPC_URL=${SERVICES_PRIVATE_IP}:50056
+          PAYMENT_GRPC_URL=${SERVICES_PRIVATE_IP}:50057
+          EOF
+
+          cat > runtime-envs/frontend.env <<EOF
+          WEB_PORT=80
+          API_GATEWAY_UPSTREAM=${GATEWAY_PRIVATE_IP}:3000
+          EOF
+
+      - name: Deploy docker compose files
+        shell: bash
+        env:
+          GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
+          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          deploy_role() {
+            local vm_name="$1"
+            local role="$2"
+            local compose_path="deploy/${role}/docker-compose.yml"
+            local env_path="runtime-envs/${role}.env"
+            local remote_dir="~/quetxal-tv/${role}"
+
+            gcloud compute ssh "${vm_name}" \
+              --zone="${GCP_ZONE}" \
+              --tunnel-through-iap \
+              --command="mkdir -p ${remote_dir}"
+
+            gcloud compute scp "${compose_path}" "${vm_name}:${remote_dir}/docker-compose.yml" \
+              --zone="${GCP_ZONE}" \
+              --tunnel-through-iap
+
+            gcloud compute scp "${env_path}" "${vm_name}:${remote_dir}/.env" \
+              --zone="${GCP_ZONE}" \
+              --tunnel-through-iap
+
+            gcloud compute ssh "${vm_name}" \
+              --zone="${GCP_ZONE}" \
+              --tunnel-through-iap \
+              --command="cd ${remote_dir} && echo '${GHCR_TOKEN}' | sudo docker login ghcr.io -u '${GHCR_USERNAME}' --password-stdin && sudo docker compose pull && sudo docker compose up -d && sudo docker compose ps && sudo docker image prune -f"
+          }
+
+          deploy_role "${VM_SERVICES_NAME}" "services"
+          deploy_role "${VM_GATEWAY_NAME}" "gateway"
+          deploy_role "${VM_FRONTEND_NAME}" "frontend"
+
+  smoke-test:
+    name: Smoke test deployment
+    runs-on: ubuntu-latest
+    environment: develop
+    needs: deploy
+
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+          project_id: ${{ env.GCP_PROJECT_ID }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure gcloud project
+        run: gcloud config set project "${GCP_PROJECT_ID}"
+
+      - name: Validate containers and frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          gcloud compute ssh "${VM_SERVICES_NAME}" \
+            --zone="${GCP_ZONE}" \
+            --tunnel-through-iap \
+            --command="cd ~/quetxal-tv/services && sudo docker compose ps"
+
+          gcloud compute ssh "${VM_GATEWAY_NAME}" \
+            --zone="${GCP_ZONE}" \
+            --tunnel-through-iap \
+            --command="cd ~/quetxal-tv/gateway && sudo docker compose ps"
+
+          gcloud compute ssh "${VM_FRONTEND_NAME}" \
+            --zone="${GCP_ZONE}" \
+            --tunnel-through-iap \
+            --command="cd ~/quetxal-tv/frontend && sudo docker compose ps"
+
+          FRONTEND_PUBLIC_IP="$(gcloud compute instances describe "${VM_FRONTEND_NAME}" --zone="${GCP_ZONE}" --format='value(networkInterfaces[0].accessConfigs[0].natIP)')"
+          curl -fsS "http://${FRONTEND_PUBLIC_IP}" >/dev/null
