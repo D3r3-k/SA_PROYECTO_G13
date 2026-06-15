@@ -235,6 +235,12 @@ jobs:
           IDENTITY_DB_USER=identity_user
           IDENTITY_DB_PASSWORD=${{ secrets.IDENTITY_DB_PASSWORD }}
 
+          DB_HOST=${CLOUD_SQL_PRIVATE_IP}
+          DB_PORT=5432
+          DB_NAME=identity_db
+          DB_USER=identity_user
+          DB_PASSWORD=${{ secrets.IDENTITY_DB_PASSWORD }}
+
           SUBSCRIPTION_DATABASE_URL=postgresql://subscription_user:${{ secrets.SUBSCRIPTION_DB_PASSWORD }}@${CLOUD_SQL_PRIVATE_IP}:5432/subscription_db
           CATALOG_DATABASE_URL=postgresql://catalog_user:${{ secrets.CATALOG_DB_PASSWORD }}@${CLOUD_SQL_PRIVATE_IP}:5432/catalog_db
           ENGAGEMENT_DATABASE_URL=postgresql://engagement_user:${{ secrets.ENGAGEMENT_DB_PASSWORD }}@${CLOUD_SQL_PRIVATE_IP}:5432/engagement_db
@@ -343,15 +349,17 @@ jobs:
         run: |
           set -euo pipefail
 
+          SERVICES_PRIVATE_IP="$(gcloud compute instances describe "${VM_SERVICES_NAME}" --zone="${GCP_ZONE}" --format='value(networkInterfaces[0].networkIP)')"
+
           gcloud compute ssh "${VM_SERVICES_NAME}" \
             --zone="${GCP_ZONE}" \
             --tunnel-through-iap \
-            --command="cd ~/quetxal-tv/services && sudo docker compose ps"
+            --command="cd ~/quetxal-tv/services && sudo docker compose ps && for port in 50051 50052 50053 50054 50055 50056 50057; do timeout 5 bash -lc \"cat < /dev/null > /dev/tcp/127.0.0.1/\${port}\"; done"
 
           gcloud compute ssh "${VM_GATEWAY_NAME}" \
             --zone="${GCP_ZONE}" \
             --tunnel-through-iap \
-            --command="cd ~/quetxal-tv/gateway && sudo docker compose ps"
+            --command="cd ~/quetxal-tv/gateway && sudo docker compose ps && timeout 5 bash -lc \"cat < /dev/null > /dev/tcp/${SERVICES_PRIVATE_IP}/50051\""
 
           gcloud compute ssh "${VM_FRONTEND_NAME}" \
             --zone="${GCP_ZONE}" \
