@@ -1,0 +1,19 @@
+version: "3.8"
+
+services:
+  web:
+    image: ghcr.io/d3r3-k/sa_proyecto_g13/web:latest
+    container_name: sa_web
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    env_file:
+      - .env
+    environment:
+      API_GATEWAY_UPSTREAM: ${API_GATEWAY_UPSTREAM}
+    networks:
+      - sa_net
+
+networks:
+  sa_net:
+    driver: bridge
