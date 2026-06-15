@@ -266,9 +266,72 @@ docker --version
 docker compose version
 ```
 
+### 11.1 Conexion a las VMs
+
+Conexion directa con `gcloud compute ssh`:
+
+```powershell
+$env:ZONE="us-central1-a"
+
+gcloud compute ssh qx-vm-frontend --tunnel-through-iap --zone=$env:ZONE
+gcloud compute ssh qx-vm-gateway --tunnel-through-iap --zone=$env:ZONE
+gcloud compute ssh qx-vm-services --tunnel-through-iap --zone=$env:ZONE
+```
+
+Si se desea usar Terminus, abrir tuneles IAP locales y mantener cada terminal abierta:
+
+```powershell
+gcloud compute start-iap-tunnel qx-vm-frontend 22 --local-host-port=localhost:2221 --zone=us-central1-a
+gcloud compute start-iap-tunnel qx-vm-gateway 22 --local-host-port=localhost:2222 --zone=us-central1-a
+gcloud compute start-iap-tunnel qx-vm-services 22 --local-host-port=localhost:2223 --zone=us-central1-a
+```
+
+Crear conexiones SSH en Terminus:
+
+```text
+Frontend:
+Host: 127.0.0.1
+Port: 2221
+User: D3r3k
+Private key: C:\Users\D3r3k\.ssh\google_compute_engine
+
+Gateway:
+Host: 127.0.0.1
+Port: 2222
+User: D3r3k
+Private key: C:\Users\D3r3k\.ssh\google_compute_engine
+
+Services:
+Host: 127.0.0.1
+Port: 2223
+User: D3r3k
+Private key: C:\Users\D3r3k\.ssh\google_compute_engine
+```
+
+Comandos utiles dentro de las VMs:
+
+```bash
+cd ~/quetxal-tv/services && sudo docker compose ps
+cd ~/quetxal-tv/gateway && sudo docker compose ps
+cd ~/quetxal-tv/frontend && sudo docker compose ps
+```
+
+```bash
+cd ~/quetxal-tv/services && sudo docker compose logs -f identity-service
+cd ~/quetxal-tv/gateway && sudo docker compose logs -f api-gateway
+cd ~/quetxal-tv/frontend && sudo docker compose logs -f web
+```
+
 ## 12. Configurar GitHub Environment `develop`
 
 Para despliegue con CI/CD no se crean archivos `.env` manualmente en las VMs. El workflow `.github/workflows/deploy-develop.yml` genera los `.env` usando GitHub Environments y los copia por IAP.
+
+Nota sobre bases de datos:
+
+- `identity-service` usa `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`.
+- `subscription-service`, `catalog-service` y `engagement-service` usan `DATABASE_URL`.
+- Como los tres servicios comparten la misma VM, `deploy/services/docker-compose.yml` asigna `DATABASE_URL` por servicio usando `SUBSCRIPTION_DATABASE_URL`, `CATALOG_DATABASE_URL` y `ENGAGEMENT_DATABASE_URL`.
+- Las migraciones de `identity-service` se ejecutan desde el workflow antes de levantar los contenedores, porque en Cloud SQL no existe el contenedor local `identity-db` que las corria automaticamente.
 
 Crear el environment:
 
@@ -580,6 +643,25 @@ Copiar el `docker-compose.yml` correspondiente a cada VM y ejecutar:
 sudo docker compose pull
 sudo docker compose up -d
 sudo docker compose ps
+```
+
+Si se despliega manualmente en la VM de servicios, ejecutar antes las migraciones de Identity:
+
+```bash
+cd ~/quetxal-tv/services
+
+sudo docker run --rm \
+  --env-file .env \
+  -v "$PWD/identity-migrations:/migrations:ro" \
+  postgres:16-alpine \
+  sh -c '
+    export PGPASSWORD="$DB_PASSWORD"
+    for dir in 01_extensions 02_tables 03_functions 04_views 05_procedures 06_triggers; do
+      for file in /migrations/$dir/*.sql; do
+        [ -f "$file" ] && psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -v ON_ERROR_STOP=1 -f "$file"
+      done
+    done
+  '
 ```
 
 ## 15. Configurar GitHub Environment `release`

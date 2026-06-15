@@ -315,6 +315,17 @@ jobs:
               --zone="${GCP_ZONE}" \
               --tunnel-through-iap
 
+            if [ "${role}" = "services" ]; then
+              gcloud compute scp --recurse "services/identity-service/migrations" "${vm_name}:${remote_dir}/identity-migrations" \
+                --zone="${GCP_ZONE}" \
+                --tunnel-through-iap
+
+              gcloud compute ssh "${vm_name}" \
+                --zone="${GCP_ZONE}" \
+                --tunnel-through-iap \
+                --command="cd ${remote_dir} && sudo docker run --rm --env-file .env -v \"\$(pwd)/identity-migrations:/migrations:ro\" postgres:16-alpine sh -c 'export PGPASSWORD=\"\$DB_PASSWORD\"; for dir in 01_extensions 02_tables 03_functions 04_views 05_procedures 06_triggers; do for file in /migrations/\$dir/*.sql; do [ -f \"\$file\" ] && psql -h \"\$DB_HOST\" -p \"\$DB_PORT\" -U \"\$DB_USER\" -d \"\$DB_NAME\" -v ON_ERROR_STOP=1 -f \"\$file\"; done; done'"
+            fi
+
             gcloud compute ssh "${vm_name}" \
               --zone="${GCP_ZONE}" \
               --tunnel-through-iap \
