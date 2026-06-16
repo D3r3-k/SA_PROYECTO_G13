@@ -140,6 +140,20 @@ func (m *MediaStore) ObjectExists(ctx context.Context, objectKey string) error {
 	return nil
 }
 
+func (m *MediaStore) DeleteObject(ctx context.Context, objectKey string) error {
+	if m == nil || !isManagedObjectKey(objectKey) {
+		return nil
+	}
+	err := m.client.Bucket(m.bucketName).Object(objectKey).Delete(ctx)
+	if err == storage.ErrObjectNotExist {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("delete gcs object %s: %w", objectKey, err)
+	}
+	return nil
+}
+
 func (m *MediaStore) SignedReadURL(objectKey string) string {
 	if m == nil || !isManagedObjectKey(objectKey) {
 		return objectKey

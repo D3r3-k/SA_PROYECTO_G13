@@ -40,6 +40,7 @@ func New(repo repository.Repository, svc catalogsvc.Service) (*Server, error) {
 			{MethodName: "CreateContent", Handler: s.createContentHandler},
 			{MethodName: "GenerateUploadUrl", Handler: s.generateUploadURLHandler},
 			{MethodName: "ConfirmMedia", Handler: s.confirmMediaHandler},
+			{MethodName: "DeleteContent", Handler: s.deleteContentHandler},
 		},
 	}, s)
 	return s, nil
@@ -257,6 +258,18 @@ func (s *Server) confirmMediaHandler(_ interface{}, ctx context.Context, dec fun
 	setString(res, "message", "media confirmed")
 	return res, nil
 }
+func (s *Server) deleteContentHandler(_ interface{}, ctx context.Context, dec func(interface{}) error, _ grpc.UnaryServerInterceptor) (interface{}, error) {
+	req, err := s.decode(ctx, dec, "DeleteContentRequest")
+	if err != nil {
+		return nil, err
+	}
+	result := s.svc.DeleteContent(ctx, str(req, "content_id"))
+	res := s.newMsg("DeleteContentResponse")
+	setBool(res, "success", result.Success)
+	setString(res, "message", result.Message)
+	setInt32(res, "deleted_objects", int32(result.DeletedObjects))
+	return res, nil
+}
 
 func (s *Server) contentListResponse(items []repository.ContentCard, err error) *dynamicpb.Message {
 	res := s.newMsg("ListContentResponse")
@@ -389,6 +402,8 @@ func buildDescriptors() (map[string]protoreflect.MessageDescriptor, error) {
 		msg("GenerateUploadUrlResponse", field("success", 1, tBool, opt, ""), field("message", 2, tStr, opt, ""), field("upload_url", 3, tStr, opt, ""), field("object_key", 4, tStr, opt, ""), field("expires_in_minutes", 5, tI32, opt, "")),
 		msg("ConfirmMediaRequest", field("content_id", 1, tStr, opt, ""), field("episode_id", 2, tStr, opt, ""), field("media_type", 3, tStr, opt, ""), field("object_key", 4, tStr, opt, ""), field("content_type", 5, tStr, opt, "")),
 		msg("BasicCatalogResponse", field("success", 1, tBool, opt, ""), field("message", 2, tStr, opt, "")),
+		msg("DeleteContentRequest", field("content_id", 1, tStr, opt, "")),
+		msg("DeleteContentResponse", field("success", 1, tBool, opt, ""), field("message", 2, tStr, opt, ""), field("deleted_objects", 3, tI32, opt, "")),
 	}}
 	fd, err := protodesc.NewFile(file, nil)
 	if err != nil {

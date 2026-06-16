@@ -57,6 +57,12 @@ type BasicResponse = {
   message: string;
 };
 
+type DeleteContentResponse = {
+  success: boolean;
+  message: string;
+  deleted_objects: number;
+};
+
 function logAdminError(message: string, error: unknown) {
   const details = error instanceof Error ? error.message : String(error);
   console.error(`[admin.routes.ts] Error: ${message}: ${details}`);
@@ -168,6 +174,28 @@ adminRoutes.post("/catalog/content", adminMiddleware, async (req, res) => {
     return res.status(201).json(response);
   } catch (error) {
     logAdminError("Admin create content failed", error);
+    return res.status(503).json({ success: false, message: "Catalog Service unavailable" });
+  }
+});
+
+adminRoutes.delete("/catalog/content/:contentId", adminMiddleware, async (req, res) => {
+  const contentId = String(req.params.contentId ?? "").trim();
+  if (!contentId) {
+    return res.status(400).json({ success: false, message: "contentId is required" });
+  }
+
+  try {
+    const response = await callCatalogMethod<Record<string, string>, DeleteContentResponse>(
+      "DeleteContent",
+      { content_id: contentId }
+    );
+
+    if (!response.success) {
+      return res.status(response.message === "content not found" ? 404 : 400).json(response);
+    }
+    return res.json(response);
+  } catch (error) {
+    logAdminError("Admin delete content failed", error);
     return res.status(503).json({ success: false, message: "Catalog Service unavailable" });
   }
 });
