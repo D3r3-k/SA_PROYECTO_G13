@@ -9,6 +9,25 @@ export type UserRecord = {
   updated_at: Date;
 };
 
+export type UserAuthorization = {
+  roles: string[];
+  permissions: string[];
+  isAdmin: boolean;
+};
+
+export type AuditLogRecord = {
+  service: string;
+  audit_id: string;
+  actor_user_id: string;
+  actor_email: string;
+  action: string;
+  table_name: string;
+  record_id: string;
+  old_state_json: string;
+  new_state_json: string;
+  created_at: string;
+};
+
 export async function findUserByEmail(
   email: string
 ): Promise<UserRecord | null> {
@@ -52,6 +71,7 @@ export async function registerUser(params: {
     `,
     [params.id, params.email, params.passwordHash, params.fullName]
   );
+  await assignRoleToUser(params.id, "user");
 }
 
 export async function updatePasswordHash(params: {
@@ -67,4 +87,98 @@ export async function updatePasswordHash(params: {
     `,
     [params.userId, params.passwordHash]
   );
+}
+
+export async function assignRoleToUser(
+  userId: string,
+  roleName: string
+): Promise<void> {
+  await pool.query(
+    `CALL sp_assign_role_to_user($1::uuid, $2::varchar);`,
+    [userId, roleName]
+  );
+}
+
+export async function getUserAuthorization(
+  userId: string
+): Promise<UserAuthorization> {
+  const rolesResult = await pool.query<{ role_name: string }>(
+    `SELECT role_name FROM fn_list_user_roles($1::uuid);`,
+    [userId]
+  );
+  const permissionsResult = await pool.query<{ permission_code: string }>(
+    `SELECT permission_code FROM fn_list_user_permissions($1::uuid);`,
+    [userId]
+  );
+
+  const roles = rolesResult.rows.map((row: { role_name: string }) => row.role_name);
+  const permissions = permissionsResult.rows.map((row: { permission_code: string }) => row.permission_code);
+
+  return {
+    roles,
+    permissions,
+    isAdmin: roles.includes("admin")
+  };
+}
+
+export async function ensureAdminRoleForEmail(
+  userId: string,
+  email: string,
+  adminEmails: string[]
+): Promise<void> {
+  if (adminEmails.includes(email.trim().toLowerCase())) {
+    await assignRoleToUser(userId, "admin");
+  }
+}
+
+export async function seedConfiguredAdmins(adminEmails: string[]): Promise<void> {
+  const normalized = adminEmails.map((email) => email.trim().toLowerCase()).filter(Boolean);
+  if (normalized.length === 0) {
+    return;
+  }
+
+  const result = await pool.query<{ id: string; email: string }>(
+    `SELECT id::text, email FROM users WHERE email = ANY($1::varchar[]);`,
+    [normalized]
+  );
+
+  for (const row of result.rows) {
+    await assignRoleToUser(row.id, "admin");
+  }
+}
+
+export async function listAuditLogs(params: {
+  tableName?: string;
+  actorUserId?: string;
+  action?: string;
+  from?: string;
+  to?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<AuditLogRecord[]> {
+  const result = await pool.query<Omit<AuditLogRecord, "service">>(
+    `
+    SELECT *
+    FROM fn_identity_audit_report(
+      $1::text,
+      $2::text,
+      $3::text,
+      NULLIF($4::text, '')::timestamptz,
+      NULLIF($5::text, '')::timestamptz,
+      $6::integer,
+      $7::integer
+    );
+    `,
+    [
+      params.tableName || "",
+      params.actorUserId || "",
+      params.action || "",
+      params.from || "",
+      params.to || "",
+      params.limit || 100,
+      params.offset || 0
+    ]
+  );
+
+  return result.rows.map((row: Omit<AuditLogRecord, "service">) => ({ service: "identity", ...row }));
 }

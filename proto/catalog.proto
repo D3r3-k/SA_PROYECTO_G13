@@ -9,9 +9,14 @@ service CatalogService {
   rpc SearchContent(SearchContentRequest) returns (ListContentResponse);
   rpc GetContentDetail(GetContentDetailRequest) returns (ContentDetailResponse);
   rpc ListEpisodes(ListEpisodesRequest) returns (ListEpisodesResponse);
+  rpc ListAdminContent(ListAdminContentRequest) returns (ListContentResponse);
   rpc CreateContent(CreateContentRequest) returns (CreateContentResponse);
+  rpc UpdateContent(UpdateContentRequest) returns (BasicCatalogResponse);
+  rpc DeleteContent(DeleteContentRequest) returns (BasicCatalogResponse);
+  rpc SchedulePremiere(SchedulePremiereRequest) returns (BasicCatalogResponse);
   rpc GenerateUploadUrl(GenerateUploadUrlRequest) returns (GenerateUploadUrlResponse);
   rpc ConfirmMedia(ConfirmMediaRequest) returns (BasicCatalogResponse);
+  rpc ListAuditLogs(ListAuditLogsRequest) returns (ListAuditLogsResponse);
 }
 
 message CatalogHealthRequest {}
@@ -22,9 +27,7 @@ message CatalogHealthResponse {
   bool database = 3;
 }
 
-message SyncMinimumCatalogRequest {
-  bool force = 1;
-}
+message SyncMinimumCatalogRequest { bool force = 1; }
 
 message SyncMinimumCatalogResponse {
   bool success = 1;
@@ -49,18 +52,22 @@ message SearchContentRequest {
   int32 offset = 5;
 }
 
-message GetContentDetailRequest {
-  string content_id = 1;
+message ListAdminContentRequest {
+  string type = 1;
+  string status = 2;
+  string query = 3;
+  int32 limit = 4;
+  int32 offset = 5;
 }
+
+message GetContentDetailRequest { string content_id = 1; }
 
 message ListEpisodesRequest {
   string content_id = 1;
   int32 season_number = 2;
 }
 
-message Genre {
-  string name = 1;
-}
+message Genre { string name = 1; }
 
 message CastMember {
   string actor_name = 1;
@@ -82,6 +89,8 @@ message ContentCard {
   string source_page_url = 11;
   int32 seasons_count = 12;
   int32 episodes_count = 13;
+  string available_from = 14;
+  string deleted_at = 15;
 }
 
 message ContentDetailResponse {
@@ -139,6 +148,36 @@ message CreateContentRequest {
   repeated string genres = 5;
   repeated AdminCastInput cast = 6;
   repeated AdminEpisodeInput episodes = 7;
+  string available_from = 8;
+  string actor_user_id = 9;
+  string actor_email = 10;
+}
+
+message UpdateContentRequest {
+  string content_id = 1;
+  string title = 2;
+  string overview = 3;
+  string release_date = 4;
+  repeated string genres = 5;
+  repeated AdminCastInput cast = 6;
+  repeated AdminEpisodeInput episodes = 7;
+  string available_from = 8;
+  string actor_user_id = 9;
+  string actor_email = 10;
+  string type = 11;
+}
+
+message DeleteContentRequest {
+  string content_id = 1;
+  string actor_user_id = 2;
+  string actor_email = 3;
+}
+
+message SchedulePremiereRequest {
+  string content_id = 1;
+  string available_from = 2;
+  string actor_user_id = 3;
+  string actor_email = 4;
 }
 
 message CreatedEpisode {
@@ -178,9 +217,40 @@ message ConfirmMediaRequest {
   string media_type = 3;
   string object_key = 4;
   string content_type = 5;
+  string actor_user_id = 6;
+  string actor_email = 7;
 }
 
 message BasicCatalogResponse {
   bool success = 1;
   string message = 2;
+}
+
+message AuditLogItem {
+  string service = 1;
+  string audit_id = 2;
+  string actor_user_id = 3;
+  string actor_email = 4;
+  string action = 5;
+  string table_name = 6;
+  string record_id = 7;
+  string old_state_json = 8;
+  string new_state_json = 9;
+  string created_at = 10;
+}
+
+message ListAuditLogsRequest {
+  string table_name = 1;
+  string actor_user_id = 2;
+  string action = 3;
+  string from = 4;
+  string to = 5;
+  int32 limit = 6;
+  int32 offset = 7;
+}
+
+message ListAuditLogsResponse {
+  bool success = 1;
+  string message = 2;
+  repeated AuditLogItem items = 3;
 }

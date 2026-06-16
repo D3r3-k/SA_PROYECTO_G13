@@ -3,7 +3,6 @@ syntax = "proto3";
 package identity;
 
 service IdentityService {
-
   rpc RegisterUser(RegisterUserRequest) returns (AuthResponse);
   rpc Login(LoginRequest) returns (AuthResponse);
   rpc ValidateToken(ValidateTokenRequest) returns (ValidateTokenResponse);
@@ -18,6 +17,7 @@ service IdentityService {
   rpc UpdateProfile(UpdateProfileRequest) returns (ProfileResponse);
   rpc DeleteProfile(DeleteProfileRequest) returns (BasicResponse);
 
+  rpc ListAuditLogs(ListAuditLogsRequest) returns (ListAuditLogsResponse);
 }
 
 message RegisterUserRequest {
@@ -36,6 +36,9 @@ message AuthResponse {
   string message = 2;
   string user_id = 3;
   string token = 4;
+  repeated string roles = 5;
+  repeated string permissions = 6;
+  bool is_admin = 7;
 }
 
 message GetUserByIdRequest {
@@ -48,6 +51,9 @@ message UserResponse {
   string user_id = 3;
   string email = 4;
   string full_name = 5;
+  repeated string roles = 6;
+  repeated string permissions = 7;
+  bool is_admin = 8;
 }
 
 message ValidateTokenRequest {
@@ -59,6 +65,9 @@ message ValidateTokenResponse {
   string user_id = 2;
   string email = 3;
   string profile_id = 4;
+  repeated string roles = 5;
+  repeated string permissions = 6;
+  bool is_admin = 7;
 }
 
 message CreateProfileRequest {
@@ -97,6 +106,9 @@ message SelectProfileResponse {
   string name = 5;
   string avatar_url = 6;
   string token = 7;
+  repeated string roles = 8;
+  repeated string permissions = 9;
+  bool is_admin = 10;
 }
 
 message UpdateProfileRequest {
@@ -120,4 +132,33 @@ message UpdateCredentialsRequest {
 message BasicResponse {
   bool success = 1;
   string message = 2;
+}
+
+message AuditLogItem {
+  string service = 1;
+  string audit_id = 2;
+  string actor_user_id = 3;
+  string actor_email = 4;
+  string action = 5;
+  string table_name = 6;
+  string record_id = 7;
+  string old_state_json = 8;
+  string new_state_json = 9;
+  string created_at = 10;
+}
+
+message ListAuditLogsRequest {
+  string table_name = 1;
+  string actor_user_id = 2;
+  string action = 3;
+  string from = 4;
+  string to = 5;
+  int32 limit = 6;
+  int32 offset = 7;
+}
+
+message ListAuditLogsResponse {
+  bool success = 1;
+  string message = 2;
+  repeated AuditLogItem items = 3;
 }
