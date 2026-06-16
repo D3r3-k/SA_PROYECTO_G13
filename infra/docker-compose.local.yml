@@ -102,6 +102,7 @@ services:
     container_name: identity-service
     environment:
       NODE_ENV: ${NODE_ENV}
+      ADMIN_EMAILS: ${ADMIN_EMAILS:-}
       IDENTITY_GRPC_HOST: ${IDENTITY_GRPC_HOST}
       IDENTITY_GRPC_PORT: ${IDENTITY_GRPC_PORT}
       JWT_SECRET: ${JWT_SECRET}

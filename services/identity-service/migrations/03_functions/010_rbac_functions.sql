@@ -18,12 +18,15 @@ LANGUAGE plpgsql
 AS $$
 BEGIN
     RETURN QUERY
-    SELECT DISTINCT p.code::TEXT
-    FROM user_roles ur
-    JOIN role_permissions rp ON rp.role_id = ur.role_id
-    JOIN permissions p ON p.id = rp.permission_id
-    WHERE ur.user_id = p_user_id
-    ORDER BY p.code;
+    SELECT permissions_distinct.permission_code
+    FROM (
+        SELECT DISTINCT p.code::TEXT AS permission_code
+        FROM user_roles ur
+        JOIN role_permissions rp ON rp.role_id = ur.role_id
+        JOIN permissions p ON p.id = rp.permission_id
+        WHERE ur.user_id = p_user_id
+    ) permissions_distinct
+    ORDER BY permissions_distinct.permission_code;
 END;
 $$;
 
