@@ -242,3 +242,107 @@ DROP TRIGGER IF EXISTS trg_audit_rating_changes ON ratings;
 CREATE TRIGGER trg_audit_rating_changes
 AFTER INSERT OR UPDATE ON ratings
 FOR EACH ROW EXECUTE FUNCTION fn_audit_rating_changes();
+
+CREATE TABLE IF NOT EXISTS audit_log (
+    id BIGSERIAL PRIMARY KEY,
+    actor_user_id TEXT,
+    actor_email TEXT,
+    action TEXT NOT NULL,
+    table_name TEXT NOT NULL,
+    record_id TEXT,
+    old_state JSONB,
+    new_state JSONB,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS ix_engagement_audit_log_created_at ON audit_log(created_at DESC);
+CREATE INDEX IF NOT EXISTS ix_engagement_audit_log_table ON audit_log(table_name);
+CREATE INDEX IF NOT EXISTS ix_engagement_audit_log_actor ON audit_log(actor_user_id);
+
+CREATE OR REPLACE FUNCTION fn_standard_audit_log()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_actor_user_id TEXT;
+    v_actor_email TEXT;
+    v_record_id TEXT;
+BEGIN
+    v_actor_user_id := NULLIF(current_setting('app.user_id', true), '');
+    v_actor_email := NULLIF(current_setting('app.user_email', true), '');
+
+    IF v_actor_user_id IS NULL THEN
+        v_actor_user_id := COALESCE(to_jsonb(NEW)->>'profile_id', to_jsonb(OLD)->>'profile_id');
+    END IF;
+
+    v_record_id := COALESCE(to_jsonb(NEW)->>'id', to_jsonb(OLD)->>'id', to_jsonb(NEW)->>'content_id', to_jsonb(OLD)->>'content_id');
+
+    INSERT INTO audit_log(actor_user_id, actor_email, action, table_name, record_id, old_state, new_state)
+    VALUES (
+        v_actor_user_id,
+        v_actor_email,
+        TG_OP,
+        TG_TABLE_NAME,
+        v_record_id,
+        CASE WHEN TG_OP = 'UPDATE' THEN to_jsonb(OLD) ELSE NULL END,
+        to_jsonb(NEW)
+    );
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION fn_engagement_audit_report(
+    p_table_name TEXT DEFAULT NULL,
+    p_actor_user_id TEXT DEFAULT NULL,
+    p_action TEXT DEFAULT NULL,
+    p_from TIMESTAMPTZ DEFAULT NULL,
+    p_to TIMESTAMPTZ DEFAULT NULL,
+    p_limit INTEGER DEFAULT 100,
+    p_offset INTEGER DEFAULT 0
+)
+RETURNS TABLE(
+    id BIGINT,
+    actor_user_id TEXT,
+    actor_email TEXT,
+    action TEXT,
+    table_name TEXT,
+    record_id TEXT,
+    old_state TEXT,
+    new_state TEXT,
+    created_at TEXT
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT a.id,
+           COALESCE(a.actor_user_id, ''),
+           COALESCE(a.actor_email, ''),
+           a.action,
+           a.table_name,
+           COALESCE(a.record_id, ''),
+           COALESCE(a.old_state::TEXT, ''),
+           COALESCE(a.new_state::TEXT, ''),
+           a.created_at::TEXT
+    FROM audit_log a
+    WHERE (COALESCE(p_table_name, '') = '' OR a.table_name = p_table_name)
+      AND (COALESCE(p_actor_user_id, '') = '' OR a.actor_user_id = p_actor_user_id)
+      AND (COALESCE(p_action, '') = '' OR a.action = UPPER(p_action))
+      AND (p_from IS NULL OR a.created_at >= p_from)
+      AND (p_to IS NULL OR a.created_at <= p_to)
+    ORDER BY a.created_at DESC, a.id DESC
+    LIMIT GREATEST(COALESCE(p_limit, 100), 1)
+    OFFSET GREATEST(COALESCE(p_offset, 0), 0);
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_standard_audit_ratings ON ratings;
+CREATE TRIGGER trg_standard_audit_ratings
+AFTER INSERT OR UPDATE ON ratings
+FOR EACH ROW EXECUTE FUNCTION fn_standard_audit_log();
+
+DROP TRIGGER IF EXISTS trg_standard_audit_rating_audit ON rating_audit;
+CREATE TRIGGER trg_standard_audit_rating_audit
+AFTER INSERT OR UPDATE ON rating_audit
+FOR EACH ROW EXECUTE FUNCTION fn_standard_audit_log();
+
+DROP TRIGGER IF EXISTS trg_standard_audit_watch_progress ON watch_progress;
+CREATE TRIGGER trg_standard_audit_watch_progress
+AFTER INSERT OR UPDATE ON watch_progress
+FOR EACH ROW EXECUTE FUNCTION fn_standard_audit_log();

@@ -10,6 +10,7 @@ import engagement_pb2_grpc
 
 from src.db import apply_migrations, get_connection
 from src.repository import (
+    list_audit_logs,
     rating_summary,
     recent_history,
     resume_content,
@@ -29,6 +30,22 @@ def _timestamp(value):
         ts.FromDatetime(value)
     return ts
 
+
+
+
+def _to_audit_message(item: dict):
+    return engagement_pb2.AuditLogItem(
+        service=str(item.get("service", "engagement")),
+        audit_id=str(item.get("id", "")),
+        actor_user_id=str(item.get("actor_user_id", "")),
+        actor_email=str(item.get("actor_email", "")),
+        action=str(item.get("action", "")),
+        table_name=str(item.get("table_name", "")),
+        record_id=str(item.get("record_id", "")),
+        old_state_json=str(item.get("old_state", "")),
+        new_state_json=str(item.get("new_state", "")),
+        created_at=str(item.get("created_at", "")),
+    )
 
 def _history_item(row):
     return engagement_pb2.HistoryItem(
@@ -115,6 +132,29 @@ class EngagementServiceServicer(engagement_pb2_grpc.EngagementServiceServicer):
         except Exception:
             logger.exception("failed to resume content")
             return engagement_pb2.ResumeContentResponse(found=False)
+
+    async def ListAuditLogs(self, request, context):
+        try:
+            rows = list_audit_logs(
+                table_name=str(request.table_name or ""),
+                actor_user_id=str(request.actor_user_id or ""),
+                action=str(request.action or ""),
+                from_ts=str(getattr(request, "from") or ""),
+                to_ts=str(request.to or ""),
+                limit=int(request.limit or 100),
+                offset=int(request.offset or 0),
+            )
+            return engagement_pb2.ListAuditLogsResponse(
+                success=True,
+                message=f"engagement audit logs listed: {len(rows)}",
+                items=[_to_audit_message(row) for row in rows]
+            )
+        except Exception:
+            logger.exception("failed to list engagement audit logs")
+            return engagement_pb2.ListAuditLogsResponse(
+                success=False,
+                message="could not list engagement audit logs"
+            )
 
 
 async def serve() -> None:
