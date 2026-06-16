@@ -13,6 +13,7 @@ from src.repository import (
     delete_subscription,
     get_subscriptions_by_user,
     initialize_database,
+    list_audit_logs,
     list_plans,
     update_plan,
     update_subscription_plan,
@@ -78,6 +79,22 @@ def _to_plan_message(plan: dict):
     )
 
 
+
+
+def _to_audit_message(item: dict):
+    return subscription_pb2.AuditLogItem(
+        service=str(item.get("service", "subscription")),
+        audit_id=str(item.get("id", "")),
+        actor_user_id=str(item.get("actor_user_id", "")),
+        actor_email=str(item.get("actor_email", "")),
+        action=str(item.get("action", "")),
+        table_name=str(item.get("table_name", "")),
+        record_id=str(item.get("record_id", "")),
+        old_state_json=str(item.get("old_state", "")),
+        new_state_json=str(item.get("new_state", "")),
+        created_at=str(item.get("created_at", "")),
+    )
+
 def _to_subscription_message(subscription: dict):
     return subscription_pb2.Subscription(
         id=int(subscription["id"]),
@@ -129,7 +146,7 @@ class SubscriptionServiceServicer(subscription_pb2_grpc.SubscriptionServiceServi
             )
 
         try:
-            plan = update_plan(request.id, request.name.strip(), request.price_usd)
+            plan = update_plan(request.id, request.name.strip(), request.price_usd, request.actor_user_id, request.actor_email)
             return subscription_pb2.UpdatePlanResponse(
                 success=True,
                 message="plan updated successfully",
@@ -323,6 +340,30 @@ class SubscriptionServiceServicer(subscription_pb2_grpc.SubscriptionServiceServi
                 success=False,
                 message="could not cancel subscription",
                 subscription_id=request.subscription_id
+            )
+
+    async def ListAuditLogs(self, request, context):
+        try:
+            rows = list_audit_logs(
+                table_name=str(request.table_name or ""),
+                actor_user_id=str(request.actor_user_id or ""),
+                action=str(request.action or ""),
+                from_ts=str(getattr(request, "from") or ""),
+                to_ts=str(request.to or ""),
+                limit=int(request.limit or 100),
+                offset=int(request.offset or 0),
+            )
+
+            return subscription_pb2.ListAuditLogsResponse(
+                success=True,
+                message=f"subscription audit logs listed: {len(rows)}",
+                items=[_to_audit_message(row) for row in rows]
+            )
+        except Exception:
+            logger.exception("failed to list subscription audit logs")
+            return subscription_pb2.ListAuditLogsResponse(
+                success=False,
+                message="could not list subscription audit logs"
             )
 
 
