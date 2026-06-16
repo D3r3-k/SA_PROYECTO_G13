@@ -12,6 +12,7 @@ service CatalogService {
   rpc CreateContent(CreateContentRequest) returns (CreateContentResponse);
   rpc GenerateUploadUrl(GenerateUploadUrlRequest) returns (GenerateUploadUrlResponse);
   rpc ConfirmMedia(ConfirmMediaRequest) returns (BasicCatalogResponse);
+  rpc DeleteContent(DeleteContentRequest) returns (DeleteContentResponse);
 }
 
 message CatalogHealthRequest {}
@@ -183,4 +184,14 @@ message ConfirmMediaRequest {
 message BasicCatalogResponse {
   bool success = 1;
   string message = 2;
+}
+
+message DeleteContentRequest {
+  string content_id = 1;
+}
+
+message DeleteContentResponse {
+  bool success = 1;
+  string message = 2;
+  int32 deleted_objects = 3;
 }

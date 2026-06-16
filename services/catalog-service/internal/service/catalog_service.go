@@ -71,6 +71,12 @@ type ConfirmMediaInput struct {
 	ContentType string
 }
 
+type DeleteContentResult struct {
+	Success        bool
+	Message        string
+	DeletedObjects int
+}
+
 func (s Service) SyncMinimum(ctx context.Context, force bool) SyncResult {
 	providerName := "archive.org"
 	seeds, err := s.archiveSeeds()
@@ -130,6 +136,38 @@ func (s Service) ConfirmMedia(ctx context.Context, input ConfirmMediaInput) erro
 		return s.Repo.UpdateEpisodeMedia(ctx, input.ContentID, input.EpisodeID, input.ObjectKey, input.ContentType)
 	default:
 		return fmt.Errorf("media_type must be poster, movie_video or episode_video")
+	}
+}
+
+func (s Service) DeleteContent(ctx context.Context, contentID string) DeleteContentResult {
+	contentID = strings.TrimSpace(contentID)
+	if contentID == "" {
+		return DeleteContentResult{Success: false, Message: "content_id is required"}
+	}
+
+	media, found, err := s.Repo.ContentMediaKeys(ctx, contentID)
+	if err != nil {
+		return DeleteContentResult{Success: false, Message: fmt.Sprintf("resolve content media failed: %v", err)}
+	}
+	if !found {
+		return DeleteContentResult{Success: false, Message: "content not found"}
+	}
+
+	deletedObjects := 0
+	for _, objectKey := range media.ObjectKeys {
+		if err := s.MediaStore.DeleteObject(ctx, objectKey); err != nil {
+			return DeleteContentResult{Success: false, Message: err.Error()}
+		}
+		deletedObjects++
+	}
+
+	if err := s.Repo.DeleteContent(ctx, contentID); err != nil {
+		return DeleteContentResult{Success: false, Message: fmt.Sprintf("delete content failed: %v", err)}
+	}
+	return DeleteContentResult{
+		Success:        true,
+		Message:        "content deleted",
+		DeletedObjects: deletedObjects,
 	}
 }
 
