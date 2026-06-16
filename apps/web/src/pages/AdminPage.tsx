@@ -33,6 +33,67 @@ interface SyncResult {
   episodes_synced?: number
 }
 
+interface EpisodeForm {
+  seasonNumber: string
+  episodeNumber: string
+  title: string
+  overview: string
+  runtimeMinutes: string
+  videoFile: File | null
+}
+
+interface MediaForm {
+  type: 'movie' | 'series'
+  title: string
+  overview: string
+  releaseDate: string
+  genres: string
+  cast: string
+}
+
+interface CreateContentResponse {
+  success: boolean
+  message: string
+  content_id: string
+  episodes: Array<{
+    episode_id: string
+    season_number: number
+    episode_number: number
+    title: string
+  }>
+}
+
+interface UploadUrlResponse {
+  success: boolean
+  message: string
+  upload_url: string
+  object_key: string
+  expires_in_minutes: number
+}
+
+const initialMediaForm: MediaForm = {
+  type: 'movie',
+  title: '',
+  overview: '',
+  releaseDate: '',
+  genres: '',
+  cast: '',
+}
+
+const initialEpisode = (episodeNumber = 1): EpisodeForm => ({
+  seasonNumber: '1',
+  episodeNumber: String(episodeNumber),
+  title: '',
+  overview: '',
+  runtimeMinutes: '',
+  videoFile: null,
+})
+
+function logAdminPageError(message: string, error: unknown) {
+  const details = error instanceof Error ? error.message : String(error)
+  console.error(`[AdminPage.tsx] Error: ${message}: ${details}`)
+}
+
 export default function AdminPage() {
   const navigate = useNavigate()
 
@@ -46,6 +107,12 @@ export default function AdminPage() {
   const [syncing, setSyncing] = useState(false)
   const [syncResult, setSyncResult] = useState<SyncResult | null>(null)
   const [syncError, setSyncError] = useState('')
+  const [mediaForm, setMediaForm] = useState<MediaForm>(initialMediaForm)
+  const [posterFile, setPosterFile] = useState<File | null>(null)
+  const [movieVideoFile, setMovieVideoFile] = useState<File | null>(null)
+  const [episodes, setEpisodes] = useState<EpisodeForm[]>([initialEpisode()])
+  const [creatingContent, setCreatingContent] = useState(false)
+  const [contentMsg, setContentMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   useEffect(() => {
     if (sessionStorage.getItem('adminAuthenticated') !== 'true') {
@@ -67,8 +134,8 @@ export default function AdminPage() {
           features: getPlanFeatures(p.id, DEFAULT_FEATURES[p.name.toLowerCase()] ?? []),
         }))
       )
-    } catch {
-      /* silencioso */
+    } catch (error) {
+      logAdminPageError('Error al cargar planes', error)
     } finally {
       setLoadingPlans(false)
     }
@@ -106,6 +173,7 @@ export default function AdminPage() {
       setEditingId(null)
       fetchPlans()
     } catch (err: any) {
+      logAdminPageError('Error al guardar plan', err)
       setPlanMsg({ type: 'error', text: err.response?.data?.message ?? 'Error al guardar.' })
     } finally {
       setSaving(false)
@@ -120,9 +188,141 @@ export default function AdminPage() {
       const res = await adminApi.post<SyncResult>('/catalog/sync', { force })
       setSyncResult(res.data)
     } catch (err: any) {
+      logAdminPageError('Error al sincronizar catalogo', err)
       setSyncError(err.response?.data?.message ?? 'Error al sincronizar.')
     } finally {
       setSyncing(false)
+    }
+  }
+
+  const parseCSV = (value: string) =>
+    value
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean)
+
+  const parseCast = (value: string) =>
+    value
+      .split('\n')
+      .map((item, index) => {
+        const [actorName, characterName = ''] = item.split('|').map((part) => part.trim())
+        return { actorName, characterName, orderIndex: index }
+      })
+      .filter((item) => item.actorName)
+
+  const updateEpisode = (index: number, patch: Partial<EpisodeForm>) => {
+    setEpisodes((items) => items.map((item, i) => (i === index ? { ...item, ...patch } : item)))
+  }
+
+  const addEpisode = () => {
+    setEpisodes((items) => [...items, initialEpisode(items.length + 1)])
+  }
+
+  const removeEpisode = (index: number) => {
+    setEpisodes((items) => (items.length > 1 ? items.filter((_, i) => i !== index) : items))
+  }
+
+  const uploadAndConfirm = async (
+    contentId: string,
+    mediaType: 'poster' | 'movie_video' | 'episode_video',
+    file: File,
+    episodeId = ''
+  ) => {
+    const uploadRes = await adminApi.post<UploadUrlResponse>('/media/upload-url', {
+      contentId,
+      episodeId,
+      mediaType,
+      fileName: file.name,
+      contentType: file.type,
+      sizeBytes: file.size,
+    })
+
+    await fetch(uploadRes.data.upload_url, {
+      method: 'PUT',
+      headers: { 'Content-Type': file.type },
+      body: file,
+    }).then((response) => {
+      if (!response.ok) {
+        throw new Error(`GCS upload failed with status ${response.status}`)
+      }
+    })
+
+    await adminApi.post('/media/confirm', {
+      contentId,
+      episodeId,
+      mediaType,
+      objectKey: uploadRes.data.object_key,
+      contentType: file.type,
+    })
+  }
+
+  const handleCreateContent = async () => {
+    setCreatingContent(true)
+    setContentMsg(null)
+    try {
+      if (!mediaForm.title.trim()) {
+        throw new Error('El titulo es requerido.')
+      }
+      if (!posterFile) {
+        throw new Error('La portada es requerida.')
+      }
+      if (mediaForm.type === 'movie' && !movieVideoFile) {
+        throw new Error('El video de la pelicula es requerido.')
+      }
+      if (mediaForm.type === 'series' && episodes.some((episode) => !episode.title.trim() || !episode.videoFile)) {
+        throw new Error('Cada episodio necesita titulo y video.')
+      }
+
+      const contentRes = await adminApi.post<CreateContentResponse>('/catalog/content', {
+        type: mediaForm.type,
+        title: mediaForm.title.trim(),
+        overview: mediaForm.overview.trim(),
+        releaseDate: mediaForm.releaseDate,
+        genres: parseCSV(mediaForm.genres),
+        cast: parseCast(mediaForm.cast),
+        episodes:
+          mediaForm.type === 'series'
+            ? episodes.map((episode) => ({
+                seasonNumber: Number(episode.seasonNumber || 1),
+                episodeNumber: Number(episode.episodeNumber || 0),
+                title: episode.title.trim(),
+                overview: episode.overview.trim(),
+                runtimeMinutes: Number(episode.runtimeMinutes || 0),
+              }))
+            : [],
+      })
+
+      const contentId = contentRes.data.content_id
+      await uploadAndConfirm(contentId, 'poster', posterFile)
+
+      if (mediaForm.type === 'movie' && movieVideoFile) {
+        await uploadAndConfirm(contentId, 'movie_video', movieVideoFile)
+      }
+
+      if (mediaForm.type === 'series') {
+        for (const episode of episodes) {
+          const created = contentRes.data.episodes.find(
+            (item) =>
+              item.season_number === Number(episode.seasonNumber || 1) &&
+              item.episode_number === Number(episode.episodeNumber || 0)
+          )
+          if (!created || !episode.videoFile) {
+            throw new Error(`No se pudo resolver el episodio ${episode.episodeNumber}.`)
+          }
+          await uploadAndConfirm(contentId, 'episode_video', episode.videoFile, created.episode_id)
+        }
+      }
+
+      setContentMsg({ type: 'success', text: `Contenido creado: ${contentId}` })
+      setMediaForm(initialMediaForm)
+      setPosterFile(null)
+      setMovieVideoFile(null)
+      setEpisodes([initialEpisode()])
+    } catch (error: any) {
+      logAdminPageError('Error al crear contenido', error)
+      setContentMsg({ type: 'error', text: error.response?.data?.message ?? error.message ?? 'Error al crear contenido.' })
+    } finally {
+      setCreatingContent(false)
     }
   }
 
@@ -290,6 +490,175 @@ export default function AdminPage() {
               )}
             </div>
           )}
+        </section>
+
+        <section className={styles.card}>
+          <div className={styles.cardHeader}>
+            <h2 className={styles.cardTitle}>Crear contenido</h2>
+            <p className={styles.cardSub}>
+              Guarda metadata en catalogo y sube portada/videos al bucket privado.
+            </p>
+          </div>
+
+          {contentMsg && (
+            <div className={contentMsg.type === 'success' ? styles.successMsg : styles.errorMsg}>
+              {contentMsg.text}
+            </div>
+          )}
+
+          <div className={styles.contentForm}>
+            <label className={styles.field}>
+              Tipo
+              <select
+                value={mediaForm.type}
+                onChange={(e) => setMediaForm((form) => ({ ...form, type: e.target.value as 'movie' | 'series' }))}
+              >
+                <option value="movie">Pelicula</option>
+                <option value="series">Serie</option>
+              </select>
+            </label>
+
+            <label className={styles.field}>
+              Titulo
+              <input
+                value={mediaForm.title}
+                onChange={(e) => setMediaForm((form) => ({ ...form, title: e.target.value }))}
+              />
+            </label>
+
+            <label className={styles.field}>
+              Fecha de estreno
+              <input
+                type="date"
+                value={mediaForm.releaseDate}
+                onChange={(e) => setMediaForm((form) => ({ ...form, releaseDate: e.target.value }))}
+              />
+            </label>
+
+            <label className={styles.field}>
+              Generos separados por coma
+              <input
+                value={mediaForm.genres}
+                onChange={(e) => setMediaForm((form) => ({ ...form, genres: e.target.value }))}
+                placeholder="Drama, Accion"
+              />
+            </label>
+
+            <label className={`${styles.field} ${styles.fullWidth}`}>
+              Descripcion
+              <textarea
+                rows={4}
+                value={mediaForm.overview}
+                onChange={(e) => setMediaForm((form) => ({ ...form, overview: e.target.value }))}
+              />
+            </label>
+
+            <label className={`${styles.field} ${styles.fullWidth}`}>
+              Reparto, uno por linea: Actor | Personaje
+              <textarea
+                rows={3}
+                value={mediaForm.cast}
+                onChange={(e) => setMediaForm((form) => ({ ...form, cast: e.target.value }))}
+              />
+            </label>
+
+            <label className={styles.field}>
+              Portada
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={(e) => setPosterFile(e.target.files?.[0] ?? null)}
+              />
+            </label>
+
+            {mediaForm.type === 'movie' && (
+              <label className={styles.field}>
+                Video
+                <input
+                  type="file"
+                  accept="video/mp4,video/webm"
+                  onChange={(e) => setMovieVideoFile(e.target.files?.[0] ?? null)}
+                />
+              </label>
+            )}
+          </div>
+
+          {mediaForm.type === 'series' && (
+            <div className={styles.episodesBox}>
+              <div className={styles.episodesHeader}>
+                <h3>Episodios</h3>
+                <button className="btn btn-secondary" type="button" onClick={addEpisode}>
+                  Agregar episodio
+                </button>
+              </div>
+
+              {episodes.map((episode, index) => (
+                <div key={index} className={styles.episodeCard}>
+                  <label className={styles.field}>
+                    Temporada
+                    <input
+                      type="number"
+                      min="1"
+                      value={episode.seasonNumber}
+                      onChange={(e) => updateEpisode(index, { seasonNumber: e.target.value })}
+                    />
+                  </label>
+                  <label className={styles.field}>
+                    Episodio
+                    <input
+                      type="number"
+                      min="1"
+                      value={episode.episodeNumber}
+                      onChange={(e) => updateEpisode(index, { episodeNumber: e.target.value })}
+                    />
+                  </label>
+                  <label className={styles.field}>
+                    Titulo
+                    <input
+                      value={episode.title}
+                      onChange={(e) => updateEpisode(index, { title: e.target.value })}
+                    />
+                  </label>
+                  <label className={styles.field}>
+                    Duracion min.
+                    <input
+                      type="number"
+                      min="0"
+                      value={episode.runtimeMinutes}
+                      onChange={(e) => updateEpisode(index, { runtimeMinutes: e.target.value })}
+                    />
+                  </label>
+                  <label className={`${styles.field} ${styles.fullWidth}`}>
+                    Descripcion
+                    <textarea
+                      rows={2}
+                      value={episode.overview}
+                      onChange={(e) => updateEpisode(index, { overview: e.target.value })}
+                    />
+                  </label>
+                  <label className={styles.field}>
+                    Video
+                    <input
+                      type="file"
+                      accept="video/mp4,video/webm"
+                      onChange={(e) => updateEpisode(index, { videoFile: e.target.files?.[0] ?? null })}
+                    />
+                  </label>
+                  <div className={styles.episodeActions}>
+                    <button className="btn btn-secondary" type="button" onClick={() => removeEpisode(index)}>
+                      Quitar
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className={styles.createActions}>
+            <button className="btn btn-primary" onClick={handleCreateContent} disabled={creatingContent}>
+              {creatingContent ? <span className="spinner" /> : 'Crear y subir archivos'}
+            </button>
+          </div>
         </section>
       </main>
     </div>

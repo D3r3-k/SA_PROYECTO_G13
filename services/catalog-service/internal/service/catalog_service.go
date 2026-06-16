@@ -12,6 +12,7 @@ import (
 type Service struct {
 	Repo                     repository.Repository
 	Archive                  provider.ArchiveClient
+	MediaStore               *MediaStore
 	ArchiveMovieIdentifiers  []string
 	ArchiveSeriesIdentifier  string
 	ArchiveSeriesIdentifiers []string
@@ -29,6 +30,45 @@ type SyncResult struct {
 	Contents int
 	Episodes int
 	Provider string
+}
+
+type AdminContentInput struct {
+	Type        string
+	Title       string
+	Overview    string
+	ReleaseDate string
+	Genres      []string
+	Cast        []AdminCastInput
+	Episodes    []AdminEpisodeInput
+}
+
+type AdminCastInput struct {
+	ActorName     string
+	CharacterName string
+	OrderIndex    int
+}
+
+type AdminEpisodeInput struct {
+	SeasonNumber   int
+	EpisodeNumber  int
+	Title          string
+	Overview       string
+	RuntimeMinutes int
+}
+
+type AdminContentResult struct {
+	Success   bool
+	Message   string
+	ContentID string
+	Episodes  []repository.Episode
+}
+
+type ConfirmMediaInput struct {
+	ContentID   string
+	EpisodeID   string
+	MediaType   string
+	ObjectKey   string
+	ContentType string
 }
 
 func (s Service) SyncMinimum(ctx context.Context, force bool) SyncResult {
@@ -56,6 +96,48 @@ func (s Service) SyncMinimum(ctx context.Context, force bool) SyncResult {
 	msg := fmt.Sprintf("catalog synced with %s: %d contents and %d episodes", providerName, contents, episodes)
 	s.Repo.InsertAudit(ctx, providerName, true, msg, contents, episodes)
 	return SyncResult{Success: true, Message: msg, Contents: contents, Episodes: episodes, Provider: providerName}
+}
+
+func (s Service) CreateAdminContent(ctx context.Context, input AdminContentInput) AdminContentResult {
+	seed, err := adminInputToSeed(input)
+	if err != nil {
+		return AdminContentResult{Success: false, Message: err.Error()}
+	}
+	contentID, episodes, err := s.Repo.CreateAdminContent(ctx, seed)
+	if err != nil {
+		return AdminContentResult{Success: false, Message: fmt.Sprintf("catalog persistence failed: %v", err)}
+	}
+	return AdminContentResult{
+		Success:   true,
+		Message:   "content created",
+		ContentID: contentID,
+		Episodes:  episodes,
+	}
+}
+
+func (s Service) GenerateUploadURL(req UploadURLRequest) (UploadURLResult, error) {
+	return s.MediaStore.GenerateUploadURL(req)
+}
+
+func (s Service) ConfirmMedia(ctx context.Context, input ConfirmMediaInput) error {
+	if err := s.MediaStore.ObjectExists(ctx, input.ObjectKey); err != nil {
+		return err
+	}
+	switch input.MediaType {
+	case "poster", "movie_video":
+		return s.Repo.UpdateContentMedia(ctx, input.ContentID, input.MediaType, input.ObjectKey, input.ContentType)
+	case "episode_video":
+		return s.Repo.UpdateEpisodeMedia(ctx, input.ContentID, input.EpisodeID, input.ObjectKey, input.ContentType)
+	default:
+		return fmt.Errorf("media_type must be poster, movie_video or episode_video")
+	}
+}
+
+func (s Service) ResolveReadURL(value string) string {
+	if strings.HasPrefix(value, "http://") || strings.HasPrefix(value, "https://") {
+		return value
+	}
+	return s.MediaStore.SignedReadURL(value)
 }
 
 func (s Service) archiveSeeds() ([]provider.ContentSeed, error) {
@@ -311,4 +393,67 @@ func sanitizeExternalID(value string) string {
 		return "archive"
 	}
 	return value
+}
+
+func adminInputToSeed(input AdminContentInput) (provider.ContentSeed, error) {
+	typ := strings.TrimSpace(input.Type)
+	if typ != "movie" && typ != "series" {
+		return provider.ContentSeed{}, fmt.Errorf("type must be movie or series")
+	}
+	title := strings.TrimSpace(input.Title)
+	if title == "" {
+		return provider.ContentSeed{}, fmt.Errorf("title is required")
+	}
+
+	seed := provider.ContentSeed{
+		Provider:     "admin",
+		Type:         typ,
+		Title:        title,
+		Overview:     strings.TrimSpace(input.Overview),
+		ReleaseDate:  strings.TrimSpace(input.ReleaseDate),
+		Genres:       input.Genres,
+		SeasonsCount: 0,
+	}
+	for _, item := range input.Cast {
+		if strings.TrimSpace(item.ActorName) == "" {
+			continue
+		}
+		seed.Cast = append(seed.Cast, provider.CastSeed{
+			ActorName:     strings.TrimSpace(item.ActorName),
+			CharacterName: strings.TrimSpace(item.CharacterName),
+			OrderIndex:    item.OrderIndex,
+		})
+	}
+	maxSeason := 0
+	for _, item := range input.Episodes {
+		if typ != "series" {
+			continue
+		}
+		if strings.TrimSpace(item.Title) == "" {
+			return provider.ContentSeed{}, fmt.Errorf("episode title is required")
+		}
+		seasonNumber := item.SeasonNumber
+		if seasonNumber <= 0 {
+			seasonNumber = 1
+		}
+		episodeNumber := item.EpisodeNumber
+		if episodeNumber <= 0 {
+			return provider.ContentSeed{}, fmt.Errorf("episode_number must be positive")
+		}
+		if seasonNumber > maxSeason {
+			maxSeason = seasonNumber
+		}
+		seed.Episodes = append(seed.Episodes, provider.EpisodeSeed{
+			SeasonNumber:   seasonNumber,
+			EpisodeNumber:  episodeNumber,
+			Title:          strings.TrimSpace(item.Title),
+			Overview:       strings.TrimSpace(item.Overview),
+			RuntimeMinutes: item.RuntimeMinutes,
+		})
+	}
+	if typ == "series" && len(seed.Episodes) == 0 {
+		return provider.ContentSeed{}, fmt.Errorf("series requires at least one episode")
+	}
+	seed.SeasonsCount = maxSeason
+	return seed, nil
 }
