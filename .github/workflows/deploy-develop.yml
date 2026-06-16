@@ -207,6 +207,9 @@ jobs:
           set -euo pipefail
 
           mkdir -p runtime-envs
+          cat > runtime-envs/gcp-service-account.json <<'EOF'
+          ${{ secrets.GCS_BACKEND_SERVICE_ACCOUNT_KEY }}
+          EOF
 
           CLOUD_SQL_PRIVATE_IP="$(gcloud sql instances describe qx-postgres --format='value(ipAddresses[0].ipAddress)')"
           REDIS_HOST="$(gcloud redis instances describe qx-redis --region="${GCP_REGION}" --format='value(host)')"
@@ -251,7 +254,15 @@ jobs:
           FX_API_BASE_URL=https://api.frankfurter.dev/v2
 
           GCS_BUCKET_NAME=${GCS_BUCKET_NAME}
+          GCS_PROJECT_ID=${GCP_PROJECT_ID}
           GOOGLE_CLOUD_PROJECT=${GCP_PROJECT_ID}
+          GOOGLE_APPLICATION_CREDENTIALS=/run/secrets/gcp-service-account.json
+          GCS_SIGNED_UPLOAD_EXPIRES_MINUTES=${{ vars.GCS_SIGNED_UPLOAD_EXPIRES_MINUTES || '15' }}
+          GCS_SIGNED_READ_EXPIRES_MINUTES=${{ vars.GCS_SIGNED_READ_EXPIRES_MINUTES || '60' }}
+          GCS_ALLOWED_IMAGE_TYPES=${{ vars.GCS_ALLOWED_IMAGE_TYPES || 'image/jpeg,image/png,image/webp' }}
+          GCS_ALLOWED_VIDEO_TYPES=${{ vars.GCS_ALLOWED_VIDEO_TYPES || 'video/mp4,video/webm' }}
+          GCS_MAX_IMAGE_MB=${{ vars.GCS_MAX_IMAGE_MB || '10' }}
+          GCS_MAX_VIDEO_MB=${{ vars.GCS_MAX_VIDEO_MB || '1024' }}
 
           PAYMENT_PROVIDER_NAME=QuetxalPay Sandbox
           PAYMENT_APPROVAL_DELAY_MS=500
@@ -316,6 +327,20 @@ jobs:
               --tunnel-through-iap
 
             if [ "${role}" = "services" ]; then
+              gcloud compute ssh "${vm_name}" \
+                --zone="${GCP_ZONE}" \
+                --tunnel-through-iap \
+                --command="mkdir -p ${remote_dir}/secrets && chmod 700 ${remote_dir}/secrets"
+
+              gcloud compute scp "runtime-envs/gcp-service-account.json" "${vm_name}:${remote_dir}/secrets/gcp-service-account.json" \
+                --zone="${GCP_ZONE}" \
+                --tunnel-through-iap
+
+              gcloud compute ssh "${vm_name}" \
+                --zone="${GCP_ZONE}" \
+                --tunnel-through-iap \
+                --command="chmod 600 ${remote_dir}/secrets/gcp-service-account.json"
+
               gcloud compute scp --recurse "services/identity-service/migrations" "${vm_name}:${remote_dir}/identity-migrations" \
                 --zone="${GCP_ZONE}" \
                 --tunnel-through-iap

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log"
+	"os"
 
 	"quetxaltv/catalog-service/internal/config"
 	"quetxaltv/catalog-service/internal/db"
@@ -27,9 +28,23 @@ func main() {
 
 	repo := repository.Repository{DB: pool}
 	archiveClient := provider.NewArchiveClient(cfg.ArchiveMetadataBaseURL, cfg.ArchiveDownloadBaseURL, cfg.ArchiveImageBaseURL)
+	mediaStore, err := service.NewMediaStore(ctx, service.MediaStoreConfig{
+		ProjectID:            cfg.GCSProjectID,
+		BucketName:           cfg.GCSBucketName,
+		UploadExpiresMinutes: cfg.GCSSignedUploadExpires,
+		ReadExpiresMinutes:   cfg.GCSSignedReadExpires,
+		AllowedImageTypes:    cfg.GCSAllowedImageTypes,
+		AllowedVideoTypes:    cfg.GCSAllowedVideoTypes,
+		MaxImageMB:           cfg.GCSMaxImageMB,
+		MaxVideoMB:           cfg.GCSMaxVideoMB,
+	}, os.Getenv("GOOGLE_APPLICATION_CREDENTIALS"))
+	if err != nil {
+		log.Fatalf("catalog media store init failed: %v", err)
+	}
 	svc := service.Service{
 		Repo:                     repo,
 		Archive:                  archiveClient,
+		MediaStore:               mediaStore,
 		ArchiveMovieIdentifiers:  cfg.ArchiveMovieIdentifiers,
 		ArchiveSeriesIdentifier:  cfg.ArchiveSeriesIdentifier,
 		ArchiveSeriesIdentifiers: cfg.ArchiveSeriesIdentifiers,

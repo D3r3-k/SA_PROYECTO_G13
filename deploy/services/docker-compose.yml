@@ -63,6 +63,17 @@ services:
       - .env
     environment:
       DATABASE_URL: ${CATALOG_DATABASE_URL}
+      GCS_PROJECT_ID: ${GCS_PROJECT_ID}
+      GCS_BUCKET_NAME: ${GCS_BUCKET_NAME}
+      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/gcp-service-account.json
+      GCS_SIGNED_UPLOAD_EXPIRES_MINUTES: ${GCS_SIGNED_UPLOAD_EXPIRES_MINUTES}
+      GCS_SIGNED_READ_EXPIRES_MINUTES: ${GCS_SIGNED_READ_EXPIRES_MINUTES}
+      GCS_ALLOWED_IMAGE_TYPES: ${GCS_ALLOWED_IMAGE_TYPES}
+      GCS_ALLOWED_VIDEO_TYPES: ${GCS_ALLOWED_VIDEO_TYPES}
+      GCS_MAX_IMAGE_MB: ${GCS_MAX_IMAGE_MB}
+      GCS_MAX_VIDEO_MB: ${GCS_MAX_VIDEO_MB}
+    volumes:
+      - ./secrets/gcp-service-account.json:/run/secrets/gcp-service-account.json:ro
     networks:
       - sa_net
 
