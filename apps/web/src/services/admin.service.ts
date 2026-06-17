@@ -18,13 +18,6 @@ export interface PlanResponse {
   plans: Plan[]
 }
 
-export interface SyncResult {
-  success: boolean
-  message: string
-  contents_synced?: number
-  episodes_synced?: number
-  provider?: string
-}
 
 export interface Genre {
   name: string
@@ -148,7 +141,6 @@ export const adminService = {
   updatePlan: (planId: number, payload: { name: string; price_usd: number }) =>
     adminApi.patch<BasicAdminResponse>(`/plans/${planId}`, payload),
 
-  syncCatalog: (force: boolean) => adminApi.post<SyncResult>('/catalog/sync', { force }),
 
   listContent: (params: {
     type?: string
