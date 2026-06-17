@@ -32,6 +32,12 @@ spec:
             limits:
               cpu: "500m"
               memory: "512Mi"
+          env:
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: IDENTITY_DB_PASSWORD
           envFrom:
             - configMapRef:
                 name: app-config

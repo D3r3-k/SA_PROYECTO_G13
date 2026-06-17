@@ -208,6 +208,125 @@ jobs:
       - name: Get GKE credentials
         run: gcloud container clusters get-credentials "${GKE_CLUSTER_NAME}" --region="${GCP_REGION}" --project="${GCP_PROJECT_ID}"
 
+      - name: Generate config and secrets
+        shell: bash
+        env:
+          GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
+          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          IDENTITY_DB_PASSWORD: ${{ secrets.IDENTITY_DB_PASSWORD }}
+          SUBSCRIPTION_DB_PASSWORD: ${{ secrets.SUBSCRIPTION_DB_PASSWORD }}
+          CATALOG_DB_PASSWORD: ${{ secrets.CATALOG_DB_PASSWORD }}
+          ENGAGEMENT_DB_PASSWORD: ${{ secrets.ENGAGEMENT_DB_PASSWORD }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          SMTP_FROM: ${{ secrets.SMTP_FROM }}
+        run: |
+          set -euo pipefail
+
+          # Obtener IPs
+          CLOUD_SQL_PRIVATE_IP="$(gcloud sql instances describe qx-postgres --format='value(ipAddresses[0].ipAddress)')"
+          REDIS_HOST="$(gcloud redis instances describe qx-redis --region="${GCP_REGION}" --format='value(host)')"
+          REDIS_PORT="$(gcloud redis instances describe qx-redis --region="${GCP_REGION}" --format='value(port)')"
+
+          # Asegurar que el namespace existe
+          kubectl create namespace "${GKE_NAMESPACE}" --dry-run=client -o yaml | kubectl apply -f -
+
+          # ConfigMap
+          kubectl create configmap app-config \
+            --namespace="${GKE_NAMESPACE}" \
+            --from-literal=NODE_ENV=production \
+            --from-literal=FRONTEND_URL=http://${INGRESS_IP_NAME} \
+            --from-literal=API_GATEWAY_PORT=3000 \
+            --from-literal=WEB_PORT=80 \
+            --from-literal=API_GATEWAY_UPSTREAM=api-gateway:3000 \
+            --from-literal=COOKIE_NAME=access_token \
+            --from-literal=COOKIE_SECURE=false \
+            --from-literal=COOKIE_SAME_SITE=lax \
+            --from-literal=JWT_EXPIRES_IN=1d \
+            --from-literal=IDENTITY_GRPC_HOST=0.0.0.0 \
+            --from-literal=IDENTITY_GRPC_PORT=50051 \
+            --from-literal=FX_GRPC_PORT=50052 \
+            --from-literal=SUBSCRIPTION_GRPC_PORT=50053 \
+            --from-literal=NOTIFICATION_GRPC_PORT=50054 \
+            --from-literal=CATALOG_GRPC_PORT=50055 \
+            --from-literal=ENGAGEMENT_GRPC_PORT=50056 \
+            --from-literal=PAYMENT_GRPC_PORT=50057 \
+            --from-literal=IDENTITY_GRPC_URL=identity-service:50051 \
+            --from-literal=FX_GRPC_URL=fx-service:50052 \
+            --from-literal=SUBSCRIPTION_GRPC_URL=subscription-service:50053 \
+            --from-literal=NOTIFICATION_GRPC_URL=notification-service:50054 \
+            --from-literal=CATALOG_GRPC_URL=catalog-service:50055 \
+            --from-literal=ENGAGEMENT_GRPC_URL=engagement-service:50056 \
+            --from-literal=PAYMENT_GRPC_URL=payment-gateway-service:50057 \
+            --from-literal=IDENTITY_DB_HOST=${CLOUD_SQL_PRIVATE_IP} \
+            --from-literal=IDENTITY_DB_PORT=5432 \
+            --from-literal=IDENTITY_DB_NAME=identity_db \
+            --from-literal=IDENTITY_DB_USER=identity_user \
+            --from-literal=DB_HOST=${CLOUD_SQL_PRIVATE_IP} \
+            --from-literal=DB_PORT=5432 \
+            --from-literal=DB_NAME=identity_db \
+            --from-literal=DB_USER=identity_user \
+            --from-literal=REDIS_URL=redis://${REDIS_HOST}:${REDIS_PORT}/0 \
+            --from-literal=NOTIFICATION_QUEUE_NAME=notification:queue \
+            --from-literal=FX_CACHE_TTL=3600 \
+            --from-literal=FX_API_BASE_URL=https://api.frankfurter.dev/v2 \
+            --from-literal=GCS_BUCKET_NAME=${GCS_BUCKET_NAME} \
+            --from-literal=GCS_PROJECT_ID=${GCP_PROJECT_ID} \
+            --from-literal=GOOGLE_CLOUD_PROJECT=${GCP_PROJECT_ID} \
+            --from-literal=GOOGLE_APPLICATION_CREDENTIALS=/app/secrets/gcp-service-account.json \
+            --from-literal=GCS_SIGNED_UPLOAD_EXPIRES_MINUTES=15 \
+            --from-literal=GCS_SIGNED_READ_EXPIRES_MINUTES=60 \
+            --from-literal=GCS_ALLOWED_IMAGE_TYPES=image/jpeg,image/png,image/webp \
+            --from-literal=GCS_ALLOWED_VIDEO_TYPES=video/mp4,video/webm \
+            --from-literal=GCS_MAX_IMAGE_MB=10 \
+            --from-literal=GCS_MAX_VIDEO_MB=1024 \
+            --from-literal=PAYMENT_PROVIDER_NAME="QuetxalPay Sandbox" \
+            --from-literal=PAYMENT_APPROVAL_DELAY_MS=500 \
+            --from-literal=SMTP_PORT=587 \
+            --from-literal=SMTP_STARTTLS=true \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+          # App Secrets
+          kubectl create secret generic app-secrets \
+            --namespace="${GKE_NAMESPACE}" \
+            --from-literal=JWT_SECRET="${JWT_SECRET}" \
+            --from-literal=IDENTITY_DB_PASSWORD="${IDENTITY_DB_PASSWORD}" \
+            --from-literal=SUBSCRIPTION_DB_PASSWORD="${SUBSCRIPTION_DB_PASSWORD}" \
+            --from-literal=CATALOG_DB_PASSWORD="${CATALOG_DB_PASSWORD}" \
+            --from-literal=ENGAGEMENT_DB_PASSWORD="${ENGAGEMENT_DB_PASSWORD}" \
+            --from-literal=SMTP_HOST="${SMTP_HOST}" \
+            --from-literal=SMTP_USERNAME="${SMTP_USERNAME}" \
+            --from-literal=SMTP_PASSWORD="${SMTP_PASSWORD}" \
+            --from-literal=SMTP_FROM="${SMTP_FROM}" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+          # Connection Secrets
+          kubectl create secret generic connection-secrets \
+            --namespace="${GKE_NAMESPACE}" \
+            --from-literal=SUBSCRIPTION_DATABASE_URL="postgresql://subscription_user:${SUBSCRIPTION_DB_PASSWORD}@${CLOUD_SQL_PRIVATE_IP}:5432/subscription_db" \
+            --from-literal=CATALOG_DATABASE_URL="postgresql://catalog_user:${CATALOG_DB_PASSWORD}@${CLOUD_SQL_PRIVATE_IP}:5432/catalog_db" \
+            --from-literal=ENGAGEMENT_DATABASE_URL="postgresql://engagement_user:${ENGAGEMENT_DB_PASSWORD}@${CLOUD_SQL_PRIVATE_IP}:5432/engagement_db" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+          # GHCR Pull Secret
+          kubectl create secret docker-registry ghcr-pull-secret \
+            --namespace="${GKE_NAMESPACE}" \
+            --docker-server=ghcr.io \
+            --docker-username="${GHCR_USERNAME}" \
+            --docker-password="${GHCR_TOKEN}" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+          # GCS Service Account
+          cat > gcp-service-account.json <<'EOF'
+          ${{ secrets.GCS_BACKEND_SERVICE_ACCOUNT_KEY }}
+          EOF
+          kubectl create secret generic gcs-service-account \
+            --namespace="${GKE_NAMESPACE}" \
+            --from-file=gcp-service-account.json=gcp-service-account.json \
+            --dry-run=client -o yaml | kubectl apply -f -
+
       - name: Apply Kubernetes manifests
         run: |
           kubectl apply -f deploy/release/k8s/services/

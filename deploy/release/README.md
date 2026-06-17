@@ -353,12 +353,9 @@ kubectl get nodes
 ```
 
 > [!TIP]
-> Si `kubectl` muestra timeout contra la IP del master, autorice su IP publica para acceder al plano de control:
+> Si `kubectl` o GitHub Actions muestran timeout (i/o timeout) contra la IP del master, abra el acceso al plano de control a todas las IPs para evitar problemas con los runners de GitHub (el cluster seguira protegido por autenticacion de Service Account):
 > ```powershell
-> $env:MY_PUBLIC_IP=(Invoke-RestMethod -Uri "https://api.ipify.org")
-> gcloud container clusters update $env:GKE_CLUSTER_NAME --region=$env:REGION --enable-master-authorized-networks --master-authorized-networks="$env:MY_PUBLIC_IP/32"
-> gcloud container clusters get-credentials $env:GKE_CLUSTER_NAME --region=$env:REGION --project=$env:PROJECT_ID
-> kubectl get nodes
+> gcloud container clusters update $env:GKE_CLUSTER_NAME --region=$env:REGION --enable-master-authorized-networks --master-authorized-networks=0.0.0.0/0
 > ```
 
 ---
@@ -420,7 +417,7 @@ Cree el pull secret para GHCR:
 
 ```powershell
 $env:GHCR_USERNAME="CAMBIAR_GITHUB_USER"
-$env:GHCR_TOKEN="CAMBIAR_GITHUB_TOKEN"
+$env:GHCR_TOKEN="CAMBIAR_GITHUB_TOKEN" # Asegurese de que tenga permisos read:packages y write:packages
 
 kubectl create secret docker-registry ghcr-pull-secret `
   --namespace=$env:GKE_NAMESPACE `
@@ -453,65 +450,12 @@ Write-Host "Ingress IP: $env:INGRESS_IP"
 
 Las variables no sensibles deben ir en `ConfigMap`. Las URLs internas usan nombres de Services de Kubernetes:
 
-```powershell
-$env:CLOUD_SQL_PRIVATE_IP=(gcloud sql instances describe $env:CLOUD_SQL_INSTANCE --format="value(ipAddresses[0].ipAddress)")
-$env:REDIS_HOST=(gcloud redis instances describe $env:REDIS_INSTANCE --region=$env:REGION --format="value(host)")
-$env:REDIS_PORT=(gcloud redis instances describe $env:REDIS_INSTANCE --region=$env:REGION --format="value(port)")
-$env:INGRESS_IP=(gcloud compute addresses describe $env:INGRESS_IP_NAME --global --format="value(address)")
+## Paso 10, 11 y 12. Creación de Secretos y ConfigMaps (Automatizado)
 
-kubectl create configmap app-config `
-  --namespace=$env:GKE_NAMESPACE `
-  --from-literal=NODE_ENV=production `
-  --from-literal=API_GATEWAY_PORT=3000 `
-  --from-literal=FRONTEND_URL=http://REEMPLAZAR_IP_INGRESS `
-  --from-literal=COOKIE_NAME=access_token `
-  --from-literal=COOKIE_SECURE=false `
-  --from-literal=COOKIE_SAME_SITE=lax `
-  --from-literal=IDENTITY_GRPC_HOST=0.0.0.0 `
-  --from-literal=IDENTITY_GRPC_PORT=50051 `
-  --from-literal=FX_GRPC_PORT=50052 `
-  --from-literal=SUBSCRIPTION_GRPC_PORT=50053 `
-  --from-literal=NOTIFICATION_GRPC_PORT=50054 `
-  --from-literal=CATALOG_GRPC_PORT=50055 `
-  --from-literal=ENGAGEMENT_GRPC_PORT=50056 `
-  --from-literal=PAYMENT_GRPC_PORT=50057 `
-  --from-literal=IDENTITY_GRPC_URL=identity-service:50051 `
-  --from-literal=FX_GRPC_URL=fx-service:50052 `
-  --from-literal=SUBSCRIPTION_GRPC_URL=subscription-service:50053 `
-  --from-literal=NOTIFICATION_GRPC_URL=notification-service:50054 `
-  --from-literal=CATALOG_GRPC_URL=catalog-service:50055 `
-  --from-literal=ENGAGEMENT_GRPC_URL=engagement-service:50056 `
-  --from-literal=PAYMENT_GRPC_URL=payment-gateway-service:50057 `
-  --from-literal=IDENTITY_DB_HOST=$env:CLOUD_SQL_PRIVATE_IP `
-  --from-literal=IDENTITY_DB_PORT=5432 `
-  --from-literal=IDENTITY_DB_NAME=identity_db `
-  --from-literal=IDENTITY_DB_USER=identity_user `
-  --from-literal=DB_HOST=$env:CLOUD_SQL_PRIVATE_IP `
-  --from-literal=DB_PORT=5432 `
-  --from-literal=DB_NAME=identity_db `
-  --from-literal=DB_USER=identity_user `
-  --from-literal=REDIS_URL=redis://$($env:REDIS_HOST):$($env:REDIS_PORT)/0 `
-  --from-literal=NOTIFICATION_QUEUE_NAME=notification:queue `
-  --from-literal=FX_CACHE_TTL=3600 `
-  --from-literal=FX_API_BASE_URL=https://api.frankfurter.dev/v2 `
-  --from-literal=GCS_BUCKET_NAME=$env:BUCKET_NAME `
-  --from-literal=GCS_PROJECT_ID=$env:PROJECT_ID `
-  --from-literal=GOOGLE_CLOUD_PROJECT=$env:PROJECT_ID `
-  --from-literal=GOOGLE_APPLICATION_CREDENTIALS=/run/secrets/gcp-service-account.json `
-  --from-literal=GCS_SIGNED_UPLOAD_EXPIRES_MINUTES=15 `
-  --from-literal=GCS_SIGNED_READ_EXPIRES_MINUTES=60 `
-  --from-literal=GCS_ALLOWED_IMAGE_TYPES=image/jpeg,image/png,image/webp `
-  --from-literal=GCS_ALLOWED_VIDEO_TYPES=video/mp4,video/webm `
-  --from-literal=GCS_MAX_IMAGE_MB=10 `
-  --from-literal=GCS_MAX_VIDEO_MB=1024 `
-  --from-literal=PAYMENT_PROVIDER_NAME="QuetxalPay Sandbox" `
-  --from-literal=PAYMENT_APPROVAL_DELAY_MS=500 `
-  --from-literal=SMTP_PORT=587 `
-  --from-literal=SMTP_STARTTLS=true
-```
-
-> [!WARNING]
-> Las cadenas `SUBSCRIPTION_DATABASE_URL`, `CATALOG_DATABASE_URL` y `ENGAGEMENT_DATABASE_URL` contienen passwords. Deben inyectarse desde `connection-secrets`, no desde `ConfigMap`.
+> [!IMPORTANT]
+> **Todo este proceso ha sido automatizado.**
+> Ya no es necesario crear manualmente los secretos (`app-secrets`, `connection-secrets`, `ghcr-pull-secret`, `gcs-service-account`) ni el `ConfigMap` (`app-config`) en la terminal.
+> El pipeline de GitHub Actions (`deploy-release.yml`) ahora se encarga de leer las variables de entorno desde los *Secrets* y *Variables* configuradas en GitHub, conectarse a Google Cloud para obtener las IPs dinámicas (como la de Cloud SQL), e inyectar y crear todos los recursos en el clúster de Kubernetes en cada despliegue.
 
 ---
 
@@ -651,7 +595,7 @@ spec:
 | `GCP_SERVICE_ACCOUNT_KEY`         | JSON del service account de CI/CD               |
 | `GCS_BACKEND_SERVICE_ACCOUNT_KEY` | JSON del service account `catalog-media-signer` |
 | `GHCR_USERNAME`                   | Usuario de GitHub                               |
-| `GHCR_TOKEN`                      | Token de GitHub con permiso `read:packages`     |
+| `GHCR_TOKEN`                      | Token de GitHub con permiso `read:packages` y `write:packages` |
 | `JWT_SECRET`                      | Cadena segura para firmar JWT                   |
 | `IDENTITY_DB_PASSWORD`            | Password de `identity_user`                     |
 | `SUBSCRIPTION_DB_PASSWORD`        | Password de `subscription_user`                 |
@@ -699,8 +643,7 @@ gcloud iam service-accounts create $env:CICD_SA_NAME --display-name="GitHub Acti
 Asigne permisos:
 
 ```powershell
-gcloud projects add-iam-policy-binding $env:PROJECT_ID --member="serviceAccount:$env:CICD_SA" --role="roles/container.developer"
-gcloud projects add-iam-policy-binding $env:PROJECT_ID --member="serviceAccount:$env:CICD_SA" --role="roles/container.clusterViewer"
+gcloud projects add-iam-policy-binding $env:PROJECT_ID --member="serviceAccount:$env:CICD_SA" --role="roles/container.admin"
 gcloud projects add-iam-policy-binding $env:PROJECT_ID --member="serviceAccount:$env:CICD_SA" --role="roles/cloudsql.admin"
 gcloud projects add-iam-policy-binding $env:PROJECT_ID --member="serviceAccount:$env:CICD_SA" --role="roles/redis.viewer"
 gcloud projects add-iam-policy-binding $env:PROJECT_ID --member="serviceAccount:$env:CICD_SA" --role="roles/storage.objectViewer"
@@ -751,12 +694,10 @@ ci-checks -> backup-cloud-sql -> build-and-push -> tag-release -> deploy-gke -> 
 | `rollback`         | Ejecuta `kubectl rollout undo` si un Deployment falla o entra en estado no saludable.  |
 | `smoke-test`       | Valida Ingress, frontend y `/api/health`.                                              |
 
-Ejemplo de comandos clave dentro del workflow:
+Ejemplo de comandos clave dentro del workflow (que deberia configurarse para ejecutarse en ramas `release/*` y `test/*`):
 
 ```bash
 gcloud container clusters get-credentials "${GKE_CLUSTER_NAME}" --region="${GCP_REGION}" --project="${GCP_PROJECT_ID}"
-kubectl apply -f deploy/release/k8s/namespace.yml
-kubectl apply -f deploy/release/k8s/configmap.yml
 kubectl apply -f deploy/release/k8s/services/
 kubectl apply -f deploy/release/k8s/deployments/
 kubectl apply -f deploy/release/k8s/ingress.yml
@@ -769,6 +710,9 @@ do
   fi
 done
 ```
+
+> [!NOTE]
+> Se omiten `namespace.yml` y `configmap.yml` del flujo automatizado, ya que estos recursos se deben crear manualmente por motivos de permisos (`roles/container.admin` maneja recursos dentro del namespace) e inyeccion de valores dimanicos (Paso 12). Se recomienda usar `GITHUB_TOKEN` para la tarea de `docker-push` dentro del flujo.
 
 > [!TIP]
 > El backup debe ejecutarse antes de aplicar nuevos manifests para poder restaurar datos si una version afecta el estado operacional.
