@@ -212,6 +212,7 @@ adminRoutes.post("/catalog/sync", adminMiddleware, async (req: Request, res: Res
   }
 });
 
+<<<<<<< Updated upstream
 adminRoutes.get("/catalog/content", adminMiddleware, async (req: Request, res: Response) => {
   try {
     const response = await callCatalogMethod<Record<string, unknown>, { success: boolean; message: string; items: unknown[] }>(
@@ -228,6 +229,28 @@ adminRoutes.get("/catalog/content", adminMiddleware, async (req: Request, res: R
   } catch (error) {
     logAdminError("Admin list content failed", error);
     return res.status(503).json({ success: false, message: "Catalog Service unavailable" });
+=======
+adminRoutes.get("/catalog/list", adminMiddleware, async (_req, res) => {
+  try {
+    const response = await callCatalogMethod<
+      Record<string, unknown>,
+      { success: boolean; message: string; items: unknown[] }
+    >("ListContent", { type: "", genre: "", limit: 200, offset: 0 });
+    return res.json(response);
+  } catch (error) {
+    logAdminError("Admin list catalog failed", error);
+    return res.status(503).json({ success: false, message: "Catalog Service unavailable" });
+  }
+});
+
+adminRoutes.post("/catalog/content", adminMiddleware, async (req, res) => {
+  const body = req.body ?? {};
+  const type = String(body.type ?? "").trim();
+  const title = String(body.title ?? "").trim();
+
+  if (type !== "movie" && type !== "series") {
+    return res.status(400).json({ success: false, message: "type must be movie or series" });
+>>>>>>> Stashed changes
   }
 });
 
