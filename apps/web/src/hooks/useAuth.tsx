@@ -5,16 +5,10 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import { authService } from '../services/auth.service'
-
-interface User {
-  user_id: string
-  email: string
-  profile_id: string
-}
+import { authService, type AuthUser } from '../services/auth.service'
 
 interface AuthContextValue {
-  user: User | null
+  user: AuthUser | null
   loading: boolean
   login: (email: string, password: string) => Promise<void>
   logout: () => Promise<void>
@@ -24,13 +18,19 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
+  const [user, setUser] = useState<AuthUser | null>(null)
   const [loading, setLoading] = useState(true)
 
   const refresh = async () => {
     try {
       const res = await authService.me()
-      setUser(res.data.user)
+      const rawUser = res.data.user
+      setUser({
+        ...rawUser,
+        roles: rawUser.roles ?? [],
+        permissions: rawUser.permissions ?? [],
+        is_admin: Boolean(rawUser.is_admin || rawUser.roles?.includes('admin')),
+      })
     } catch {
       setUser(null)
     } finally {
@@ -48,7 +48,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const logout = async () => {
-    await authService.logout()
+    await authService.logout().catch(() => undefined)
     setUser(null)
   }
 
