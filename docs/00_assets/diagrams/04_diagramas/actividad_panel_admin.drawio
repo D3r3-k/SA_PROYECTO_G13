@@ -1,0 +1,477 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="1654" math="0" shadow="0">
+  <root>
+    <mxCell id="0" />
+    <mxCell id="1" parent="0" />
+
+    <!-- TITULO -->
+    <mxCell id="admp_title" value="&lt;span style=&quot;font-size:17px;&quot;&gt;&lt;b&gt;Diagrama de Actividades — Panel de Administracion [Fase 2]&lt;/b&gt;&lt;/span&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;" vertex="1" parent="1">
+      <mxGeometry x="0" y="10" width="1100" height="30" as="geometry" />
+    </mxCell>
+
+    <!-- ===== ENCABEZADOS DE CARRIL ===== -->
+    <mxCell id="admp_h1" value="Administrador" style="text;html=1;strokeColor=#b85450;fillColor=#f8cecc;align=center;verticalAlign=middle;fontStyle=1;fontSize=12;" vertex="1" parent="1">
+      <mxGeometry x="0" y="50" width="140" height="40" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_h2" value="Panel Admin" style="text;html=1;strokeColor=#6c8ebf;fillColor=#dae8fc;align=center;verticalAlign=middle;fontStyle=1;fontSize=12;" vertex="1" parent="1">
+      <mxGeometry x="140" y="50" width="160" height="40" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_h3" value="API Gateway" style="text;html=1;strokeColor=#82b366;fillColor=#d5e8d4;align=center;verticalAlign=middle;fontStyle=1;fontSize=12;" vertex="1" parent="1">
+      <mxGeometry x="300" y="50" width="160" height="40" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_h4" value="Catalog Service" style="text;html=1;strokeColor=#d6b656;fillColor=#fff2cc;align=center;verticalAlign=middle;fontStyle=1;fontSize=12;" vertex="1" parent="1">
+      <mxGeometry x="460" y="50" width="160" height="40" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_h5" value="Subscription Service" style="text;html=1;strokeColor=#9673a6;fillColor=#e1d5e7;align=center;verticalAlign=middle;fontStyle=1;fontSize=12;" vertex="1" parent="1">
+      <mxGeometry x="620" y="50" width="160" height="40" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_h6" value="Base de Datos" style="text;html=1;strokeColor=#d79b00;fillColor=#ffe6cc;align=center;verticalAlign=middle;fontStyle=1;fontSize=12;" vertex="1" parent="1">
+      <mxGeometry x="780" y="50" width="160" height="40" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_h7" value="GCS [Fase 2]" style="text;html=1;strokeColor=#9673a6;fillColor=#e1d5e7;align=center;verticalAlign=middle;fontStyle=1;fontSize=12;" vertex="1" parent="1">
+      <mxGeometry x="940" y="50" width="160" height="40" as="geometry" />
+    </mxCell>
+
+    <!-- ===== DIVISORES DE CARRIL ===== -->
+    <mxCell id="admp_div1" value="" style="endArrow=none;html=1;strokeColor=#CCCCCC;fillColor=none;" edge="1" parent="1">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="140" y="50" as="sourcePoint" />
+        <mxPoint x="140" y="1660" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="admp_div2" value="" style="endArrow=none;html=1;strokeColor=#CCCCCC;fillColor=none;" edge="1" parent="1">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="300" y="50" as="sourcePoint" />
+        <mxPoint x="300" y="1660" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="admp_div3" value="" style="endArrow=none;html=1;strokeColor=#CCCCCC;fillColor=none;" edge="1" parent="1">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="460" y="50" as="sourcePoint" />
+        <mxPoint x="460" y="1660" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="admp_div4" value="" style="endArrow=none;html=1;strokeColor=#CCCCCC;fillColor=none;" edge="1" parent="1">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="620" y="50" as="sourcePoint" />
+        <mxPoint x="620" y="1660" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="admp_div5" value="" style="endArrow=none;html=1;strokeColor=#CCCCCC;fillColor=none;" edge="1" parent="1">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="780" y="50" as="sourcePoint" />
+        <mxPoint x="780" y="1660" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="admp_div6" value="" style="endArrow=none;html=1;strokeColor=#CCCCCC;fillColor=none;" edge="1" parent="1">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="940" y="50" as="sourcePoint" />
+        <mxPoint x="940" y="1660" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+
+    <!-- ====================================================== -->
+    <!-- FLUJO 1: AUTENTICACION DEL ADMINISTRADOR               -->
+    <!-- ====================================================== -->
+    <mxCell id="admp_lbl1" value="&lt;b&gt;Flujo 1: Autenticacion del Administrador&lt;/b&gt;" style="text;html=1;strokeColor=#b85450;fillColor=#f8cecc;align=left;verticalAlign=middle;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="0" y="100" width="1100" height="22" as="geometry" />
+    </mxCell>
+
+    <mxCell id="admp_s1" value="" style="ellipse;aspect=fixed;fillColor=#000000;strokeColor=#000000;" vertex="1" parent="1">
+      <mxGeometry x="60" y="130" width="20" height="20" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_f1a1" value="Ingresa la clave de administrador" style="rounded=1;whiteSpace=wrap;html=1;arcSize=50;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="5" y="162" width="130" height="40" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_f1a2" value="Adjunta la clave como header x-admin-key en cada request" style="rounded=1;whiteSpace=wrap;html=1;arcSize=50;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="155" y="162" width="130" height="40" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_f1a3" value="adminMiddleware valida la clave contra ADMIN_KEY" style="rounded=1;whiteSpace=wrap;html=1;arcSize=50;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="315" y="162" width="130" height="40" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_f1d1" value="¿Clave valida?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="340" y="218" width="80" height="50" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_f1a4" value="Muestra el panel de administracion" style="rounded=1;whiteSpace=wrap;html=1;arcSize=50;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="155" y="283" width="130" height="40" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_f1a5" value="Retorna error 401 al administrador" style="rounded=1;whiteSpace=wrap;html=1;arcSize=50;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="155" y="218" width="130" height="40" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_f1end_no" value="" style="ellipse;aspect=fixed;fillColor=#000000;strokeColor=#000000;" vertex="1" parent="1">
+      <mxGeometry x="210" y="270" width="20" height="20" as="geometry" />
+    </mxCell>
+
+    <!-- Flechas Flujo 1 -->
+    <mxCell id="admp_e1_1" edge="1" source="admp_s1" target="admp_f1a1" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_e1_2" edge="1" source="admp_f1a1" target="admp_f1a2" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_e1_3" edge="1" source="admp_f1a2" target="admp_f1a3" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_e1_4" edge="1" source="admp_f1a3" target="admp_f1d1" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_e1_5" edge="1" source="admp_f1d1" target="admp_f1a5" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" value="[No]">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_e1_6" edge="1" source="admp_f1a5" target="admp_f1end_no" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_e1_7" edge="1" source="admp_f1d1" target="admp_f1a4" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" value="[Si]">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- ====================================================== -->
+    <!-- FLUJO 2: VER Y ACTUALIZAR PLANES                        -->
+    <!-- ====================================================== -->
+    <mxCell id="admp_lbl2" value="&lt;b&gt;Flujo 2: Ver y Actualizar Planes de Suscripcion&lt;/b&gt;" style="text;html=1;strokeColor=#9673a6;fillColor=#e1d5e7;align=left;verticalAlign=middle;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="0" y="345" width="1100" height="22" as="geometry" />
+    </mxCell>
+
+    <mxCell id="admp_s2" value="" style="ellipse;aspect=fixed;fillColor=#000000;strokeColor=#000000;" vertex="1" parent="1">
+      <mxGeometry x="60" y="375" width="20" height="20" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_f2a1" value="Selecciona un plan y edita el nombre o el precio" style="rounded=1;whiteSpace=wrap;html=1;arcSize=50;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="5" y="405" width="130" height="40" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_f2a2" value="Envia los datos del plan al servidor" style="rounded=1;whiteSpace=wrap;html=1;arcSize=50;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="155" y="405" width="130" height="40" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_f2a3" value="Valida planId, nombre y precio_usd" style="rounded=1;whiteSpace=wrap;html=1;arcSize=50;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="315" y="405" width="130" height="40" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_f2a4" value="Ejecuta UpdatePlan en la base de datos" style="rounded=1;whiteSpace=wrap;html=1;arcSize=50;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="635" y="405" width="130" height="40" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_f2a5" value="Actualiza el registro en la tabla plans" style="rounded=1;whiteSpace=wrap;html=1;arcSize=50;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="795" y="405" width="130" height="40" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_f2a6" value="Muestra el plan actualizado al administrador" style="rounded=1;whiteSpace=wrap;html=1;arcSize=50;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="155" y="455" width="130" height="40" as="geometry" />
+    </mxCell>
+
+    <!-- Flechas Flujo 2 -->
+    <mxCell id="admp_e2_1" edge="1" source="admp_s2" target="admp_f2a1" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_e2_2" edge="1" source="admp_f2a1" target="admp_f2a2" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_e2_3" edge="1" source="admp_f2a2" target="admp_f2a3" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_e2_4" edge="1" source="admp_f2a3" target="admp_f2a4" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_e2_5" edge="1" source="admp_f2a4" target="admp_f2a5" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_e2_6" edge="1" source="admp_f2a5" target="admp_f2a6" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- ====================================================== -->
+    <!-- FLUJO 3: SINCRONIZAR CATALOGO                           -->
+    <!-- ====================================================== -->
+    <mxCell id="admp_lbl3" value="&lt;b&gt;Flujo 3: Sincronizar Catalogo desde archive.org&lt;/b&gt;" style="text;html=1;strokeColor=#82b366;fillColor=#d5e8d4;align=left;verticalAlign=middle;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="0" y="515" width="1100" height="22" as="geometry" />
+    </mxCell>
+
+    <mxCell id="admp_s3" value="" style="ellipse;aspect=fixed;fillColor=#000000;strokeColor=#000000;" vertex="1" parent="1">
+      <mxGeometry x="60" y="545" width="20" height="20" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_f3a1" value="Solicita sincronizar catalogo (force: true o false)" style="rounded=1;whiteSpace=wrap;html=1;arcSize=50;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="5" y="575" width="130" height="40" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_f3a2" value="Llama a SyncMinimumCatalog al Catalog Service" style="rounded=1;whiteSpace=wrap;html=1;arcSize=50;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="315" y="575" width="130" height="40" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_f3a3" value="Consulta contenidos disponibles en archive.org" style="rounded=1;whiteSpace=wrap;html=1;arcSize=50;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="475" y="575" width="130" height="40" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_f3d1" value="¿Hay contenido disponible?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="500" y="630" width="80" height="50" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_f3a4" value="Guarda contenidos con sp_upsert_content_from_external" style="rounded=1;whiteSpace=wrap;html=1;arcSize=50;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="475" y="695" width="130" height="40" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_f3a5" value="Trigger actualiza updated_at automaticamente" style="rounded=1;whiteSpace=wrap;html=1;arcSize=50;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="795" y="695" width="130" height="40" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_f3a6" value="Registra resultado en sync_audit" style="rounded=1;whiteSpace=wrap;html=1;arcSize=50;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="475" y="745" width="130" height="40" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_f3a7_no" value="Registra fallo en sync_audit" style="rounded=1;whiteSpace=wrap;html=1;arcSize=50;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="795" y="630" width="130" height="40" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_f3end_no" value="" style="ellipse;aspect=fixed;fillColor=#000000;strokeColor=#000000;" vertex="1" parent="1">
+      <mxGeometry x="850" y="682" width="20" height="20" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_f3a8" value="Muestra el resultado de la sincronizacion" style="rounded=1;whiteSpace=wrap;html=1;arcSize=50;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="155" y="745" width="130" height="40" as="geometry" />
+    </mxCell>
+
+    <!-- Flechas Flujo 3 -->
+    <mxCell id="admp_e3_1" edge="1" source="admp_s3" target="admp_f3a1" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_e3_2" edge="1" source="admp_f3a1" target="admp_f3a2" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_e3_3" edge="1" source="admp_f3a2" target="admp_f3a3" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_e3_4" edge="1" source="admp_f3a3" target="admp_f3d1" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_e3_5" edge="1" source="admp_f3d1" target="admp_f3a4" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" value="[Si]">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_e3_6" edge="1" source="admp_f3d1" target="admp_f3a7_no" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" value="[No]">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_e3_7" edge="1" source="admp_f3a7_no" target="admp_f3end_no" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_e3_8" edge="1" source="admp_f3a4" target="admp_f3a5" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_e3_9" edge="1" source="admp_f3a4" target="admp_f3a6" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_e3_10" edge="1" source="admp_f3a6" target="admp_f3a8" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- ====================================================== -->
+    <!-- FLUJO 4: CREAR CONTENIDO [FASE 2]                       -->
+    <!-- ====================================================== -->
+    <mxCell id="admp_lbl4" value="&lt;b&gt;Flujo 4: Crear Contenido Manualmente [Fase 2]&lt;/b&gt;" style="text;html=1;strokeColor=#d6b656;fillColor=#fff2cc;align=left;verticalAlign=middle;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="0" y="810" width="1100" height="22" as="geometry" />
+    </mxCell>
+
+    <mxCell id="admp_s4" value="" style="ellipse;aspect=fixed;fillColor=#000000;strokeColor=#000000;" vertex="1" parent="1">
+      <mxGeometry x="60" y="840" width="20" height="20" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_f4a1" value="Completa formulario: tipo, titulo, generos, reparto y episodios" style="rounded=1;whiteSpace=wrap;html=1;arcSize=50;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="5" y="870" width="130" height="40" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_f4a2" value="Envia los datos del contenido al servidor" style="rounded=1;whiteSpace=wrap;html=1;arcSize=50;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="155" y="870" width="130" height="40" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_f4a3" value="Llama a CreateContent al Catalog Service" style="rounded=1;whiteSpace=wrap;html=1;arcSize=50;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="315" y="870" width="130" height="40" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_f4a4" value="Persiste el contenido con sp_upsert_content" style="rounded=1;whiteSpace=wrap;html=1;arcSize=50;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="475" y="870" width="130" height="40" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_f4a5" value="Trigger trg_catalog_updated_at actualiza timestamp" style="rounded=1;whiteSpace=wrap;html=1;arcSize=50;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="795" y="870" width="130" height="40" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_f4a6" value="Muestra el content_id generado al administrador" style="rounded=1;whiteSpace=wrap;html=1;arcSize=50;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="155" y="920" width="130" height="40" as="geometry" />
+    </mxCell>
+
+    <!-- Flechas Flujo 4 -->
+    <mxCell id="admp_e4_1" edge="1" source="admp_s4" target="admp_f4a1" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_e4_2" edge="1" source="admp_f4a1" target="admp_f4a2" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_e4_3" edge="1" source="admp_f4a2" target="admp_f4a3" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_e4_4" edge="1" source="admp_f4a3" target="admp_f4a4" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_e4_5" edge="1" source="admp_f4a4" target="admp_f4a5" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_e4_6" edge="1" source="admp_f4a5" target="admp_f4a6" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- ====================================================== -->
+    <!-- FLUJO 5: SUBIR MEDIA A GCS [FASE 2]                     -->
+    <!-- ====================================================== -->
+    <mxCell id="admp_lbl5" value="&lt;b&gt;Flujo 5: Subir Archivo de Media a GCS [Fase 2]&lt;/b&gt;" style="text;html=1;strokeColor=#9673a6;fillColor=#e1d5e7;align=left;verticalAlign=middle;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="0" y="980" width="1100" height="22" as="geometry" />
+    </mxCell>
+
+    <mxCell id="admp_s5" value="" style="ellipse;aspect=fixed;fillColor=#000000;strokeColor=#000000;" vertex="1" parent="1">
+      <mxGeometry x="60" y="1010" width="20" height="20" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_f5a1" value="Solicita URL para subir el archivo de media" style="rounded=1;whiteSpace=wrap;html=1;arcSize=50;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="5" y="1040" width="130" height="40" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_f5a2" value="Llama a GenerateUploadUrl al Catalog Service" style="rounded=1;whiteSpace=wrap;html=1;arcSize=50;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="315" y="1040" width="130" height="40" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_f5a3" value="Solicita una URL firmada a Google Cloud Storage" style="rounded=1;whiteSpace=wrap;html=1;arcSize=50;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="475" y="1040" width="130" height="40" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_f5a4" value="Genera y retorna URL firmada con tiempo de expiracion" style="rounded=1;whiteSpace=wrap;html=1;arcSize=50;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="955" y="1040" width="130" height="40" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_f5a5" value="Sube el archivo directamente a GCS usando la URL firmada" style="rounded=1;whiteSpace=wrap;html=1;arcSize=50;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="155" y="1095" width="130" height="40" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_f5a6" value="Almacena el archivo y confirma la carga exitosa" style="rounded=1;whiteSpace=wrap;html=1;arcSize=50;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="955" y="1095" width="130" height="40" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_f5a7" value="Confirma la carga al sistema" style="rounded=1;whiteSpace=wrap;html=1;arcSize=50;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="5" y="1150" width="130" height="40" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_f5a8" value="Llama a ConfirmMedia al Catalog Service" style="rounded=1;whiteSpace=wrap;html=1;arcSize=50;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="315" y="1150" width="130" height="40" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_f5a9" value="Actualiza el estado del media y registra la URL en el catalogo" style="rounded=1;whiteSpace=wrap;html=1;arcSize=50;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="475" y="1150" width="130" height="40" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_f5a10" value="Registra la URL GCS en la tabla de contenido" style="rounded=1;whiteSpace=wrap;html=1;arcSize=50;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="795" y="1150" width="130" height="40" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_f5a11" value="Muestra confirmacion de carga exitosa" style="rounded=1;whiteSpace=wrap;html=1;arcSize=50;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="155" y="1200" width="130" height="40" as="geometry" />
+    </mxCell>
+
+    <!-- Flechas Flujo 5 -->
+    <mxCell id="admp_e5_1" edge="1" source="admp_s5" target="admp_f5a1" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_e5_2" edge="1" source="admp_f5a1" target="admp_f5a2" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_e5_3" edge="1" source="admp_f5a2" target="admp_f5a3" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_e5_4" edge="1" source="admp_f5a3" target="admp_f5a4" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_e5_5" edge="1" source="admp_f5a4" target="admp_f5a5" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_e5_6" edge="1" source="admp_f5a5" target="admp_f5a6" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_e5_7" edge="1" source="admp_f5a5" target="admp_f5a7" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_e5_8" edge="1" source="admp_f5a7" target="admp_f5a8" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_e5_9" edge="1" source="admp_f5a8" target="admp_f5a9" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_e5_10" edge="1" source="admp_f5a9" target="admp_f5a10" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_e5_11" edge="1" source="admp_f5a10" target="admp_f5a11" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- ====================================================== -->
+    <!-- FLUJO 6: ELIMINAR CONTENIDO [FASE 2]                    -->
+    <!-- ====================================================== -->
+    <mxCell id="admp_lbl6" value="&lt;b&gt;Flujo 6: Eliminar Contenido [Fase 2]&lt;/b&gt;" style="text;html=1;strokeColor=#b85450;fillColor=#f8cecc;align=left;verticalAlign=middle;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="0" y="1260" width="1100" height="22" as="geometry" />
+    </mxCell>
+
+    <mxCell id="admp_s6" value="" style="ellipse;aspect=fixed;fillColor=#000000;strokeColor=#000000;" vertex="1" parent="1">
+      <mxGeometry x="60" y="1290" width="20" height="20" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_f6a1" value="Selecciona el contenido a eliminar" style="rounded=1;whiteSpace=wrap;html=1;arcSize=50;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="5" y="1320" width="130" height="40" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_f6a2" value="Solicita confirmacion de eliminacion" style="rounded=1;whiteSpace=wrap;html=1;arcSize=50;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="155" y="1320" width="130" height="40" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_f6d1" value="¿Confirma la eliminacion?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="30" y="1375" width="80" height="50" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_f6a3" value="Llama a DeleteContent al Catalog Service" style="rounded=1;whiteSpace=wrap;html=1;arcSize=50;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="315" y="1375" width="130" height="40" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_f6a4" value="Elimina el contenido y sus recursos asociados" style="rounded=1;whiteSpace=wrap;html=1;arcSize=50;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="475" y="1375" width="130" height="40" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_f6a5" value="Elimina los registros de la base de datos" style="rounded=1;whiteSpace=wrap;html=1;arcSize=50;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="795" y="1375" width="130" height="40" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_f6a6" value="Muestra confirmacion de eliminacion exitosa" style="rounded=1;whiteSpace=wrap;html=1;arcSize=50;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="155" y="1430" width="130" height="40" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_f6end_no" value="" style="ellipse;aspect=fixed;fillColor=#000000;strokeColor=#000000;" vertex="1" parent="1">
+      <mxGeometry x="60" y="1438" width="20" height="20" as="geometry" />
+    </mxCell>
+
+    <!-- Flechas Flujo 6 -->
+    <mxCell id="admp_e6_1" edge="1" source="admp_s6" target="admp_f6a1" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_e6_2" edge="1" source="admp_f6a1" target="admp_f6a2" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_e6_3" edge="1" source="admp_f6a2" target="admp_f6d1" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_e6_4" edge="1" source="admp_f6d1" target="admp_f6a3" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" value="[Si]">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_e6_5" edge="1" source="admp_f6d1" target="admp_f6end_no" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" value="[No]">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_e6_6" edge="1" source="admp_f6a3" target="admp_f6a4" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_e6_7" edge="1" source="admp_f6a4" target="admp_f6a5" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_e6_8" edge="1" source="admp_f6a5" target="admp_f6a6" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- ====================================================== -->
+    <!-- FLUJO 7: CERRAR SESION                                  -->
+    <!-- ====================================================== -->
+    <mxCell id="admp_lbl7" value="&lt;b&gt;Flujo 7: Cerrar Sesion&lt;/b&gt;" style="text;html=1;strokeColor=#6c8ebf;fillColor=#dae8fc;align=left;verticalAlign=middle;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="0" y="1490" width="1100" height="22" as="geometry" />
+    </mxCell>
+
+    <mxCell id="admp_s7" value="" style="ellipse;aspect=fixed;fillColor=#000000;strokeColor=#000000;" vertex="1" parent="1">
+      <mxGeometry x="60" y="1520" width="20" height="20" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_f7a1" value="Hace clic en cerrar sesion" style="rounded=1;whiteSpace=wrap;html=1;arcSize=50;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="5" y="1550" width="130" height="40" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_f7a2" value="Elimina adminAuthenticated y adminKey de sessionStorage" style="rounded=1;whiteSpace=wrap;html=1;arcSize=50;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="155" y="1550" width="130" height="40" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_f7a3" value="Redirige al administrador a /login/admin" style="rounded=1;whiteSpace=wrap;html=1;arcSize=50;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="155" y="1600" width="130" height="40" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_end" value="" style="ellipse;aspect=fixed;fillColor=#000000;strokeColor=#000000;" vertex="1" parent="1">
+      <mxGeometry x="210" y="1650" width="20" height="20" as="geometry" />
+    </mxCell>
+
+    <!-- Flechas Flujo 7 -->
+    <mxCell id="admp_e7_1" edge="1" source="admp_s7" target="admp_f7a1" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_e7_2" edge="1" source="admp_f7a1" target="admp_f7a2" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_e7_3" edge="1" source="admp_f7a2" target="admp_f7a3" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="admp_e7_4" edge="1" source="admp_f7a3" target="admp_end" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+  </root>
+</mxGraphModel>

@@ -22,6 +22,7 @@ export default function ContentDetailPage() {
 
   const [selectedEpisode, setSelectedEpisode] = useState<Episode | null>(null)
   const [userRating, setUserRating] = useState<UserRating>(null)
+  const [videoDuration, setVideoDuration] = useState<number | null>(null)
 
   const videoRef          = useRef<HTMLVideoElement>(null)
   const lastSavedMinute   = useRef(-1)
@@ -71,9 +72,12 @@ export default function ContentDetailPage() {
     : detail?.content.media_url ?? ''
 
   const handleVideoLoaded = useCallback(() => {
-    if (!resume?.found || !videoRef.current) return
+    if (!videoRef.current) return
+    const dur = videoRef.current.duration
+    if (dur && isFinite(dur)) setVideoDuration(dur)
+    if (!resume?.found) return
     const seekTo = resume.minute * 60
-    if (seekTo > 0 && seekTo < videoRef.current.duration) {
+    if (seekTo > 0 && seekTo < dur) {
       videoRef.current.currentTime = seekTo
     }
   }, [resume])
@@ -138,6 +142,15 @@ export default function ContentDetailPage() {
         </div>
       </AppLayout>
     )
+  }
+
+  const formatVideoDuration = (seconds: number): string => {
+    const h = Math.floor(seconds / 3600)
+    const m = Math.floor((seconds % 3600) / 60)
+    const s = Math.floor(seconds % 60)
+    if (h > 0) return `${h}h ${m}m`
+    if (m > 0) return `${m}m ${s}s`
+    return `${s}s`
   }
 
   const { content, cast, seasons_count, episodes_count } = detail
@@ -239,6 +252,12 @@ export default function ContentDetailPage() {
           {isSeries && selectedEpisode && (
             <p className={styles.playerTitle}>
               T{selectedEpisode.season_number} E{selectedEpisode.episode_number} — {selectedEpisode.title}
+            </p>
+          )}
+
+          {videoDuration !== null && (
+            <p className={styles.videoDuration}>
+              Duración real: {formatVideoDuration(videoDuration)}
             </p>
           )}
 
