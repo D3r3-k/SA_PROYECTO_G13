@@ -1,0 +1,258 @@
+name: Deploy release to GKE
+
+on:
+  push:
+    branches:
+      - 'release/*'
+      - 'test/*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE_NAMESPACE: ghcr.io/d3r3-k/sa_proyecto_g13
+  GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+  GCP_REGION: ${{ vars.GCP_REGION }}
+  GCP_ZONE: ${{ vars.GCP_ZONE }}
+  GKE_CLUSTER_NAME: ${{ vars.GKE_CLUSTER_NAME }}
+  GKE_NAMESPACE: ${{ vars.GKE_NAMESPACE }}
+  GCS_BUCKET_NAME: ${{ vars.GCS_BUCKET_NAME }}
+  INGRESS_IP_NAME: ${{ vars.INGRESS_IP_NAME }}
+
+jobs:
+  ci-checks:
+    name: CI checks
+    runs-on: ubuntu-latest
+    environment: release
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Build web
+        working-directory: apps/web
+        run: |
+          npm ci
+          npm run build
+
+      - name: Build api gateway
+        working-directory: apps/api-gateway
+        run: |
+          npm ci
+          npm run build
+
+      - name: Build identity service
+        working-directory: services/identity-service
+        run: |
+          npm ci
+          npm run build
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+          cache-dependency-path: services/catalog-service/go.sum
+
+      - name: Test catalog service
+        working-directory: services/catalog-service
+        run: go test ./...
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Compile Python services
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          for service in \
+            services/fx-service \
+            services/subscription-service \
+            services/notification-service \
+            services/engagement-service \
+            services/payment-gateway-service
+          do
+            python -m pip install --upgrade pip
+            python -m pip install -r "${service}/requirements.txt"
+            python -m compileall "${service}/src"
+          done
+
+  backup-cloud-sql:
+    name: Backup Cloud SQL
+    runs-on: ubuntu-latest
+    environment: release
+    needs: ci-checks
+
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+          project_id: ${{ env.GCP_PROJECT_ID }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure gcloud project
+        run: gcloud config set project "${GCP_PROJECT_ID}"
+
+      - name: Export operational databases
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          backup_prefix="gs://${GCS_BUCKET_NAME}/backups/release/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+
+          for database in identity_db subscription_db catalog_db engagement_db
+          do
+            gcloud sql export sql qx-postgres "${backup_prefix}/${database}.sql" \
+              --database="${database}" \
+              --quiet
+          done
+
+  build-and-push:
+    name: Build and push images
+    runs-on: ubuntu-latest
+    environment: release
+    needs: backup-cloud-sql
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - image: web
+            context: ./apps/web
+            dockerfile: ./apps/web/Dockerfile
+          - image: api-gateway
+            context: .
+            dockerfile: ./apps/api-gateway/Dockerfile
+          - image: identity-service
+            context: .
+            dockerfile: ./services/identity-service/Dockerfile
+          - image: fx-service
+            context: .
+            dockerfile: ./services/fx-service/Dockerfile
+          - image: subscription-service
+            context: .
+            dockerfile: ./services/subscription-service/Dockerfile
+          - image: notification-service
+            context: .
+            dockerfile: ./services/notification-service/Dockerfile
+          - image: catalog-service
+            context: .
+            dockerfile: ./services/catalog-service/Dockerfile
+          - image: engagement-service
+            context: .
+            dockerfile: ./services/engagement-service/Dockerfile
+          - image: payment-gateway-service
+            context: .
+            dockerfile: ./services/payment-gateway-service/Dockerfile
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ secrets.GHCR_USERNAME }}
+          password: ${{ secrets.GHCR_TOKEN }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: |
+            ${{ env.IMAGE_NAMESPACE }}/${{ matrix.image }}:latest
+            ${{ env.IMAGE_NAMESPACE }}/${{ matrix.image }}:${{ github.sha }}
+
+  deploy-gke:
+    name: Deploy to GKE
+    runs-on: ubuntu-latest
+    environment: release
+    needs: build-and-push
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+          project_id: ${{ env.GCP_PROJECT_ID }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure gcloud project
+        run: gcloud config set project "${GCP_PROJECT_ID}"
+
+      - name: Install gke-gcloud-auth-plugin
+        run: gcloud components install gke-gcloud-auth-plugin
+
+      - name: Get GKE credentials
+        run: gcloud container clusters get-credentials "${GKE_CLUSTER_NAME}" --region="${GCP_REGION}" --project="${GCP_PROJECT_ID}"
+
+      - name: Apply Kubernetes manifests
+        run: |
+          kubectl apply -f deploy/release/k8s/namespace.yml
+          kubectl apply -f deploy/release/k8s/services/
+          kubectl apply -f deploy/release/k8s/deployments/
+          kubectl apply -f deploy/release/k8s/ingress.yml
+
+          for deployment in web api-gateway identity-service fx-service subscription-service notification-service catalog-service engagement-service payment-gateway-service
+          do
+            if ! kubectl rollout status deployment/${deployment} -n "${GKE_NAMESPACE}" --timeout=180s; then
+              kubectl rollout undo deployment/${deployment} -n "${GKE_NAMESPACE}"
+              exit 1
+            fi
+          done
+
+  smoke-test:
+    name: Smoke test deployment
+    runs-on: ubuntu-latest
+    environment: release
+    needs: deploy-gke
+
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+          project_id: ${{ env.GCP_PROJECT_ID }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Validate Ingress URL
+        shell: bash
+        run: |
+          INGRESS_IP="$(gcloud compute addresses describe "${INGRESS_IP_NAME}" --global --format='value(address)')"
+          
+          echo "Waiting for Ingress to be ready at http://${INGRESS_IP} ..."
+          # Omitimos curl inmediato ya que el Ingress tarda unos minutos en aprovisionar la IP
+          for i in {1..20}; do
+            if curl -fsS "http://${INGRESS_IP}" >/dev/null; then
+              echo "Smoke test passed!"
+              exit 0
+            fi
+            echo "Attempt $i failed. Retrying in 15s..."
+            sleep 15
+          done
+          echo "Smoke test failed after 20 attempts."
+          exit 1
