@@ -137,9 +137,12 @@ gcloud services vpc-peerings connect --service=servicenetworking.googleapis.com 
 ## Paso 3. Crear Cloud SQL PostgreSQL desde cero
 
 > [!NOTE]
-> En este proyecto la instancia `qx-postgres` ya existe por el despliegue `develop`. Se reutilizara para ahorrar trabajo, manteniendo las mismas bases de datos, usuarios y contrasenas.
+> En este proyecto la instancia `qx-postgres` ya existe por el despliegue `develop`. Se reutilizara para ahorrar trabajo, manteniendo las mismas bases de datos, usuarios y contraseñas.
+> Si la instancia ya existe, **omita los comandos de creación** y asegurese de que las contraseñas en GitHub Secrets (`admin1234`) coincidan con los usuarios existentes.
 
-Defina las contrasenas:
+Si está creando la infraestructura desde cero absoluto, ejecute los siguientes comandos.
+
+Defina las contraseñas que configurará en la base de datos (estas mismas deberán ir a los Secrets de GitHub):
 
 ```powershell
 $env:POSTGRES_ROOT_PASSWORD="CAMBIAR_ROOT_PASSWORD"
@@ -173,11 +176,12 @@ gcloud sql users create catalog_user --instance=$env:CLOUD_SQL_INSTANCE --passwo
 gcloud sql users create engagement_user --instance=$env:CLOUD_SQL_INSTANCE --password=$env:ENGAGEMENT_DB_PASSWORD
 ```
 
-Obtenga la IP privada:
+Obtenga la IP privada, ya que se usara mas adelante para validar la conexion:
 
 ```powershell
 gcloud sql instances describe $env:CLOUD_SQL_INSTANCE --format="value(ipAddresses[0].ipAddress)"
 ```
+
 
 ---
 
@@ -360,80 +364,9 @@ kubectl get nodes
 
 ---
 
-## Paso 10. Crear secretos Kubernetes
+## Paso 10. Reservar IP estatica del Ingress
 
-> [!IMPORTANT]
-> Este paso muestra como crear secretos manualmente para validacion inicial. En el despliegue final, los secretos deben generarse desde GitHub Actions usando GitHub Environment `release`.
-
-Defina secretos en PowerShell:
-
-```powershell
-$env:JWT_SECRET="CAMBIAR_JWT_SECRET"
-$env:IDENTITY_DB_PASSWORD="CAMBIAR_IDENTITY_PASSWORD"
-$env:SUBSCRIPTION_DB_PASSWORD="CAMBIAR_SUBSCRIPTION_PASSWORD"
-$env:CATALOG_DB_PASSWORD="CAMBIAR_CATALOG_PASSWORD"
-$env:ENGAGEMENT_DB_PASSWORD="CAMBIAR_ENGAGEMENT_PASSWORD"
-$env:SMTP_HOST="CAMBIAR_SMTP_HOST"
-$env:SMTP_USERNAME="CAMBIAR_SMTP_USERNAME"
-$env:SMTP_PASSWORD="CAMBIAR_SMTP_PASSWORD"
-$env:SMTP_FROM="CAMBIAR_SMTP_FROM"
-```
-
-Cree el secret general:
-
-```powershell
-kubectl create secret generic app-secrets `
-  --namespace=$env:GKE_NAMESPACE `
-  --from-literal=JWT_SECRET=$env:JWT_SECRET `
-  --from-literal=IDENTITY_DB_PASSWORD=$env:IDENTITY_DB_PASSWORD `
-  --from-literal=SUBSCRIPTION_DB_PASSWORD=$env:SUBSCRIPTION_DB_PASSWORD `
-  --from-literal=CATALOG_DB_PASSWORD=$env:CATALOG_DB_PASSWORD `
-  --from-literal=ENGAGEMENT_DB_PASSWORD=$env:ENGAGEMENT_DB_PASSWORD `
-  --from-literal=SMTP_HOST=$env:SMTP_HOST `
-  --from-literal=SMTP_USERNAME=$env:SMTP_USERNAME `
-  --from-literal=SMTP_PASSWORD=$env:SMTP_PASSWORD `
-  --from-literal=SMTP_FROM=$env:SMTP_FROM
-```
-
-Obtenga los hosts privados y cree un secret para cadenas de conexion completas:
-
-```powershell
-$env:CLOUD_SQL_PRIVATE_IP=(gcloud sql instances describe $env:CLOUD_SQL_INSTANCE --format="value(ipAddresses[0].ipAddress)")
-
-kubectl create secret generic connection-secrets `
-  --namespace=$env:GKE_NAMESPACE `
-  --from-literal=SUBSCRIPTION_DATABASE_URL="postgresql://subscription_user:$($env:SUBSCRIPTION_DB_PASSWORD)@$($env:CLOUD_SQL_PRIVATE_IP):5432/subscription_db" `
-  --from-literal=CATALOG_DATABASE_URL="postgresql://catalog_user:$($env:CATALOG_DB_PASSWORD)@$($env:CLOUD_SQL_PRIVATE_IP):5432/catalog_db" `
-  --from-literal=ENGAGEMENT_DATABASE_URL="postgresql://engagement_user:$($env:ENGAGEMENT_DB_PASSWORD)@$($env:CLOUD_SQL_PRIVATE_IP):5432/engagement_db"
-```
-
-Cree el secret para la llave de GCS:
-
-```powershell
-kubectl create secret generic gcs-service-account --namespace=$env:GKE_NAMESPACE --from-file=gcp-service-account.json=.\gcs-backend-service-account.json
-```
-
-Cree el pull secret para GHCR:
-
-```powershell
-$env:GHCR_USERNAME="CAMBIAR_GITHUB_USER"
-$env:GHCR_TOKEN="CAMBIAR_GITHUB_TOKEN" # Asegurese de que tenga permisos read:packages y write:packages
-
-kubectl create secret docker-registry ghcr-pull-secret `
-  --namespace=$env:GKE_NAMESPACE `
-  --docker-server=ghcr.io `
-  --docker-username=$env:GHCR_USERNAME `
-  --docker-password=$env:GHCR_TOKEN
-```
-
-> [!WARNING]
-> No suba `gcp-service-account.json` al repositorio. El archivo local debe eliminarse despues de crear el secret.
-
----
-
-## Paso 11. Reservar IP estatica del Ingress
-
-Reserve una IP global para el Ingress antes de crear el `ConfigMap`, ya que `FRONTEND_URL` depende de esta direccion:
+Reserve una IP global para el Ingress, ya que el servicio debe anclarse a una IP estatica para propagarse correctamente en la nube:
 
 ```powershell
 gcloud compute addresses create $env:INGRESS_IP_NAME --global
@@ -446,22 +379,103 @@ Write-Host "Ingress IP: $env:INGRESS_IP"
 
 ---
 
-## Paso 12. Crear ConfigMaps
+## Paso 11. Configurar GitHub Environment release
 
-Las variables no sensibles deben ir en `ConfigMap`. Las URLs internas usan nombres de Services de Kubernetes:
+El pipeline automatizado requiere que los secretos y variables maestras vivan en GitHub.
 
-## Paso 10, 11 y 12. Creación de Secretos y ConfigMaps (Automatizado)
+1. Ir al repositorio en GitHub.
+2. Entrar a **Settings > Environments**.
+3. Crear un environment llamado `release`.
+4. Agregar los secrets y variables siguientes.
 
-> [!IMPORTANT]
-> **Todo este proceso ha sido automatizado.**
-> Ya no es necesario crear manualmente los secretos (`app-secrets`, `connection-secrets`, `ghcr-pull-secret`, `gcs-service-account`) ni el `ConfigMap` (`app-config`) en la terminal.
-> El pipeline de GitHub Actions (`deploy-release.yml`) ahora se encarga de leer las variables de entorno desde los *Secrets* y *Variables* configuradas en GitHub, conectarse a Google Cloud para obtener las IPs dinámicas (como la de Cloud SQL), e inyectar y crear todos los recursos en el clúster de Kubernetes en cada despliegue.
+### Secrets requeridos
+
+| Secret                            | Descripcion                                     |
+| --------------------------------- | ----------------------------------------------- |
+| `GCP_SERVICE_ACCOUNT_KEY`         | JSON del service account de CI/CD (se creará en el siguiente paso) |
+| `GCS_BACKEND_SERVICE_ACCOUNT_KEY` | JSON del service account `catalog-media-signer` (generado en Paso 5) |
+| `GHCR_USERNAME`                   | Usuario de GitHub                               |
+| `GHCR_TOKEN`                      | Token de GitHub con permiso `read:packages` y `write:packages` |
+| `JWT_SECRET`                      | Cadena segura para firmar JWT                   |
+| `IDENTITY_DB_PASSWORD`            | Password de `identity_user` (`admin1234`)       |
+| `SUBSCRIPTION_DB_PASSWORD`        | Password de `subscription_user` (`admin1234`)   |
+| `CATALOG_DB_PASSWORD`             | Password de `catalog_user` (`admin1234`)        |
+| `ENGAGEMENT_DB_PASSWORD`          | Password de `engagement_user` (`admin1234`)     |
+| `SMTP_HOST`                       | Host del servidor SMTP                          |
+| `SMTP_USERNAME`                   | Usuario SMTP                                    |
+| `SMTP_PASSWORD`                   | Password SMTP                                   |
+| `SMTP_FROM`                       | Correo remitente                                |
+
+### Variables requeridas
+
+```text
+GCP_PROJECT_ID=sa-derek-proyecto
+GCP_REGION=us-central1
+GCP_ZONE=us-central1-a
+VPC_NAME=qx-vpc
+GKE_CLUSTER_NAME=qx-gke-release
+GKE_NAMESPACE=quetxal-tv-prod
+GKE_SUBNET_NAME=qx-subnet-gke-release
+CLOUD_SQL_INSTANCE=qx-postgres
+REDIS_INSTANCE=qx-redis
+GCS_BUCKET_NAME=qx-media-sa-derek-proyecto
+INGRESS_IP_NAME=qx-release-ingress-ip
+GCS_SIGNED_UPLOAD_EXPIRES_MINUTES=15
+GCS_SIGNED_READ_EXPIRES_MINUTES=60
+GCS_ALLOWED_IMAGE_TYPES=image/jpeg,image/png,image/webp
+GCS_ALLOWED_VIDEO_TYPES=video/mp4,video/webm
+GCS_MAX_IMAGE_MB=10
+GCS_MAX_VIDEO_MB=1024
+SMTP_PORT=587
+SMTP_STARTTLS=true
+```
 
 ---
 
-## Paso 13. Manifiestos requeridos de Kubernetes
+## Paso 12. Crear service account para GitHub Actions release
 
-La estructura recomendada para `deploy/release/k8s` es:
+Este Service Account es el que usará el pipeline de CI/CD de GitHub para conectarse a GCP y desplegar automáticamente.
+
+Cree el service account:
+
+```powershell
+gcloud iam service-accounts create $env:CICD_SA_NAME --display-name="GitHub Actions Release Deploy"
+```
+
+Asigne permisos:
+
+```powershell
+gcloud projects add-iam-policy-binding $env:PROJECT_ID --member="serviceAccount:$env:CICD_SA" --role="roles/container.admin"
+gcloud projects add-iam-policy-binding $env:PROJECT_ID --member="serviceAccount:$env:CICD_SA" --role="roles/cloudsql.admin"
+gcloud projects add-iam-policy-binding $env:PROJECT_ID --member="serviceAccount:$env:CICD_SA" --role="roles/redis.viewer"
+gcloud projects add-iam-policy-binding $env:PROJECT_ID --member="serviceAccount:$env:CICD_SA" --role="roles/storage.objectViewer"
+gcloud projects add-iam-policy-binding $env:PROJECT_ID --member="serviceAccount:$env:CICD_SA" --role="roles/compute.networkViewer"
+```
+
+Permita backups de Cloud SQL al bucket:
+
+```powershell
+$env:CLOUD_SQL_SA=(gcloud sql instances describe $env:CLOUD_SQL_INSTANCE --format="value(serviceAccountEmailAddress)")
+gcloud storage buckets add-iam-policy-binding gs://$env:BUCKET_NAME --member="serviceAccount:$env:CLOUD_SQL_SA" --role="roles/storage.objectCreator"
+```
+
+Genere la llave para GitHub:
+
+```powershell
+gcloud iam service-accounts keys create gcp-github-actions-release-key.json --iam-account=$env:CICD_SA
+Get-Content -Raw .\gcp-github-actions-release-key.json
+Remove-Item .\gcp-github-actions-release-key.json
+```
+
+> [!IMPORTANT]
+> El contenido JSON impreso debe guardarse en el secret `GCP_SERVICE_ACCOUNT_KEY` que configuró en el Paso 11 en GitHub.
+
+---
+
+## Paso 13. Arquitectura de los Manifiestos de Kubernetes
+
+El repositorio contiene los manifiestos de Kubernetes listos para producción en la ruta `deploy/release/k8s`. 
+La estructura incluye los Deployments, Services (ClusterIP) y el Ingress:
 
 ```text
 k8s/
@@ -545,142 +559,17 @@ spec:
 
 ---
 
-## Paso 14. Crear Ingress
+## Paso 14. Despliegue automatizado por CI/CD
 
-Valide la IP global reservada para el Ingress:
-
-```powershell
-gcloud compute addresses describe $env:INGRESS_IP_NAME --global --format="value(address)"
-```
-
-Ejemplo base de `ingress.yml`:
-
-```yaml
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: quetxal-tv-ingress
-  namespace: quetxal-tv-prod
-  annotations:
-    kubernetes.io/ingress.global-static-ip-name: qx-release-ingress-ip
-spec:
-  rules:
-    - http:
-        paths:
-          - path: /*
-            pathType: ImplementationSpecific
-            backend:
-              service:
-                name: web
-                port:
-                  number: 80
-```
-
-> [!NOTE]
-> El frontend `web` redirige `/api/` hacia `api-gateway`, por lo que el Ingress solo necesita exponer `web`.
-
----
-
-## Paso 15. Configurar GitHub Environment release
-
-1. Ir al repositorio en GitHub.
-2. Entrar a **Settings > Environments**.
-3. Crear un environment llamado `release`.
-4. Agregar los secrets y variables siguientes.
-
-### Secrets requeridos
-
-| Secret                            | Descripcion                                     |
-| --------------------------------- | ----------------------------------------------- |
-| `GCP_SERVICE_ACCOUNT_KEY`         | JSON del service account de CI/CD               |
-| `GCS_BACKEND_SERVICE_ACCOUNT_KEY` | JSON del service account `catalog-media-signer` |
-| `GHCR_USERNAME`                   | Usuario de GitHub                               |
-| `GHCR_TOKEN`                      | Token de GitHub con permiso `read:packages` y `write:packages` |
-| `JWT_SECRET`                      | Cadena segura para firmar JWT                   |
-| `IDENTITY_DB_PASSWORD`            | Password de `identity_user`                     |
-| `SUBSCRIPTION_DB_PASSWORD`        | Password de `subscription_user`                 |
-| `CATALOG_DB_PASSWORD`             | Password de `catalog_user`                      |
-| `ENGAGEMENT_DB_PASSWORD`          | Password de `engagement_user`                   |
-| `SMTP_HOST`                       | Host del servidor SMTP                          |
-| `SMTP_USERNAME`                   | Usuario SMTP                                    |
-| `SMTP_PASSWORD`                   | Password SMTP                                   |
-| `SMTP_FROM`                       | Correo remitente                                |
-
-### Variables requeridas
-
-```text
-GCP_PROJECT_ID=sa-derek-proyecto
-GCP_REGION=us-central1
-GCP_ZONE=us-central1-a
-VPC_NAME=qx-vpc
-GKE_CLUSTER_NAME=qx-gke-release
-GKE_NAMESPACE=quetxal-tv-prod
-GKE_SUBNET_NAME=qx-subnet-gke-release
-CLOUD_SQL_INSTANCE=qx-postgres
-REDIS_INSTANCE=qx-redis
-GCS_BUCKET_NAME=qx-media-sa-derek-proyecto
-INGRESS_IP_NAME=qx-release-ingress-ip
-GCS_SIGNED_UPLOAD_EXPIRES_MINUTES=15
-GCS_SIGNED_READ_EXPIRES_MINUTES=60
-GCS_ALLOWED_IMAGE_TYPES=image/jpeg,image/png,image/webp
-GCS_ALLOWED_VIDEO_TYPES=video/mp4,video/webm
-GCS_MAX_IMAGE_MB=10
-GCS_MAX_VIDEO_MB=1024
-SMTP_PORT=587
-SMTP_STARTTLS=true
-```
-
----
-
-## Paso 16. Crear service account para GitHub Actions release
-
-Cree el service account:
-
-```powershell
-gcloud iam service-accounts create $env:CICD_SA_NAME --display-name="GitHub Actions Release Deploy"
-```
-
-Asigne permisos:
-
-```powershell
-gcloud projects add-iam-policy-binding $env:PROJECT_ID --member="serviceAccount:$env:CICD_SA" --role="roles/container.admin"
-gcloud projects add-iam-policy-binding $env:PROJECT_ID --member="serviceAccount:$env:CICD_SA" --role="roles/cloudsql.admin"
-gcloud projects add-iam-policy-binding $env:PROJECT_ID --member="serviceAccount:$env:CICD_SA" --role="roles/redis.viewer"
-gcloud projects add-iam-policy-binding $env:PROJECT_ID --member="serviceAccount:$env:CICD_SA" --role="roles/storage.objectViewer"
-gcloud projects add-iam-policy-binding $env:PROJECT_ID --member="serviceAccount:$env:CICD_SA" --role="roles/compute.networkViewer"
-```
-
-Permita backups de Cloud SQL al bucket:
-
-```powershell
-$env:CLOUD_SQL_SA=(gcloud sql instances describe $env:CLOUD_SQL_INSTANCE --format="value(serviceAccountEmailAddress)")
-gcloud storage buckets add-iam-policy-binding gs://$env:BUCKET_NAME --member="serviceAccount:$env:CLOUD_SQL_SA" --role="roles/storage.objectCreator"
-```
-
-Genere la llave para GitHub:
-
-```powershell
-gcloud iam service-accounts keys create gcp-github-actions-release-key.json --iam-account=$env:CICD_SA
-Get-Content -Raw .\gcp-github-actions-release-key.json
-Remove-Item .\gcp-github-actions-release-key.json
-```
-
-> [!IMPORTANT]
-> El contenido JSON impreso debe guardarse como `GCP_SERVICE_ACCOUNT_KEY` en GitHub Environment `release`.
-
----
-
-## Paso 17. Flujo esperado del pipeline release
-
-El despliegue real de produccion debe ejecutarse por CI/CD al impactar la rama `release`.
+El despliegue real de produccion se ejecuta **100% de forma automatica** por CI/CD al impactar la rama `test/v1.0.0` o `release/*`.
 
 > [!WARNING]
-> El enunciado prohibe despliegues manuales para GKE. Los comandos manuales de `kubectl` en esta guia son de referencia, validacion o recuperacion controlada. El despliegue oficial debe ocurrir desde GitHub Actions.
+> El enunciado prohíbe despliegues manuales para GKE. Los comandos manuales de `kubectl` en esta guia son solo de referencia. El despliegue oficial ocurre estrictamente desde GitHub Actions.
 
-El workflow recomendado para `.github/workflows/deploy-release.yml` debe ejecutar:
+El workflow configurado en `.github/workflows/deploy-release.yml` ejecuta la siguiente cadena:
 
 ```text
-ci-checks -> backup-cloud-sql -> build-and-push -> tag-release -> deploy-gke -> smoke-test
+ci-checks -> backup-cloud-sql -> build-and-push -> deploy-gke -> smoke-test
 ```
 
 | Etapa              | Que hace                                                                               |
@@ -688,38 +577,15 @@ ci-checks -> backup-cloud-sql -> build-and-push -> tag-release -> deploy-gke -> 
 | `ci-checks`        | Compila frontend, gateway y servicios. Ejecuta pruebas y corta el flujo si algo falla. |
 | `backup-cloud-sql` | Exporta `identity_db`, `subscription_db`, `catalog_db` y `engagement_db` al bucket.    |
 | `build-and-push`   | Construye imagenes Docker y publica en GHCR con `latest`, SHA y tag semantico.         |
-| `tag-release`      | Crea version semantica de produccion, por ejemplo `v2.0.0`.                            |
-| `deploy-gke`       | Aplica manifests con `kubectl apply` en namespace `quetxal-tv-prod`.                   |
-| `rollout-status`   | Espera `kubectl rollout status` por cada Deployment.                                   |
-| `rollback`         | Ejecuta `kubectl rollout undo` si un Deployment falla o entra en estado no saludable.  |
-| `smoke-test`       | Valida Ingress, frontend y `/api/health`.                                              |
-
-Ejemplo de comandos clave dentro del workflow (que deberia configurarse para ejecutarse en ramas `release/*` y `test/*`):
-
-```bash
-gcloud container clusters get-credentials "${GKE_CLUSTER_NAME}" --region="${GCP_REGION}" --project="${GCP_PROJECT_ID}"
-kubectl apply -f deploy/release/k8s/services/
-kubectl apply -f deploy/release/k8s/deployments/
-kubectl apply -f deploy/release/k8s/ingress.yml
-
-for deployment in web api-gateway identity-service fx-service subscription-service notification-service catalog-service engagement-service payment-gateway-service
-do
-  if ! kubectl rollout status deployment/${deployment} -n "${GKE_NAMESPACE}" --timeout=180s; then
-    kubectl rollout undo deployment/${deployment} -n "${GKE_NAMESPACE}"
-    exit 1
-  fi
-done
-```
-
-> [!NOTE]
-> Se omiten `namespace.yml` y `configmap.yml` del flujo automatizado, ya que estos recursos se deben crear manualmente por motivos de permisos (`roles/container.admin` maneja recursos dentro del namespace) e inyeccion de valores dimanicos (Paso 12). Se recomienda usar `GITHUB_TOKEN` para la tarea de `docker-push` dentro del flujo.
+| `deploy-gke`       | **Crea dinamicamente ConfigMaps y Secrets**, y aplica manifests con `kubectl apply` en namespace `quetxal-tv-prod`. |
+| `smoke-test`       | Valida Ingress con llamadas HTTP a la IP Publica del Balanceador Global.               |
 
 > [!TIP]
-> El backup debe ejecutarse antes de aplicar nuevos manifests para poder restaurar datos si una version afecta el estado operacional.
+> Todo el cluster se considera *stateless*. Si se elimina el namespace completo, el pipeline es capaz de reconstruir la configuracion, los secretos y todos los deployments en la siguiente ejecucion usando los Secrets almacenados directamente en GitHub.
 
 ---
 
-## Paso 18. Verificacion del despliegue
+## Paso 15. Verificacion del despliegue
 
 Valide el cluster:
 
@@ -728,20 +594,6 @@ kubectl get nodes
 kubectl get pods -n $env:GKE_NAMESPACE
 kubectl get services -n $env:GKE_NAMESPACE
 kubectl get ingress -n $env:GKE_NAMESPACE
-```
-
-Valide rollouts:
-
-```powershell
-kubectl rollout status deployment/web -n $env:GKE_NAMESPACE
-kubectl rollout status deployment/api-gateway -n $env:GKE_NAMESPACE
-kubectl rollout status deployment/identity-service -n $env:GKE_NAMESPACE
-kubectl rollout status deployment/fx-service -n $env:GKE_NAMESPACE
-kubectl rollout status deployment/subscription-service -n $env:GKE_NAMESPACE
-kubectl rollout status deployment/notification-service -n $env:GKE_NAMESPACE
-kubectl rollout status deployment/catalog-service -n $env:GKE_NAMESPACE
-kubectl rollout status deployment/engagement-service -n $env:GKE_NAMESPACE
-kubectl rollout status deployment/payment-gateway-service -n $env:GKE_NAMESPACE
 ```
 
 Obtenga la IP externa:
@@ -755,7 +607,6 @@ Pruebe el frontend y health del gateway:
 ```powershell
 $env:INGRESS_IP=(gcloud compute addresses describe $env:INGRESS_IP_NAME --global --format="value(address)")
 Invoke-WebRequest -Uri "http://$env:INGRESS_IP" -UseBasicParsing
-Invoke-WebRequest -Uri "http://$env:INGRESS_IP/api/health" -UseBasicParsing
 ```
 
 Revise logs si algun pod falla:
@@ -768,27 +619,21 @@ kubectl describe pod -n $env:GKE_NAMESPACE
 
 ---
 
-## Paso 19. Rollback manual de emergencia
+## Paso 16. Rollback manual de emergencia
 
 > [!NOTE]
 > El rollback normal debe ejecutarse automaticamente desde el pipeline. Este paso se deja como referencia operativa.
 
-Para revertir un Deployment:
+Para revertir un Deployment a la versión anterior:
 
 ```powershell
 kubectl rollout undo deployment/api-gateway -n $env:GKE_NAMESPACE
 kubectl rollout status deployment/api-gateway -n $env:GKE_NAMESPACE
 ```
 
-Ver historial:
-
-```powershell
-kubectl rollout history deployment/api-gateway -n $env:GKE_NAMESPACE
-```
-
 ---
 
-## Paso 20. Limpiar infraestructura release
+## Paso 17. Limpiar infraestructura release
 
 > [!CAUTION]
 > Esta limpieza elimina solo recursos de Kubernetes release. No elimina Cloud SQL, Redis ni el bucket porque tambien son usados por `develop`.
