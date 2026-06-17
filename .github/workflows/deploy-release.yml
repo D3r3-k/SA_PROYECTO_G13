@@ -210,7 +210,6 @@ jobs:
 
       - name: Apply Kubernetes manifests
         run: |
-          kubectl apply -f deploy/release/k8s/namespace.yml
           kubectl apply -f deploy/release/k8s/services/
           kubectl apply -f deploy/release/k8s/deployments/
           kubectl apply -f deploy/release/k8s/ingress.yml
