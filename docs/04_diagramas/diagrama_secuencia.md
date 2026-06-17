@@ -2,15 +2,14 @@
 
 # Diagrama de Secuencia
 
-
-### Diagrama de Secuencia — Login y Validacion JWT
+### Diagrama de Secuencia General
 
 ![Diagrama de Secuencia General](../00_assets/diagrams/04_diagramas/diagrama_secuenciafull.png)
 
 
 ### Diagrama de Secuencia Completo
 
-Este diagrama unifica todos los flujos del sistema en una sola vista temporal, mostrando la interaccion entre diez participantes: Browser, API Gateway, Identity Service, Catalog Service, Subscription Service, FX Service, Engagement Service, Redis, Notification Service y las Bases de Datos PostgreSQL. El diagrama cubre nueve modulos en orden cronologico tal como los experimenta un usuario real.
+Este diagrama unifica todos los flujos del sistema en una sola vista temporal, mostrando la interaccion entre trece participantes: Browser, API Gateway, Identity Service, Catalog Service, Subscription Service, FX Service, Engagement Service, Redis, Notification Service, Bases de Datos PostgreSQL, Administrador, Panel Admin y Google Cloud Storage. El diagrama cubre once modulos en orden cronologico, los nueve del flujo de usuario final y dos modulos de Fase 2 para administracion y auditoria.
 
 ---
 
@@ -66,6 +65,18 @@ El Browser solicita la seccion de continuar viendo con `GET /api/engagement/prof
 
 Este modulo corre en paralelo e independiente de todos los anteriores. El Notification Worker ejecuta un loop de `asyncio` que consume eventos de Redis con `BLPOP notification:queue` con timeout de 5 segundos. Cuando llega un mensaje, deserializa el JSON con `json.loads`, detecta el tipo de evento entre los cuatro posibles: `registration`, `purchase_receipt`, `subscription_update` o `content-publication`, y llama a `_build_notification_content` que genera el subject y el body especificos para cada tipo. Si SMTP esta configurado envia el email HTML con el template de Quetxal TV via `aiosmtplib.send`. Si no esta configurado usa console fallback con `logger.info(payload)`. El Gateway y los servicios productores nunca esperan confirmacion del Notification Worker, Redis actua como buffer desacoplado que garantiza que ninguna notificacion se pierda aunque el worker este temporalmente fuera de servicio.
 
+---
+
+#### Modulo 10 — Panel de Administracion [Fase 2]
+
+El Administrador accede al Panel Admin ingresando la clave `x-admin-key`. El Panel Admin la envia al Gateway donde el `adminMiddleware` la valida contra la variable de entorno `ADMIN_KEY`. Si es valida concede acceso al panel de administracion. Desde el panel el administrador puede crear contenido nuevo enviando tipo, titulo, generos, reparto y episodios via `gRPC CreateContent` al Catalog Service, que persiste el registro con `sp_upsert_content` y retorna el `content_id` UUID. Para subir archivos de media, el Gateway llama a `gRPC GenerateUploadUrl` que genera una URL firmada de Google Cloud Storage con tiempo de expiracion; el Panel Admin sube el archivo directamente a GCS y luego llama a `gRPC ConfirmMedia` para registrar la carga en DB Catalog. El administrador tambien puede eliminar contenido via `gRPC DeleteContent` y actualizar planes de suscripcion va `gRPC UpdatePlan` al Subscription Service.
+
+---
+
+#### Modulo 11 — Auditoria y Reportes [Fase 2]
+
+Los microservicios registran automaticamente los cambios criticos a traves de triggers de base de datos: `trg_audit_subscription_change` en Subscription Service registra cambios en `subscription_audit`, `trg_audit_credential_update` en Identity Service registra actualizaciones de `password_hash` en `credential_audit`, `trg_audit_rating_changes` en Engagement Service registra cambios de calificacion en `rating_audit` y `sp_insert_sync_audit` en Catalog Service registra operaciones de sincronizacion en `sync_audit`. El administrador accede al log de auditoria desde el Panel Admin, que llama al Gateway con la clave de administrador. El Gateway consulta al servicio correspondiente, que ejecuta la consulta sobre la tabla de auditoria ordenada por fecha descendente y retorna los registros con tabla afectada, tipo de operacion, usuario responsable y timestamp. El administrador puede filtrar los registros por tabla, tipo de operacion y rango de fechas, y puede descargar el reporte filtrado en formato CSV o PDF.
+
 
 ---
 ## Diagrama de Secuencia por Modulos
@@ -83,6 +94,13 @@ En el flujo de login el Browser envia `POST /api/auth/login`. El Gateway llama a
 En el flujo de validacion JWT, que ocurre en cada request a ruta protegida, el Gateway ejecuta `authMiddleware` que lee la cookie, llama a `gRPC ValidateToken` al Identity Service, que ejecuta `verifyIdentityToken` usando `jwt.verify`. Si el token es valido retorna `{valid:true, user_id, email, profile_id}`, el Gateway adjunta esos datos al request con `req.user` y continua al servicio destino con `next()`. Si el token es invalido o expirado retorna 401. Si la cookie no esta presente el Gateway retorna 401 directamente sin llamar al Identity Service.
 
 ---
+
+### Diagrama de Secuencia — Login y JWT
+
+![Diagrama de Secuencia Login y JWT](../00_assets/diagrams/04_diagramas/secuenciagestionperfil.drawio.png)
+
+----
+
 ### Diagrama de Secuencia — Consumo de video
 
 ![Diagrama de Secuencia Login y JWT](../00_assets/diagrams/04_diagramas/secuenciaconsumoactualizado.drawio.png)

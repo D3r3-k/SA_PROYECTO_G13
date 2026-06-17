@@ -1,0 +1,241 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1100" pageHeight="1169" math="0" shadow="0">
+  <root>
+    <mxCell id="0" />
+    <mxCell id="1" parent="0" />
+
+    <!-- ===== TITULO ===== -->
+    <mxCell id="sub_title" parent="1" style="text;html=1;whiteSpace=wrap;align=center;verticalAlign=middle;rounded=0;fontFamily=Helvetica;fontSize=14;fontStyle=1;" value="Diagrama de Actividades — Suscripciones y Pagos" vertex="1">
+      <mxGeometry x="0" y="30" width="1100" height="30" as="geometry" />
+    </mxCell>
+
+    <!-- ===== ENCABEZADOS DE CARRIL ===== -->
+    <mxCell id="sub_lh1" parent="1" style="text;html=1;whiteSpace=wrap;align=center;verticalAlign=middle;rounded=0;fontFamily=Helvetica;fontSize=11;labelBackgroundColor=default;" value="USUARIO" vertex="1">
+      <mxGeometry x="8" y="75" width="140" height="25" as="geometry" />
+    </mxCell>
+    <mxCell id="sub_lh2" parent="1" style="text;html=1;whiteSpace=wrap;align=center;verticalAlign=middle;rounded=0;fontFamily=Helvetica;fontSize=11;labelBackgroundColor=default;" value="API GATEWAY" vertex="1">
+      <mxGeometry x="165" y="75" width="140" height="25" as="geometry" />
+    </mxCell>
+    <mxCell id="sub_lh3" parent="1" style="text;html=1;whiteSpace=wrap;align=center;verticalAlign=middle;rounded=0;fontFamily=Helvetica;fontSize=11;labelBackgroundColor=default;" value="PAYMENT GATEWAY" vertex="1">
+      <mxGeometry x="322" y="75" width="140" height="25" as="geometry" />
+    </mxCell>
+    <mxCell id="sub_lh4" parent="1" style="text;html=1;whiteSpace=wrap;align=center;verticalAlign=middle;rounded=0;fontFamily=Helvetica;fontSize=11;labelBackgroundColor=default;" value="SUBSCRIPTION SERVICE" vertex="1">
+      <mxGeometry x="479" y="75" width="140" height="25" as="geometry" />
+    </mxCell>
+    <mxCell id="sub_lh5" parent="1" style="text;html=1;whiteSpace=wrap;align=center;verticalAlign=middle;rounded=0;fontFamily=Helvetica;fontSize=11;labelBackgroundColor=default;" value="FX SERVICE" vertex="1">
+      <mxGeometry x="636" y="75" width="140" height="25" as="geometry" />
+    </mxCell>
+    <mxCell id="sub_lh6" parent="1" style="text;html=1;whiteSpace=wrap;align=center;verticalAlign=middle;rounded=0;fontFamily=Helvetica;fontSize=11;labelBackgroundColor=default;" value="REDIS" vertex="1">
+      <mxGeometry x="793" y="75" width="140" height="25" as="geometry" />
+    </mxCell>
+    <mxCell id="sub_lh7" parent="1" style="text;html=1;whiteSpace=wrap;align=center;verticalAlign=middle;rounded=0;fontFamily=Helvetica;fontSize=11;labelBackgroundColor=default;" value="DB SUBSCRIPTION" vertex="1">
+      <mxGeometry x="950" y="75" width="140" height="25" as="geometry" />
+    </mxCell>
+
+    <!-- ===== DIVISORES DE CARRIL ===== -->
+    <mxCell id="sub_ld1" parent="1" style="endArrow=none;html=1;strokeWidth=0.5;rounded=0;strokeColor=#000000;" edge="1">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="157" y="65" as="sourcePoint" />
+        <mxPoint x="157" y="1010" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="sub_ld2" parent="1" style="endArrow=none;html=1;strokeWidth=0.5;rounded=0;strokeColor=#000000;" edge="1">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="314" y="65" as="sourcePoint" />
+        <mxPoint x="314" y="1010" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="sub_ld3" parent="1" style="endArrow=none;html=1;strokeWidth=0.5;rounded=0;strokeColor=#000000;" edge="1">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="471" y="65" as="sourcePoint" />
+        <mxPoint x="471" y="1010" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="sub_ld4" parent="1" style="endArrow=none;html=1;strokeWidth=0.5;rounded=0;strokeColor=#000000;" edge="1">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="628" y="65" as="sourcePoint" />
+        <mxPoint x="628" y="1010" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="sub_ld5" parent="1" style="endArrow=none;html=1;strokeWidth=0.5;rounded=0;strokeColor=#000000;" edge="1">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="785" y="65" as="sourcePoint" />
+        <mxPoint x="785" y="1010" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="sub_ld6" parent="1" style="endArrow=none;html=1;strokeWidth=0.5;rounded=0;strokeColor=#000000;" edge="1">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="942" y="65" as="sourcePoint" />
+        <mxPoint x="942" y="1010" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+
+    <!-- ===================================================== -->
+    <!-- FLUJO 1: VER PLANES DISPONIBLES                       -->
+    <!-- ===================================================== -->
+    <mxCell id="sub_s1" parent="1" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;rounded=0;fontFamily=Helvetica;fontSize=11;fontStyle=1;" value="— Flujo 1: Ver Planes Disponibles —" vertex="1">
+      <mxGeometry x="10" y="112" width="1080" height="18" as="geometry" />
+    </mxCell>
+
+    <mxCell id="sub_n1_1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="&lt;b&gt;[Usuario]&lt;/b&gt;&lt;div&gt;&lt;br&gt;Accede a /subscriptions, frontend carga planes y suscripcion activa en paralelo&lt;/div&gt;" vertex="1">
+      <mxGeometry x="8" y="140" width="140" height="65" as="geometry" />
+    </mxCell>
+    <mxCell id="sub_n1_2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="&lt;b&gt;[API Gateway]&lt;/b&gt;&lt;div&gt;&lt;br&gt;Invoca ListPlans y ListUserSubscriptions via gRPC al Subscription Service&lt;/div&gt;" vertex="1">
+      <mxGeometry x="165" y="140" width="140" height="65" as="geometry" />
+    </mxCell>
+    <mxCell id="sub_n1_3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="&lt;b&gt;[Subscription Service]&lt;/b&gt;&lt;div&gt;&lt;br&gt;ListPlans filtra planes activos; ListUserSubscriptions retorna suscripcion del usuario&lt;/div&gt;" vertex="1">
+      <mxGeometry x="479" y="140" width="140" height="65" as="geometry" />
+    </mxCell>
+    <mxCell id="sub_n1_4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="&lt;b&gt;[DB Subscription]&lt;/b&gt;&lt;div&gt;&lt;br&gt;Retorna tabla plans (is_active=true) y suscripcion activa del usuario&lt;/div&gt;" vertex="1">
+      <mxGeometry x="950" y="140" width="140" height="65" as="geometry" />
+    </mxCell>
+    <mxCell id="sub_n1_5" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="&lt;b&gt;[Usuario]&lt;/b&gt;&lt;div&gt;&lt;br&gt;Visualiza planes en USD con features por nivel (Basico $5, Estandar $8, Premium $12)&lt;/div&gt;" vertex="1">
+      <mxGeometry x="8" y="228" width="140" height="60" as="geometry" />
+    </mxCell>
+
+    <!-- Flechas Flujo 1 -->
+    <mxCell id="sub_e1_1" edge="1" source="sub_n1_1" target="sub_n1_2" parent="1" style="edgeStyle=none;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=classic;" value="">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="sub_e1_2" edge="1" source="sub_n1_2" target="sub_n1_3" parent="1" style="edgeStyle=none;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=classic;" value="">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="sub_e1_3" edge="1" source="sub_n1_3" target="sub_n1_4" parent="1" style="edgeStyle=none;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=classic;" value="consulta">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="sub_e1_4" edge="1" source="sub_n1_4" target="sub_n1_5" parent="1" style="edgeStyle=none;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=classic;" value="retorna planes">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- ===================================================== -->
+    <!-- FLUJO 2: SUSCRIBIRSE CON PAGO                         -->
+    <!-- ===================================================== -->
+    <mxCell id="sub_s2" parent="1" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;rounded=0;fontFamily=Helvetica;fontSize=11;fontStyle=1;" value="— Flujo 2: Suscribirse con Pago con Tarjeta —" vertex="1">
+      <mxGeometry x="10" y="305" width="1080" height="18" as="geometry" />
+    </mxCell>
+
+    <mxCell id="sub_n2_1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="&lt;b&gt;[Usuario]&lt;/b&gt;&lt;div&gt;&lt;br&gt;Selecciona plan, abre modal QuetxalPay, ingresa tarjeta y selecciona moneda (GTQ/USD/MXN/EUR)&lt;/div&gt;" vertex="1">
+      <mxGeometry x="8" y="332" width="140" height="75" as="geometry" />
+    </mxCell>
+    <mxCell id="sub_n2_2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="&lt;b&gt;[API Gateway]&lt;/b&gt;&lt;div&gt;&lt;br&gt;Recibe POST /subscriptions (plan_id, currency, card_number, card_holder, exp_month, exp_year, cvv)&lt;/div&gt;" vertex="1">
+      <mxGeometry x="165" y="332" width="140" height="75" as="geometry" />
+    </mxCell>
+    <mxCell id="sub_n2_3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="&lt;b&gt;[Subscription Service]&lt;/b&gt;&lt;div&gt;&lt;br&gt;Retorna price_usd del plan seleccionado via ListPlans&lt;/div&gt;" vertex="1">
+      <mxGeometry x="479" y="340" width="140" height="60" as="geometry" />
+    </mxCell>
+    <mxCell id="sub_n2_4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="&lt;b&gt;[DB Subscription]&lt;/b&gt;&lt;div&gt;&lt;br&gt;Retorna precio en USD del plan&lt;/div&gt;" vertex="1">
+      <mxGeometry x="950" y="340" width="140" height="60" as="geometry" />
+    </mxCell>
+
+    <!-- Row 2: FX rate + Payment authorization -->
+    <mxCell id="sub_n2_5" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="&lt;b&gt;[API Gateway]&lt;/b&gt;&lt;div&gt;&lt;br&gt;Llama a GetRate gRPC al FX Service y calcula amount = price_usd * rate&lt;/div&gt;" vertex="1">
+      <mxGeometry x="165" y="430" width="140" height="65" as="geometry" />
+    </mxCell>
+    <mxCell id="sub_n2_6" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="&lt;b&gt;[FX Service]&lt;/b&gt;&lt;div&gt;&lt;br&gt;GetRate: consulta Redis (HIT) o Frankfurter API (MISS) y retorna tasa de cambio&lt;/div&gt;" vertex="1">
+      <mxGeometry x="636" y="430" width="140" height="65" as="geometry" />
+    </mxCell>
+    <mxCell id="sub_n2_7" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="&lt;b&gt;[Payment Gateway]&lt;/b&gt;&lt;div&gt;&lt;br&gt;AuthorizePayment: valida Luhn, fecha de expiracion, CVV, monto y moneda soportada&lt;/div&gt;" vertex="1">
+      <mxGeometry x="322" y="430" width="140" height="65" as="geometry" />
+    </mxCell>
+
+    <!-- Decision -->
+    <mxCell id="sub_d2_1" parent="1" style="rhombus;whiteSpace=wrap;html=1;" value="¿Pago autorizado?" vertex="1">
+      <mxGeometry x="175" y="523" width="120" height="70" as="geometry" />
+    </mxCell>
+    <mxCell id="sub_n2_8_no" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="&lt;b&gt;[Usuario]&lt;/b&gt;&lt;div&gt;&lt;br&gt;Recibe error de pago (declined, rejected o insufficient_funds) con card_last4&lt;/div&gt;" vertex="1">
+      <mxGeometry x="8" y="533" width="140" height="60" as="geometry" />
+    </mxCell>
+
+    <!-- Row 3: Create subscription [Si] -->
+    <mxCell id="sub_n2_8" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="&lt;b&gt;[API Gateway]&lt;/b&gt;&lt;div&gt;&lt;br&gt;Invoca CreateSubscription gRPC (user_id, plan_id, email)&lt;/div&gt;" vertex="1">
+      <mxGeometry x="165" y="623" width="140" height="65" as="geometry" />
+    </mxCell>
+    <mxCell id="sub_n2_9" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="&lt;b&gt;[Subscription Service]&lt;/b&gt;&lt;div&gt;&lt;br&gt;Verifica que no haya suscripcion activa y ejecuta INSERT en subscriptions con status='active'&lt;/div&gt;" vertex="1">
+      <mxGeometry x="479" y="623" width="140" height="65" as="geometry" />
+    </mxCell>
+    <mxCell id="sub_n2_10" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="&lt;b&gt;[DB Subscription]&lt;/b&gt;&lt;div&gt;&lt;br&gt;INSERT en subscriptions (status='active'). El trigger de auditoria NO se dispara en INSERT&lt;/div&gt;" vertex="1">
+      <mxGeometry x="950" y="623" width="140" height="65" as="geometry" />
+    </mxCell>
+
+    <!-- Row 4: Notification + Response -->
+    <mxCell id="sub_n2_11" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="&lt;b&gt;[Redis]&lt;/b&gt;&lt;div&gt;&lt;br&gt;Subscription Service publica purchase_receipt en notification:queue con RPUSH (async)&lt;/div&gt;" vertex="1">
+      <mxGeometry x="793" y="713" width="140" height="65" as="geometry" />
+    </mxCell>
+    <mxCell id="sub_n2_12" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="&lt;b&gt;[API Gateway]&lt;/b&gt;&lt;div&gt;&lt;br&gt;Retorna 201 al usuario con receipt: transaction_id, authorization_code, amount, currency, card_last4&lt;/div&gt;" vertex="1">
+      <mxGeometry x="165" y="713" width="140" height="65" as="geometry" />
+    </mxCell>
+
+    <!-- Flechas Flujo 2 -->
+    <mxCell id="sub_e2_1" edge="1" source="sub_n2_1" target="sub_n2_2" parent="1" style="edgeStyle=none;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=classic;" value="">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="sub_e2_2" edge="1" source="sub_n2_2" target="sub_n2_3" parent="1" style="edgeStyle=none;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=classic;" value="obtiene precio">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="sub_e2_3" edge="1" source="sub_n2_3" target="sub_n2_4" parent="1" style="edgeStyle=none;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=classic;" value="consulta">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="sub_e2_4" edge="1" source="sub_n2_4" target="sub_n2_5" parent="1" style="edgeStyle=none;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=classic;" value="retorna price_usd">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="sub_e2_5" edge="1" source="sub_n2_5" target="sub_n2_6" parent="1" style="edgeStyle=none;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=classic;" value="GetRate(USD, currency)">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="sub_e2_6" edge="1" source="sub_n2_5" target="sub_n2_7" parent="1" style="edgeStyle=none;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=classic;" value="AuthorizePayment(amount, currency, card)">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="sub_e2_7" edge="1" source="sub_n2_7" target="sub_d2_1" parent="1" style="edgeStyle=none;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=classic;" value="retorna status">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="sub_e2_8no" edge="1" source="sub_d2_1" target="sub_n2_8_no" parent="1" style="edgeStyle=none;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=classic;" value="NO">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="sub_e2_8si" edge="1" source="sub_d2_1" target="sub_n2_8" parent="1" style="edgeStyle=none;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=classic;" value="SI">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="sub_e2_9" edge="1" source="sub_n2_8" target="sub_n2_9" parent="1" style="edgeStyle=none;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=classic;" value="">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="sub_e2_10" edge="1" source="sub_n2_9" target="sub_n2_10" parent="1" style="edgeStyle=none;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=classic;" value="">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="sub_e2_11" edge="1" source="sub_n2_9" target="sub_n2_11" parent="1" style="edgeStyle=none;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=none;dashed=1;" value="async">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="sub_e2_12" edge="1" source="sub_n2_9" target="sub_n2_12" parent="1" style="edgeStyle=none;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=classic;" value="retorna suscripcion">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- ===================================================== -->
+    <!-- FLUJO 3: CANCELAR SUSCRIPCION                         -->
+    <!-- ===================================================== -->
+    <mxCell id="sub_s3" parent="1" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;rounded=0;fontFamily=Helvetica;fontSize=11;fontStyle=1;" value="— Flujo 3: Cancelar Suscripcion —" vertex="1">
+      <mxGeometry x="10" y="803" width="1080" height="18" as="geometry" />
+    </mxCell>
+
+    <mxCell id="sub_n3_1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="&lt;b&gt;[Usuario]&lt;/b&gt;&lt;div&gt;&lt;br&gt;Confirma la cancelacion en el dialogo del browser (window.confirm)&lt;/div&gt;" vertex="1">
+      <mxGeometry x="8" y="830" width="140" height="65" as="geometry" />
+    </mxCell>
+    <mxCell id="sub_n3_2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="&lt;b&gt;[API Gateway]&lt;/b&gt;&lt;div&gt;&lt;br&gt;DELETE /subscriptions/:id via CancelSubscription gRPC&lt;/div&gt;" vertex="1">
+      <mxGeometry x="165" y="830" width="140" height="65" as="geometry" />
+    </mxCell>
+    <mxCell id="sub_n3_3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="&lt;b&gt;[Subscription Service]&lt;/b&gt;&lt;div&gt;&lt;br&gt;delete_subscription: UPDATE subscriptions SET status='cancelled', updated_at=NOW()&lt;/div&gt;" vertex="1">
+      <mxGeometry x="479" y="830" width="140" height="65" as="geometry" />
+    </mxCell>
+    <mxCell id="sub_n3_4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="&lt;b&gt;[DB Subscription]&lt;/b&gt;&lt;div&gt;&lt;br&gt;UPDATE subscriptions, trigger trg_audit_subscription_change registra el cambio de estado en subscription_audit&lt;/div&gt;" vertex="1">
+      <mxGeometry x="950" y="830" width="140" height="65" as="geometry" />
+    </mxCell>
+
+    <!-- Flechas Flujo 3 -->
+    <mxCell id="sub_e3_1" edge="1" source="sub_n3_1" target="sub_n3_2" parent="1" style="edgeStyle=none;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=classic;" value="">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="sub_e3_2" edge="1" source="sub_n3_2" target="sub_n3_3" parent="1" style="edgeStyle=none;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=classic;" value="">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="sub_e3_3" edge="1" source="sub_n3_3" target="sub_n3_4" parent="1" style="edgeStyle=none;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=classic;" value="">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+  </root>
+</mxGraphModel>
