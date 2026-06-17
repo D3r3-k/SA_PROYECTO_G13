@@ -196,7 +196,7 @@ Configure las reglas CORS del bucket para que el frontend pueda realizar subidas
     "origin": [
       "http://localhost:5173",
       "https://localhost:5173",
-      "http://34.66.234.222",
+      "http://130.211.216.160",
       "http://localhost:8080"
     ],
     "method": ["GET", "PUT", "HEAD", "OPTIONS"],

@@ -23,108 +23,108 @@ env:
   REDIS_INSTANCE_NAME: "dev-redis"
 
 jobs:
-#  ci-checks:
-#    name: Validar CI
-#    runs-on: ubuntu-latest
-#    environment: develop
-#
-#    steps:
-#      - name: Checkout repository
-#        uses: actions/checkout@v4
-#
-#      - name: Set up Node.js
-#        uses: actions/setup-node@v4
-#        with:
-#          node-version: "20"
-#
-#      - name: Build web
-#        working-directory: apps/web
-#        run: |
-#          npm ci
-#          npm run build
-#
-#      - name: Build api gateway
-#        working-directory: apps/api-gateway
-#        run: |
-#          npm ci
-#          npm run build
-#
-#      - name: Build identity service
-#        working-directory: services/identity-service
-#        run: |
-#          npm ci
-#          npm run build
-#
-#      - name: Set up Go
-#        uses: actions/setup-go@v5
-#        with:
-#          go-version: "1.22"
-#          cache-dependency-path: services/catalog-service/go.sum
-#
-#      - name: Test catalog service
-#        working-directory: services/catalog-service
-#        run: go test ./...
-#
-#      - name: Set up Python
-#        uses: actions/setup-python@v5
-#        with:
-#          python-version: "3.11"
-#
-#      - name: Compile Python services
-#        shell: bash
-#        run: |
-#          set -euo pipefail
-#
-#          for service in \
-#            services/fx-service \
-#            services/subscription-service \
-#            services/notification-service \
-#            services/engagement-service \
-#            services/payment-gateway-service
-#          do
-#            python -m pip install --upgrade pip
-#            python -m pip install -r "${service}/requirements.txt"
-#            python -m compileall "${service}/src"
-#          done
-#
-#  backup-cloud-sql:
-#    name: Backup Cloud SQL
-#    runs-on: ubuntu-latest
-#    environment: develop
-#    needs: ci-checks
-#
-#    steps:
-#      - name: Authenticate to Google Cloud
-#        uses: google-github-actions/auth@v2
-#        with:
-#          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
-#          project_id: ${{ env.GCP_PROJECT_ID }}
-#
-#      - name: Set up gcloud
-#        uses: google-github-actions/setup-gcloud@v2
-#
-#      - name: Configure gcloud project
-#        run: gcloud config set project "${GCP_PROJECT_ID}"
-#
-#      - name: Export operational databases
-#        shell: bash
-#        run: |
-#          set -euo pipefail
-#
-#          backup_prefix="gs://${GCS_BUCKET_NAME}/backups/develop/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-#
-#          for database in identity_db subscription_db catalog_db engagement_db
-#          do
-#            gcloud sql export sql ${{ env.SQL_INSTANCE_NAME }} "${backup_prefix}/${database}.sql" \
-#              --database="${database}" \
-#              --quiet
-#          done
-#
+  ci-checks:
+    name: Validar CI
+    runs-on: ubuntu-latest
+    environment: develop
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Build web
+        working-directory: apps/web
+        run: |
+          npm ci
+          npm run build
+
+      - name: Build api gateway
+        working-directory: apps/api-gateway
+        run: |
+          npm ci
+          npm run build
+
+      - name: Build identity service
+        working-directory: services/identity-service
+        run: |
+          npm ci
+          npm run build
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+          cache-dependency-path: services/catalog-service/go.sum
+
+      - name: Test catalog service
+        working-directory: services/catalog-service
+        run: go test ./...
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Compile Python services
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          for service in \
+            services/fx-service \
+            services/subscription-service \
+            services/notification-service \
+            services/engagement-service \
+            services/payment-gateway-service
+          do
+            python -m pip install --upgrade pip
+            python -m pip install -r "${service}/requirements.txt"
+            python -m compileall "${service}/src"
+          done
+
+  backup-cloud-sql:
+    name: Backup Cloud SQL
+    runs-on: ubuntu-latest
+    environment: develop
+    needs: ci-checks
+
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+          project_id: ${{ env.GCP_PROJECT_ID }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure gcloud project
+        run: gcloud config set project "${GCP_PROJECT_ID}"
+
+      - name: Export operational databases
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          backup_prefix="gs://${GCS_BUCKET_NAME}/backups/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+
+          for database in identity_db subscription_db catalog_db engagement_db
+          do
+            gcloud sql export sql ${{ env.SQL_INSTANCE_NAME }} "${backup_prefix}/${database}.sql" \
+              --database="${database}" \
+              --quiet
+          done
+
   build-and-push:
     name: Build and Push
     runs-on: ubuntu-latest
     environment: develop
-#    needs: backup-cloud-sql
+    needs: backup-cloud-sql
     strategy:
       fail-fast: true
       matrix:
