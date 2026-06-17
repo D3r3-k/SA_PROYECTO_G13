@@ -3,9 +3,10 @@ import { useAuth } from '../hooks/useAuth'
 
 interface Props {
   children: React.ReactNode
+  requireAdmin?: boolean
 }
 
-export default function ProtectedRoute({ children }: Props) {
+export default function ProtectedRoute({ children, requireAdmin = false }: Props) {
   const { user, loading } = useAuth()
 
   if (loading) {
@@ -17,7 +18,11 @@ export default function ProtectedRoute({ children }: Props) {
   }
 
   if (!user) {
-    return <Navigate to="/login" replace />
+    return <Navigate to={requireAdmin ? '/login/admin' : '/login'} replace />
+  }
+
+  if (requireAdmin && !user.is_admin && !user.roles.includes('admin')) {
+    return <Navigate to="/catalog" replace />
   }
 
   return <>{children}</>

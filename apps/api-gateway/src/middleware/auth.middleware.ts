@@ -7,6 +7,9 @@ export interface AuthenticatedRequest extends Request {
     user_id: string;
     email: string;
     profile_id: string;
+    roles: string[];
+    permissions: string[];
+    is_admin: boolean;
   };
 }
 
@@ -15,6 +18,9 @@ type ValidateTokenResponse = {
   user_id: string;
   email: string;
   profile_id: string;
+  roles?: string[];
+  permissions?: string[];
+  is_admin?: boolean;
 };
 
 export async function authMiddleware(
@@ -44,10 +50,18 @@ export async function authMiddleware(
       });
     }
 
+    const roles = Array.isArray(response.roles) ? response.roles.map(String) : [];
+    const permissions = Array.isArray(response.permissions)
+      ? response.permissions.map(String)
+      : [];
+
     req.user = {
       user_id: response.user_id,
       email: response.email,
-      profile_id: response.profile_id || ""
+      profile_id: response.profile_id || "",
+      roles,
+      permissions,
+      is_admin: Boolean(response.is_admin || roles.includes("admin"))
     };
 
     return next();

@@ -14,6 +14,11 @@ export const env = {
   redisUrl: process.env.REDIS_URL || "redis://redis:6379/0",
   notificationQueueName: process.env.NOTIFICATION_QUEUE_NAME || "notification:queue",
 
+  adminEmails: (process.env.ADMIN_EMAILS || "")
+    .split(",")
+    .map((email: string) => email.trim().toLowerCase())
+    .filter(Boolean),
+
   db: {
     host: process.env.DB_HOST || "localhost",
     port: Number(process.env.DB_PORT || 5432),

@@ -12,13 +12,17 @@ import {
 } from "../utils/token";
 
 import {
+  ensureAdminRoleForEmail,
   findUserByEmail,
   findUserById,
+  getUserAuthorization,
+  listAuditLogs,
   registerUser,
   updatePasswordHash
 } from "../repositories/user.repository";
 
 import { publishNotificationEvent } from "../events/notification.publisher";
+import { env } from "../config/env";
 
 import {
   createProfile,
@@ -61,7 +65,10 @@ function emptyAuthResponse(message: string) {
     success: false,
     message,
     user_id: "",
-    token: ""
+    token: "",
+    roles: [],
+    permissions: [],
+    is_admin: false
   };
 }
 
@@ -82,7 +89,10 @@ function emptyUserResponse(message: string) {
     message,
     user_id: "",
     email: "",
-    full_name: ""
+    full_name: "",
+    roles: [],
+    permissions: [],
+    is_admin: false
   };
 }
 
@@ -94,7 +104,10 @@ function emptySelectProfileResponse(message: string) {
     user_id: "",
     name: "",
     avatar_url: "",
-    token: ""
+    token: "",
+    roles: [],
+    permissions: [],
+    is_admin: false
   };
 }
 
@@ -152,6 +165,9 @@ export const identityService = {
         fullName
       });
 
+      await ensureAdminRoleForEmail(userId, email, env.adminEmails);
+      const authz = await getUserAuthorization(userId);
+
       try {
         await publishNotificationEvent({
           type: "registration",
@@ -171,14 +187,20 @@ export const identityService = {
 
       const token = signIdentityToken({
         user_id: userId,
-        email
+        email,
+        roles: authz.roles,
+        permissions: authz.permissions,
+        is_admin: authz.isAdmin
       });
 
       return callback(null, {
         success: true,
         message: "User registered successfully",
         user_id: userId,
-        token
+        token,
+        roles: authz.roles,
+        permissions: authz.permissions,
+        is_admin: authz.isAdmin
       });
     } catch (error: any) {
       if (error?.code === "23505") {
@@ -220,16 +242,24 @@ export const identityService = {
         return callback(null, emptyAuthResponse("Invalid credentials"));
       }
 
+      const authz = await getUserAuthorization(user.id);
+
       const token = signIdentityToken({
         user_id: user.id,
-        email: user.email
+        email: user.email,
+        roles: authz.roles,
+        permissions: authz.permissions,
+        is_admin: authz.isAdmin
       });
 
       return callback(null, {
         success: true,
         message: "Login successful",
         user_id: user.id,
-        token
+        token,
+        roles: authz.roles,
+        permissions: authz.permissions,
+        is_admin: authz.isAdmin
       });
     } catch (error) {
       return handleUnexpectedError(callback, error, "Failed to login");
@@ -250,12 +280,17 @@ export const identityService = {
         return callback(null, emptyUserResponse("User not found"));
       }
 
+      const authz = await getUserAuthorization(user.id);
+
       return callback(null, {
         success: true,
         message: "User found",
         user_id: user.id,
         email: user.email,
-        full_name: user.full_name
+        full_name: user.full_name,
+        roles: authz.roles,
+        permissions: authz.permissions,
+        is_admin: authz.isAdmin
       });
     } catch (error) {
       return handleUnexpectedError(callback, error, "Failed to get user by id");
@@ -269,7 +304,11 @@ export const identityService = {
       return callback(null, {
         valid: false,
         user_id: "",
-        email: ""
+        email: "",
+        profile_id: "",
+        roles: [],
+        permissions: [],
+        is_admin: false
       });
     }
 
@@ -279,7 +318,11 @@ export const identityService = {
       return callback(null, {
         valid: false,
         user_id: "",
-        email: ""
+        email: "",
+        profile_id: "",
+        roles: [],
+        permissions: [],
+        is_admin: false
       });
     }
 
@@ -287,7 +330,10 @@ export const identityService = {
       valid: true,
       user_id: payload.user_id,
       email: payload.email,
-      profile_id: payload.profile_id || ""
+      profile_id: payload.profile_id || "",
+      roles: payload.roles || [],
+      permissions: payload.permissions || [],
+      is_admin: Boolean(payload.is_admin)
     });
   },
 
@@ -402,15 +448,22 @@ export const identityService = {
         );
       }
 
+      const authz = await getUserAuthorization(user.id);
       const token = signIdentityToken({
         user_id: user.id,
         email: user.email,
-        profile_id: profile.profile_id
+        profile_id: profile.profile_id,
+        roles: authz.roles,
+        permissions: authz.permissions,
+        is_admin: authz.isAdmin
       });
 
       return callback(null, {
         ...toProfileResponse(profile, "Profile selected"),
-        token
+        token,
+        roles: authz.roles,
+        permissions: authz.permissions,
+        is_admin: authz.isAdmin
       });
     } catch (error) {
       return handleUnexpectedError(
@@ -552,5 +605,28 @@ export const identityService = {
         "Failed to update credentials"
       );
     }
+  },
+
+  ListAuditLogs: async (call: any, callback: any) => {
+    try {
+      const rows = await listAuditLogs({
+        tableName: normalizeText(call.request.table_name || ""),
+        actorUserId: normalizeText(call.request.actor_user_id || ""),
+        action: normalizeText(call.request.action || ""),
+        from: normalizeText(call.request.from || ""),
+        to: normalizeText(call.request.to || ""),
+        limit: Number(call.request.limit || 100),
+        offset: Number(call.request.offset || 0)
+      });
+
+      return callback(null, {
+        success: true,
+        message: `identity audit logs listed: ${rows.length}`,
+        items: rows
+      });
+    } catch (error) {
+      return handleUnexpectedError(callback, error, "Failed to list identity audit logs");
+    }
   }
+
 };
