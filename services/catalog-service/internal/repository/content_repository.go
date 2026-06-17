@@ -39,6 +39,10 @@ type Detail struct {
 	Cast    []CastMember
 }
 
+type DeletedContentMedia struct {
+	ObjectKeys []string
+}
+
 type AdminContentWrite struct {
 	ContentID     string
 	ExternalID    string
