@@ -1,0 +1,251 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="720" pageHeight="1754" math="0" shadow="0">
+  <root>
+    <mxCell id="0" />
+    <mxCell id="1" parent="0" />
+
+    <!-- ===== TITULO ===== -->
+    <mxCell id="prf_title" parent="1" style="text;html=1;whiteSpace=wrap;align=center;verticalAlign=middle;rounded=0;fontFamily=Helvetica;fontSize=14;fontStyle=1;" value="Diagrama de Actividades — Gestion de Perfiles" vertex="1">
+      <mxGeometry x="0" y="30" width="720" height="30" as="geometry" />
+    </mxCell>
+
+    <!-- ===== ENCABEZADOS DE CARRIL ===== -->
+    <mxCell id="prf_lh1" parent="1" style="text;html=1;whiteSpace=wrap;align=center;verticalAlign=middle;rounded=0;fontFamily=Helvetica;fontSize=11;labelBackgroundColor=default;" value="USUARIO" vertex="1">
+      <mxGeometry x="12" y="75" width="155" height="25" as="geometry" />
+    </mxCell>
+    <mxCell id="prf_lh2" parent="1" style="text;html=1;whiteSpace=wrap;align=center;verticalAlign=middle;rounded=0;fontFamily=Helvetica;fontSize=11;labelBackgroundColor=default;" value="API GATEWAY" vertex="1">
+      <mxGeometry x="192" y="75" width="155" height="25" as="geometry" />
+    </mxCell>
+    <mxCell id="prf_lh3" parent="1" style="text;html=1;whiteSpace=wrap;align=center;verticalAlign=middle;rounded=0;fontFamily=Helvetica;fontSize=11;labelBackgroundColor=default;" value="IDENTITY SERVICE" vertex="1">
+      <mxGeometry x="372" y="75" width="155" height="25" as="geometry" />
+    </mxCell>
+    <mxCell id="prf_lh4" parent="1" style="text;html=1;whiteSpace=wrap;align=center;verticalAlign=middle;rounded=0;fontFamily=Helvetica;fontSize=11;labelBackgroundColor=default;" value="DB IDENTITY" vertex="1">
+      <mxGeometry x="552" y="75" width="155" height="25" as="geometry" />
+    </mxCell>
+
+    <!-- ===== DIVISORES DE CARRIL ===== -->
+    <mxCell id="prf_ld1" parent="1" style="endArrow=none;html=1;strokeWidth=0.5;rounded=0;strokeColor=#000000;" edge="1">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="180" y="65" as="sourcePoint" />
+        <mxPoint x="180" y="1220" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="prf_ld2" parent="1" style="endArrow=none;html=1;strokeWidth=0.5;rounded=0;strokeColor=#000000;" edge="1">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="360" y="65" as="sourcePoint" />
+        <mxPoint x="360" y="1220" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="prf_ld3" parent="1" style="endArrow=none;html=1;strokeWidth=0.5;rounded=0;strokeColor=#000000;" edge="1">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="540" y="65" as="sourcePoint" />
+        <mxPoint x="540" y="1220" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+
+    <!-- ===================================================== -->
+    <!-- FLUJO 1: LISTAR PERFILES                              -->
+    <!-- ===================================================== -->
+    <mxCell id="prf_s1" parent="1" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;rounded=0;fontFamily=Helvetica;fontSize=11;fontStyle=1;" value="— Flujo 1: Listar Perfiles —" vertex="1">
+      <mxGeometry x="10" y="112" width="700" height="18" as="geometry" />
+    </mxCell>
+
+    <mxCell id="prf_n1_1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="&lt;b&gt;[Usuario]&lt;/b&gt;&lt;div&gt;&lt;br&gt;Accede a /profiles&lt;/div&gt;" vertex="1">
+      <mxGeometry x="12" y="140" width="155" height="65" as="geometry" />
+    </mxCell>
+    <mxCell id="prf_n1_2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="&lt;b&gt;[API Gateway]&lt;/b&gt;&lt;div&gt;&lt;br&gt;Llama a ListProfiles via gRPC&lt;/div&gt;" vertex="1">
+      <mxGeometry x="192" y="140" width="155" height="65" as="geometry" />
+    </mxCell>
+    <mxCell id="prf_n1_3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="&lt;b&gt;[Identity Service]&lt;/b&gt;&lt;div&gt;&lt;br&gt;Ejecuta sp_list_profiles_by_user&lt;/div&gt;" vertex="1">
+      <mxGeometry x="372" y="140" width="155" height="65" as="geometry" />
+    </mxCell>
+    <mxCell id="prf_n1_4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="&lt;b&gt;[DB Identity]&lt;/b&gt;&lt;div&gt;&lt;br&gt;Retorna lista de perfiles&lt;/div&gt;" vertex="1">
+      <mxGeometry x="552" y="140" width="155" height="65" as="geometry" />
+    </mxCell>
+    <mxCell id="prf_n1_5" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="&lt;b&gt;[Usuario]&lt;/b&gt;&lt;div&gt;&lt;br&gt;Visualiza tarjetas de perfiles&lt;/div&gt;" vertex="1">
+      <mxGeometry x="12" y="228" width="155" height="60" as="geometry" />
+    </mxCell>
+
+    <!-- Flechas Flujo 1 -->
+    <mxCell id="prf_e1_1" edge="1" source="prf_n1_1" target="prf_n1_2" parent="1" style="edgeStyle=none;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=classic;" value="">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="prf_e1_2" edge="1" source="prf_n1_2" target="prf_n1_3" parent="1" style="edgeStyle=none;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=classic;" value="">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="prf_e1_3" edge="1" source="prf_n1_3" target="prf_n1_4" parent="1" style="edgeStyle=none;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=classic;" value="consulta">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="prf_e1_4" edge="1" source="prf_n1_4" target="prf_n1_5" parent="1" style="edgeStyle=none;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=classic;" value="retorna perfiles">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- ===================================================== -->
+    <!-- FLUJO 2: SELECCIONAR PERFIL                           -->
+    <!-- ===================================================== -->
+    <mxCell id="prf_s2" parent="1" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;rounded=0;fontFamily=Helvetica;fontSize=11;fontStyle=1;" value="— Flujo 2: Seleccionar Perfil (emite nuevo JWT con profile_id) —" vertex="1">
+      <mxGeometry x="10" y="306" width="700" height="18" as="geometry" />
+    </mxCell>
+
+    <mxCell id="prf_n2_1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="&lt;b&gt;[Usuario]&lt;/b&gt;&lt;div&gt;&lt;br&gt;Selecciona un perfil&lt;/div&gt;" vertex="1">
+      <mxGeometry x="12" y="333" width="155" height="65" as="geometry" />
+    </mxCell>
+    <mxCell id="prf_n2_2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="&lt;b&gt;[API Gateway]&lt;/b&gt;&lt;div&gt;&lt;br&gt;Llama a SelectProfile via gRPC&lt;/div&gt;" vertex="1">
+      <mxGeometry x="192" y="333" width="155" height="65" as="geometry" />
+    </mxCell>
+    <mxCell id="prf_n2_3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="&lt;b&gt;[Identity Service]&lt;/b&gt;&lt;div&gt;&lt;br&gt;Ejecuta sp_find_profile_by_user_and_profile&lt;/div&gt;" vertex="1">
+      <mxGeometry x="372" y="333" width="155" height="65" as="geometry" />
+    </mxCell>
+    <mxCell id="prf_n2_4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="&lt;b&gt;[DB Identity]&lt;/b&gt;&lt;div&gt;&lt;br&gt;Retorna datos del perfil&lt;/div&gt;" vertex="1">
+      <mxGeometry x="552" y="333" width="155" height="65" as="geometry" />
+    </mxCell>
+    <mxCell id="prf_n2_5" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="&lt;b&gt;[Identity Service]&lt;/b&gt;&lt;div&gt;&lt;br&gt;signIdentityToken con profile_id → nuevo JWT&lt;/div&gt;" vertex="1">
+      <mxGeometry x="372" y="423" width="155" height="70" as="geometry" />
+    </mxCell>
+    <mxCell id="prf_n2_6" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="&lt;b&gt;[API Gateway]&lt;/b&gt;&lt;div&gt;&lt;br&gt;Actualiza cookie httpOnly con nuevo token&lt;/div&gt;" vertex="1">
+      <mxGeometry x="192" y="423" width="155" height="70" as="geometry" />
+    </mxCell>
+    <mxCell id="prf_n2_7" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="&lt;b&gt;[Usuario]&lt;/b&gt;&lt;div&gt;&lt;br&gt;refresh() y navega a /catalog&lt;/div&gt;" vertex="1">
+      <mxGeometry x="12" y="518" width="155" height="65" as="geometry" />
+    </mxCell>
+
+    <!-- Flechas Flujo 2 -->
+    <mxCell id="prf_e2_1" edge="1" source="prf_n2_1" target="prf_n2_2" parent="1" style="edgeStyle=none;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=classic;" value="">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="prf_e2_2" edge="1" source="prf_n2_2" target="prf_n2_3" parent="1" style="edgeStyle=none;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=classic;" value="">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="prf_e2_3" edge="1" source="prf_n2_3" target="prf_n2_4" parent="1" style="edgeStyle=none;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=classic;" value="consulta">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="prf_e2_4" edge="1" source="prf_n2_4" target="prf_n2_5" parent="1" style="edgeStyle=none;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=classic;" value="retorna perfil">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="prf_e2_5" edge="1" source="prf_n2_5" target="prf_n2_6" parent="1" style="edgeStyle=none;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=classic;" value="retorna token">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="prf_e2_6" edge="1" source="prf_n2_6" target="prf_n2_7" parent="1" style="edgeStyle=none;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=classic;" value="cookie actualizada">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- ===================================================== -->
+    <!-- FLUJO 3: CREAR PERFIL                                 -->
+    <!-- ===================================================== -->
+    <mxCell id="prf_s3" parent="1" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;rounded=0;fontFamily=Helvetica;fontSize=11;fontStyle=1;" value="— Flujo 3: Crear Perfil —" vertex="1">
+      <mxGeometry x="10" y="603" width="700" height="18" as="geometry" />
+    </mxCell>
+
+    <mxCell id="prf_n3_1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="&lt;b&gt;[Usuario]&lt;/b&gt;&lt;div&gt;&lt;br&gt;Ingresa nombre y crea perfil&lt;/div&gt;" vertex="1">
+      <mxGeometry x="12" y="630" width="155" height="70" as="geometry" />
+    </mxCell>
+    <mxCell id="prf_n3_2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="&lt;b&gt;[API Gateway]&lt;/b&gt;&lt;div&gt;&lt;br&gt;Llama a CreateProfile via gRPC&lt;/div&gt;" vertex="1">
+      <mxGeometry x="192" y="630" width="155" height="70" as="geometry" />
+    </mxCell>
+    <mxCell id="prf_n3_3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="&lt;b&gt;[Identity Service]&lt;/b&gt;&lt;div&gt;&lt;br&gt;Verifica conteo de perfiles del usuario&lt;/div&gt;" vertex="1">
+      <mxGeometry x="372" y="630" width="155" height="70" as="geometry" />
+    </mxCell>
+
+    <mxCell id="prf_d3_1" parent="1" style="rhombus;whiteSpace=wrap;html=1;" value="¿Limite de 5 perfiles?" vertex="1">
+      <mxGeometry x="390" y="728" width="120" height="70" as="geometry" />
+    </mxCell>
+    <mxCell id="prf_n3_si" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="&lt;b&gt;[API Gateway]&lt;/b&gt;&lt;div&gt;&lt;br&gt;Error 400 limite de perfiles&lt;/div&gt;" vertex="1">
+      <mxGeometry x="192" y="738" width="155" height="55" as="geometry" />
+    </mxCell>
+    <mxCell id="prf_n3_4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="&lt;b&gt;[Identity Service]&lt;/b&gt;&lt;div&gt;&lt;br&gt;Ejecuta sp_create_profile&lt;/div&gt;" vertex="1">
+      <mxGeometry x="372" y="828" width="155" height="65" as="geometry" />
+    </mxCell>
+    <mxCell id="prf_n3_5" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="&lt;b&gt;[DB Identity]&lt;/b&gt;&lt;div&gt;&lt;br&gt;Persiste nuevo perfil en tabla profiles&lt;/div&gt;" vertex="1">
+      <mxGeometry x="552" y="828" width="155" height="65" as="geometry" />
+    </mxCell>
+    <mxCell id="prf_n3_6" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="&lt;b&gt;[Usuario]&lt;/b&gt;&lt;div&gt;&lt;br&gt;loadProfiles() y visualiza nuevo perfil&lt;/div&gt;" vertex="1">
+      <mxGeometry x="12" y="918" width="155" height="60" as="geometry" />
+    </mxCell>
+
+    <!-- Flechas Flujo 3 -->
+    <mxCell id="prf_e3_1" edge="1" source="prf_n3_1" target="prf_n3_2" parent="1" style="edgeStyle=none;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=classic;" value="">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="prf_e3_2" edge="1" source="prf_n3_2" target="prf_n3_3" parent="1" style="edgeStyle=none;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=classic;" value="">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="prf_e3_3" edge="1" source="prf_n3_3" target="prf_d3_1" parent="1" style="edgeStyle=none;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=classic;" value="">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="prf_e3_si" edge="1" source="prf_d3_1" target="prf_n3_si" parent="1" style="edgeStyle=none;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=classic;" value="SI">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="prf_e3_no" edge="1" source="prf_d3_1" target="prf_n3_4" parent="1" style="edgeStyle=none;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=classic;" value="NO">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="prf_e3_4" edge="1" source="prf_n3_4" target="prf_n3_5" parent="1" style="edgeStyle=none;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=classic;" value="">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="prf_e3_5" edge="1" source="prf_n3_4" target="prf_n3_6" parent="1" style="edgeStyle=none;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=classic;" value="retorna perfil creado">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- ===================================================== -->
+    <!-- FLUJO 4: ACTUALIZAR PERFIL                            -->
+    <!-- ===================================================== -->
+    <mxCell id="prf_s4" parent="1" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;rounded=0;fontFamily=Helvetica;fontSize=11;fontStyle=1;" value="— Flujo 4: Actualizar Perfil —" vertex="1">
+      <mxGeometry x="10" y="998" width="700" height="18" as="geometry" />
+    </mxCell>
+
+    <mxCell id="prf_n4_1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="&lt;b&gt;[Usuario]&lt;/b&gt;&lt;div&gt;&lt;br&gt;Modifica nombre o avatar&lt;/div&gt;" vertex="1">
+      <mxGeometry x="12" y="1025" width="155" height="60" as="geometry" />
+    </mxCell>
+    <mxCell id="prf_n4_2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="&lt;b&gt;[API Gateway]&lt;/b&gt;&lt;div&gt;&lt;br&gt;Llama a UpdateProfile via gRPC&lt;/div&gt;" vertex="1">
+      <mxGeometry x="192" y="1025" width="155" height="60" as="geometry" />
+    </mxCell>
+    <mxCell id="prf_n4_3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="&lt;b&gt;[Identity Service]&lt;/b&gt;&lt;div&gt;&lt;br&gt;Ejecuta sp_update_profile&lt;/div&gt;" vertex="1">
+      <mxGeometry x="372" y="1025" width="155" height="60" as="geometry" />
+    </mxCell>
+    <mxCell id="prf_n4_4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="&lt;b&gt;[DB Identity]&lt;/b&gt;&lt;div&gt;&lt;br&gt;Actualiza y retorna perfil&lt;/div&gt;" vertex="1">
+      <mxGeometry x="552" y="1025" width="155" height="60" as="geometry" />
+    </mxCell>
+
+    <!-- Flechas Flujo 4 -->
+    <mxCell id="prf_e4_1" edge="1" source="prf_n4_1" target="prf_n4_2" parent="1" style="edgeStyle=none;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=classic;" value="">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="prf_e4_2" edge="1" source="prf_n4_2" target="prf_n4_3" parent="1" style="edgeStyle=none;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=classic;" value="">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="prf_e4_3" edge="1" source="prf_n4_3" target="prf_n4_4" parent="1" style="edgeStyle=none;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=classic;" value="">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- ===================================================== -->
+    <!-- FLUJO 5: ELIMINAR PERFIL                              -->
+    <!-- ===================================================== -->
+    <mxCell id="prf_s5" parent="1" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;rounded=0;fontFamily=Helvetica;fontSize=11;fontStyle=1;" value="— Flujo 5: Eliminar Perfil —" vertex="1">
+      <mxGeometry x="10" y="1105" width="700" height="18" as="geometry" />
+    </mxCell>
+
+    <mxCell id="prf_n5_1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="&lt;b&gt;[Usuario]&lt;/b&gt;&lt;div&gt;&lt;br&gt;Confirma eliminacion&lt;/div&gt;" vertex="1">
+      <mxGeometry x="12" y="1133" width="155" height="60" as="geometry" />
+    </mxCell>
+    <mxCell id="prf_n5_2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="&lt;b&gt;[API Gateway]&lt;/b&gt;&lt;div&gt;&lt;br&gt;Llama a DeleteProfile via gRPC&lt;/div&gt;" vertex="1">
+      <mxGeometry x="192" y="1133" width="155" height="60" as="geometry" />
+    </mxCell>
+    <mxCell id="prf_n5_3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="&lt;b&gt;[Identity Service]&lt;/b&gt;&lt;div&gt;&lt;br&gt;Ejecuta sp_delete_profile&lt;/div&gt;" vertex="1">
+      <mxGeometry x="372" y="1133" width="155" height="60" as="geometry" />
+    </mxCell>
+    <mxCell id="prf_n5_4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="&lt;b&gt;[DB Identity]&lt;/b&gt;&lt;div&gt;&lt;br&gt;Elimina el perfil&lt;/div&gt;" vertex="1">
+      <mxGeometry x="552" y="1133" width="155" height="60" as="geometry" />
+    </mxCell>
+
+    <!-- Flechas Flujo 5 -->
+    <mxCell id="prf_e5_1" edge="1" source="prf_n5_1" target="prf_n5_2" parent="1" style="edgeStyle=none;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=classic;" value="">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="prf_e5_2" edge="1" source="prf_n5_2" target="prf_n5_3" parent="1" style="edgeStyle=none;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=classic;" value="">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="prf_e5_3" edge="1" source="prf_n5_3" target="prf_n5_4" parent="1" style="edgeStyle=none;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;endArrow=classic;" value="">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+  </root>
+</mxGraphModel>

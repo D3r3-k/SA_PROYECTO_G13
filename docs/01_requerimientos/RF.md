@@ -185,37 +185,115 @@ Este documento especifica los requerimientos funcionales de **Quetxal TV**, una 
 
 ---
 
-## 12. Trazabilidad de Requerimientos
+## 12. RF-ADMIN — Panel de Administración y Catálogo Dinámico
 
-| Módulo | Códigos RF | Servicio Responsable |
-|--------|-----------|----------------------|
-| Autenticación y sesión | RF-AUTH-01 al RF-AUTH-13 | identity-service, api-gateway |
-| Gestión de perfiles | RF-PROF-01 al RF-PROF-09 | identity-service, api-gateway |
-| Planes y suscripciones | RF-SUB-01 al RF-SUB-11 | subscription-service, api-gateway |
-| Conversión de divisas | RF-FX-01 al RF-FX-07 | fx-service, api-gateway |
-| Notificaciones | RF-NOT-01 al RF-NOT-07 | notification-service |
-| API Gateway | RF-GW-01 al RF-GW-07 | api-gateway |
-| Catálogo | RF-CAT-01 al RF-CAT-06 | catalog-service (pendiente) |
-| Calificaciones | RF-RATE-01 al RF-RATE-04 | engagement-service (pendiente) |
-| Historial | RF-HIST-01 al RF-HIST-05 | engagement-service (pendiente) |
-| Objetos de BD | RF-DB-01 al RF-DB-09 | identity-service, subscription-service |
+**Servicio responsable:** `catalog-service` + `api-gateway` + `apps/web`  
+**Tecnología:** Go, TypeScript (React), gRPC  
+**Fase:** 2
+
+| Código | Requerimiento Funcional | Criterio de Aceptación | Prioridad | Estado |
+|--------|------------------------|----------------------|-----------|--------|
+| RF-ADMIN-01 | El sistema debe restringir el acceso al panel de administración únicamente a usuarios con rol de administrador. | El panel `/admin` requiere sesión activa con rol admin. Un usuario sin ese rol es redirigido o recibe HTTP 403. | Alta | Implementado |
+| RF-ADMIN-02 | El sistema debe permitir al administrador agregar nuevo contenido multimedia (películas y series) con sus metadatos. | El formulario de creación persiste el contenido en la base de datos del catalog-service. El contenido aparece en el catálogo tras la creación. | Alta | Implementado |
+| RF-ADMIN-03 | El sistema debe permitir al administrador editar los metadatos de contenido existente. | Los campos editables incluyen título, descripción, categoría, reparto y fecha de estreno. Los cambios se reflejan de inmediato en el catálogo. | Alta | Implementado |
+| RF-ADMIN-04 | El sistema debe permitir al administrador eliminar títulos del catálogo (películas y series). | La eliminación es permanente. El contenido eliminado deja de aparecer en el catálogo para todos los usuarios. | Alta | Implementado |
+| RF-ADMIN-05 | El sistema debe permitir al administrador gestionar episodios de series, incluyendo su creación y edición. | El panel incluye un módulo específico para agregar y editar episodios asociados a una serie existente. | Alta | Implementado |
+| RF-ADMIN-06 | El sistema debe permitir al administrador programar y calendarizar estrenos definiendo la fecha exacta de visibilidad. | El campo `releaseDate` controla cuándo el contenido se vuelve visible en la cartelera de los usuarios. Contenido con fecha futura no aparece en el catálogo público. | Alta | Implementado |
 
 ---
 
-## 13. Resumen de Estado de Implementación
+## 13. RF-GCS — Integración con Google Cloud Storage
 
-| Módulo | Total RF | Implementados | Pendientes |
-|--------|----------|-----------------|--------------|
-| Autenticación | 13 | 13 | 0 |
-| Perfiles | 9 | 9 | 0 |
-| Suscripciones | 11 | 11 | 0 |
-| FX / Divisas | 7 | 7 | 0 |
-| Notificaciones | 7 | 6 | 1 |
-| API Gateway | 7 | 7 | 0 |
-| Catálogo | 6 | 0 | 6 |
-| Calificaciones | 4 | 0 | 4 |
-| Historial | 5 | 0 | 5 |
-| Objetos de BD | 9 | 9 | 0 |
-| **Total** | **78** | **62** | **16** |
+**Servicio responsable:** `catalog-service`  
+**Tecnología:** Go, Google Cloud Storage SDK, URLs firmadas  
+**Fase:** 2
+
+| Código | Requerimiento Funcional | Criterio de Aceptación | Prioridad | Estado |
+|--------|------------------------|----------------------|-----------|--------|
+| RF-GCS-01 | El sistema debe almacenar todos los archivos de video de películas y episodios en Google Cloud Storage. | Los videos no se guardan en el sistema de archivos local. El path almacenado en BD es una referencia a un objeto en GCS. | Alta | Implementado |
+| RF-GCS-02 | El sistema debe almacenar las imágenes de portada de películas y series en Google Cloud Storage. | Las portadas se almacenan en `gs://{bucket}/covers/{content_id}/`. El path local queda prohibido. | Alta | Implementado |
+| RF-GCS-03 | El sistema debe generar URLs firmadas para la subida de archivos, con tiempo de expiración configurable. | `GenerateUploadURL()` produce una URL firmada PUT con expiración según `GCS_SIGNED_UPLOAD_EXPIRES_MINUTES`. El upload directo del cliente al bucket funciona correctamente. | Alta | Implementado |
+| RF-GCS-04 | El sistema debe generar URLs firmadas para la lectura y reproducción de contenido multimedia. | El reproductor del frontend consume el video directamente desde la URL firmada de GCS. La URL expira según `GCS_SIGNED_READ_EXPIRES_MINUTES`. | Alta | Implementado |
+| RF-GCS-05 | El sistema debe validar el tipo de archivo antes de generar la URL de subida. | Solo se permiten imágenes (jpeg, png, webp) y videos (mp4, webm). Tipos no permitidos retornan error descriptivo sin generar URL. | Alta | Implementado |
+| RF-GCS-06 | El sistema debe validar el tamaño máximo permitido por tipo de archivo. | Imágenes: máximo 10 MB. Videos: máximo 1024 MB. Archivos que excedan el límite retornan error de validación. | Media | Implementado |
+| RF-GCS-07 | El reproductor del frontend debe mostrar el tiempo de duración real del archivo de video almacenado en GCS. | Al cargar el reproductor, se calcula y muestra la duración del video obtenida desde los metadatos del archivo en GCS. | Media | Pendiente |
+
+---
+
+## 14. RF-AUDIT — Auditoría Transaccional por Triggers
+
+**Servicios responsables:** `catalog-service`, `identity-service`, `subscription-service`, `engagement-service`  
+**Tecnología:** PostgreSQL Triggers  
+**Fase:** 2
+
+| Código | Requerimiento Funcional | Criterio de Aceptación | Prioridad | Estado |
+|--------|------------------------|----------------------|-----------|--------|
+| RF-AUDIT-01 | El sistema debe registrar automáticamente toda inserción (INSERT) realizada por un usuario o administrador en las tablas relacionales críticas. | Al ejecutar un INSERT en una tabla auditada, el trigger genera una fila en la tabla de auditoría con: tabla afectada, operación, timestamp exacto y estado nuevo. | Alta | Pendiente |
+| RF-AUDIT-02 | El sistema debe registrar automáticamente toda actualización (UPDATE) realizada en las tablas relacionales críticas. | Al ejecutar un UPDATE en una tabla auditada, el trigger genera una fila en la tabla de auditoría con: tabla afectada, operación, timestamp exacto, estado anterior y estado nuevo. | Alta | Pendiente |
+| RF-AUDIT-03 | El registro de auditoría debe identificar al usuario responsable de la operación. | La tabla de auditoría incluye un campo `responsible_user` con el identificador del usuario o administrador que ejecutó la operación. | Alta | Pendiente |
+| RF-AUDIT-04 | El sistema debe implementar auditoría transaccional en el catalog-service para las tablas de contenido. | Existe trigger `trg_audit_content_changes` en la tabla `contents` del catalog-service que registra INSERT y UPDATE en una tabla exclusiva `content_audit`. | Alta | Pendiente |
+| RF-AUDIT-05 | El sistema debe implementar auditoría transaccional en el identity-service para cambios de credenciales. | El trigger `trg_audit_credential_update` registra cambios en `credential_audit` con `user_id`, acción y timestamp. | Media | Implementado |
+| RF-AUDIT-06 | El sistema debe implementar auditoría transaccional en el subscription-service para cambios de plan y estado. | El trigger `trg_audit_subscription_change` registra en `subscription_audit` los valores anteriores y nuevos de `plan_id` y `status`. | Media | Implementado |
+| RF-AUDIT-07 | El sistema debe implementar auditoría transaccional en el engagement-service para calificaciones. | El trigger `trg_audit_rating_changes` registra en `rating_audit` el valor anterior y nuevo de cada calificación modificada. | Media | Implementado |
+
+---
+
+## 15. RF-REPORT — Generación de Reportes Estructurados
+
+**Servicio responsable:** `catalog-service` + `api-gateway` + `apps/web`  
+**Tecnología:** Go, TypeScript (React), CSV, PDF  
+**Fase:** 2
+
+| Código | Requerimiento Funcional | Criterio de Aceptación | Prioridad | Estado |
+|--------|------------------------|----------------------|-----------|--------|
+| RF-REPORT-01 | El panel de administración debe mostrar el log transaccional completo de las tablas de auditoría. | La vista de auditoría lista los registros con: tabla afectada, operación, usuario responsable, timestamp, estado anterior y estado nuevo. Los registros están ordenados por fecha descendente. | Alta | Pendiente |
+| RF-REPORT-02 | El sistema debe permitir al administrador descargar el log de auditoría en formato CSV. | El botón de descarga genera un archivo `.csv` bien ordenado con encabezados y todos los campos del log de auditoría visible. | Alta | Pendiente |
+| RF-REPORT-03 | El sistema debe permitir al administrador descargar el log de auditoría en formato PDF. | El botón de descarga genera un archivo `.pdf` formateado con encabezados, tabla de datos y metadatos del reporte (fecha de generación, filtros aplicados). | Alta | Pendiente |
+| RF-REPORT-04 | El sistema debe permitir filtrar el log de auditoría por tabla afectada, tipo de operación y rango de fechas. | Los filtros reducen los registros mostrados y aplicados se reflejan también en la descarga CSV y PDF. | Media | Pendiente |
+
+---
+
+## 16. Trazabilidad de Requerimientos
+
+| Módulo | Códigos RF | Servicio Responsable | Fase |
+|--------|-----------|----------------------|------|
+| Autenticación y sesión | RF-AUTH-01 al RF-AUTH-13 | identity-service, api-gateway | 1 |
+| Gestión de perfiles | RF-PROF-01 al RF-PROF-09 | identity-service, api-gateway | 1 |
+| Planes y suscripciones | RF-SUB-01 al RF-SUB-11 | subscription-service, api-gateway | 1 |
+| Conversión de divisas | RF-FX-01 al RF-FX-07 | fx-service, api-gateway | 1 |
+| Notificaciones | RF-NOT-01 al RF-NOT-07 | notification-service | 1 |
+| API Gateway | RF-GW-01 al RF-GW-07 | api-gateway | 1 |
+| Catálogo | RF-CAT-01 al RF-CAT-06 | catalog-service | 1 |
+| Calificaciones | RF-RATE-01 al RF-RATE-04 | engagement-service | 1 |
+| Historial | RF-HIST-01 al RF-HIST-05 | engagement-service | 1 |
+| Objetos de BD | RF-DB-01 al RF-DB-09 | identity-service, subscription-service | 1 |
+| Panel de Administración | RF-ADMIN-01 al RF-ADMIN-06 | catalog-service, api-gateway, web | 2 |
+| Google Cloud Storage | RF-GCS-01 al RF-GCS-07 | catalog-service | 2 |
+| Auditoría Transaccional | RF-AUDIT-01 al RF-AUDIT-07 | catalog-service, identity-service, subscription-service, engagement-service | 2 |
+| Reportes estructurados | RF-REPORT-01 al RF-REPORT-04 | catalog-service, api-gateway, web | 2 |
+
+---
+
+## 17. Resumen de Estado de Implementación
+
+| Módulo | Fase | Total RF | Implementados | Pendientes |
+|--------|------|----------|---------------|------------|
+| Autenticación | 1 | 13 | 13 | 0 |
+| Perfiles | 1 | 9 | 9 | 0 |
+| Suscripciones | 1 | 11 | 11 | 0 |
+| FX / Divisas | 1 | 7 | 7 | 0 |
+| Notificaciones | 1 | 7 | 6 | 1 |
+| API Gateway | 1 | 7 | 7 | 0 |
+| Catálogo | 1 | 6 | 0 | 6 |
+| Calificaciones | 1 | 4 | 0 | 4 |
+| Historial | 1 | 5 | 0 | 5 |
+| Objetos de BD | 1 | 9 | 9 | 0 |
+| Panel de Administración | 2 | 6 | 6 | 0 |
+| Google Cloud Storage | 2 | 7 | 6 | 1 |
+| Auditoría Transaccional | 2 | 7 | 3 | 4 |
+| Reportes estructurados | 2 | 4 | 0 | 4 |
+| **Total Fase 1** | **1** | **78** | **62** | **16** |
+| **Total Fase 2** | **2** | **24** | **15** | **9** |
+| **Total General** | | **102** | **77** | **25** |
 
 ---
