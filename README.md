@@ -9,13 +9,12 @@ Proyecto de Software Avanzado - Seccion P
 
 <div align="center">
 
-|     Carne     | Nombre Completo                 |
-| :-----------: | :------------------------------ |
-|   201403946   | Victor Abdiel Lux Juracan       |
-| ~~201408473~~ | ~~Josue Daniel Caal Torres~~    |
-|   201900364   | Tomas Alexander Morales Saquic  |
-|   202001151   | Derek Francisco Orellana Ibanez |
-|   202201405   | Johan Moises Cardona Rosales    |
+|   Carne   | Nombre Completo                 |
+| :-------: | :------------------------------ |
+| 201403946 | Victor Abdiel Lux Juracan       |
+| 201900364 | Tomas Alexander Morales Saquic  |
+| 202001151 | Derek Francisco Orellana Ibanez |
+| 202201405 | Johan Moises Cardona Rosales    |
 
 </div>
 

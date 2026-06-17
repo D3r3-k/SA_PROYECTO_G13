@@ -260,6 +260,7 @@ jobs:
             --from-literal=CATALOG_GRPC_URL=catalog-service:50055 \
             --from-literal=ENGAGEMENT_GRPC_URL=engagement-service:50056 \
             --from-literal=PAYMENT_GRPC_URL=payment-gateway-service:50057 \
+            --from-literal=ADMIN_EMAILS="${{ vars.ADMIN_EMAILS }}" \
             --from-literal=IDENTITY_DB_HOST=${CLOUD_SQL_PRIVATE_IP} \
             --from-literal=IDENTITY_DB_PORT=5432 \
             --from-literal=IDENTITY_DB_NAME=identity_db \
