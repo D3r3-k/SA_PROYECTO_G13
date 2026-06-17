@@ -673,3 +673,33 @@ gcloud compute networks subnets list --regions=$env:REGION --filter="name=$env:G
 
 > [!WARNING]
 > No ejecute comandos de borrado contra `qx-postgres`, `qx-redis` ni `qx-media-sa-derek-proyecto` mientras el ambiente `develop` los siga usando.
+
+---
+
+## Paso 18. Limpiar datos compartidos (Bases de datos y Bucket)
+
+> [!WARNING]
+> Las bases de datos y el bucket de Cloud Storage son **compartidos** entre `develop` y `release`. Si limpia estos datos, vaciara la informacion para ambos ambientes.
+
+Si desea limpiar todos los datos generados (usuarios, subscripciones, catalogo, etc.) y los archivos subidos, sin destruir la infraestructura compartida, puede recrear las bases de datos y vaciar el bucket:
+
+```powershell
+gcloud sql databases delete identity_db --instance=qx-postgres --quiet
+gcloud sql databases delete subscription_db --instance=qx-postgres --quiet
+gcloud sql databases delete catalog_db --instance=qx-postgres --quiet
+gcloud sql databases delete engagement_db --instance=qx-postgres --quiet
+
+gcloud sql databases create identity_db --instance=qx-postgres
+gcloud sql databases create subscription_db --instance=qx-postgres
+gcloud sql databases create catalog_db --instance=qx-postgres
+gcloud sql databases create engagement_db --instance=qx-postgres
+```
+
+Vaciar todos los archivos del bucket:
+
+```powershell
+gcloud storage rm gs://$env:BUCKET_NAME/**
+```
+
+> [!TIP]
+> Despues de ejecutar estos comandos, los microservicios aplicaran sus migraciones automaticamente la proxima vez que reinicien o cuando se ejecute un nuevo despliegue en GitHub Actions.
