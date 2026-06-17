@@ -523,6 +523,7 @@ BEGIN
 END;
 $$;
 
+DROP FUNCTION IF EXISTS fn_catalog_list(text,text,text,integer,integer);
 CREATE OR REPLACE FUNCTION fn_catalog_list(
     p_type TEXT,
     p_genre TEXT,
