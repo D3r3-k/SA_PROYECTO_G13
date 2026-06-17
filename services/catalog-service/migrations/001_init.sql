@@ -50,6 +50,7 @@ CREATE TABLE IF NOT EXISTS episodes (
     runtime_minutes INTEGER NOT NULL DEFAULT 0,
     media_url TEXT NOT NULL DEFAULT '',
     media_mime_type TEXT NOT NULL DEFAULT '',
+    deleted_at TIMESTAMPTZ,
     UNIQUE(content_id, season_number, episode_number)
 );
 
@@ -86,6 +87,7 @@ ALTER TABLE contents ADD COLUMN IF NOT EXISTS available_from TIMESTAMPTZ NOT NUL
 ALTER TABLE contents ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
 ALTER TABLE episodes ADD COLUMN IF NOT EXISTS media_url TEXT NOT NULL DEFAULT '';
 ALTER TABLE episodes ADD COLUMN IF NOT EXISTS media_mime_type TEXT NOT NULL DEFAULT '';
+ALTER TABLE episodes ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
 
 CREATE OR REPLACE FUNCTION fn_normalize_search_text(value TEXT)
 RETURNS TEXT AS $$
