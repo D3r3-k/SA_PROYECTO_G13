@@ -19,10 +19,12 @@ env:
   VM_GATEWAY_NAME: ${{ vars.VM_GATEWAY_NAME }}
   VM_SERVICES_NAME: ${{ vars.VM_SERVICES_NAME }}
   GCS_BUCKET_NAME: ${{ vars.GCS_BUCKET_NAME }}
+  SQL_INSTANCE_NAME: "dev-postgres"
+  REDIS_INSTANCE_NAME: "dev-redis"
 
 jobs:
   ci-checks:
-    name: CI checks
+    name: Validar CI
     runs-on: ubuntu-latest
     environment: develop
 
@@ -113,13 +115,13 @@ jobs:
 
           for database in identity_db subscription_db catalog_db engagement_db
           do
-            gcloud sql export sql qx-postgres "${backup_prefix}/${database}.sql" \
+            gcloud sql export sql ${{ env.SQL_INSTANCE_NAME }} "${backup_prefix}/${database}.sql" \
               --database="${database}" \
               --quiet
           done
 
   build-and-push:
-    name: Build and push images
+    name: Build and Push
     runs-on: ubuntu-latest
     environment: develop
     needs: backup-cloud-sql
@@ -179,11 +181,51 @@ jobs:
             ${{ env.IMAGE_NAMESPACE }}/${{ matrix.image }}:latest
             ${{ env.IMAGE_NAMESPACE }}/${{ matrix.image }}:${{ github.sha }}
 
-  deploy:
-    name: Deploy to VMs
+  migrate-databases:
+    name: Migrar DBs
     runs-on: ubuntu-latest
     environment: develop
     needs: build-and-push
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+          project_id: ${{ env.GCP_PROJECT_ID }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure gcloud project
+        run: gcloud config set project "${GCP_PROJECT_ID}"
+
+      - name: Get Cloud SQL IP
+        run: |
+          CLOUD_SQL_IP=$(gcloud sql instances describe ${{ env.SQL_INSTANCE_NAME }} --format='value(ipAddresses[0].ipAddress)')
+          echo "CLOUD_SQL_PRIVATE_IP=${CLOUD_SQL_IP}" >> $GITHUB_ENV
+
+      - name: Run migrations
+        shell: bash
+        env:
+          GCP_ZONE: ${{ env.GCP_ZONE }}
+          VM_SERVICES_NAME: ${{ env.VM_SERVICES_NAME }}
+          IDENTITY_DB_PASSWORD: ${{ secrets.IDENTITY_DB_PASSWORD }}
+          SUBSCRIPTION_DB_PASSWORD: ${{ secrets.SUBSCRIPTION_DB_PASSWORD }}
+          CATALOG_DB_PASSWORD: ${{ secrets.CATALOG_DB_PASSWORD }}
+          ENGAGEMENT_DB_PASSWORD: ${{ secrets.ENGAGEMENT_DB_PASSWORD }}
+        run: |
+          chmod +x scripts/migrate-develop.sh
+          ./scripts/migrate-develop.sh
+
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    environment: develop
+    needs: migrate-databases
 
     steps:
       - name: Checkout repository
@@ -211,15 +253,16 @@ jobs:
           ${{ secrets.GCS_BACKEND_SERVICE_ACCOUNT_KEY }}
           EOF
 
-          CLOUD_SQL_PRIVATE_IP="$(gcloud sql instances describe qx-postgres --format='value(ipAddresses[0].ipAddress)')"
-          REDIS_HOST="$(gcloud redis instances describe qx-redis --region="${GCP_REGION}" --format='value(host)')"
-          REDIS_PORT="$(gcloud redis instances describe qx-redis --region="${GCP_REGION}" --format='value(port)')"
+          CLOUD_SQL_PRIVATE_IP="$(gcloud sql instances describe ${{ env.SQL_INSTANCE_NAME }} --format='value(ipAddresses[0].ipAddress)')"
+          REDIS_HOST="$(gcloud redis instances describe ${{ env.REDIS_INSTANCE_NAME }} --region="${GCP_REGION}" --format='value(host)')"
+          REDIS_PORT="$(gcloud redis instances describe ${{ env.REDIS_INSTANCE_NAME }} --region="${GCP_REGION}" --format='value(port)')"
           SERVICES_PRIVATE_IP="$(gcloud compute instances describe "${VM_SERVICES_NAME}" --zone="${GCP_ZONE}" --format='value(networkInterfaces[0].networkIP)')"
           GATEWAY_PRIVATE_IP="$(gcloud compute instances describe "${VM_GATEWAY_NAME}" --zone="${GCP_ZONE}" --format='value(networkInterfaces[0].networkIP)')"
           FRONTEND_PUBLIC_IP="$(gcloud compute instances describe "${VM_FRONTEND_NAME}" --zone="${GCP_ZONE}" --format='value(networkInterfaces[0].accessConfigs[0].natIP)')"
 
           cat > runtime-envs/services.env <<EOF
           NODE_ENV=production
+          RUN_MIGRATIONS=false
           JWT_SECRET=${{ secrets.JWT_SECRET }}
           JWT_EXPIRES_IN=1d
 
@@ -342,14 +385,7 @@ jobs:
                 --tunnel-through-iap \
                 --command="chmod 600 ${remote_dir}/secrets/gcp-service-account.json"
 
-              gcloud compute scp --recurse "services/identity-service/migrations" "${vm_name}:${remote_dir}/identity-migrations" \
-                --zone="${GCP_ZONE}" \
-                --tunnel-through-iap
 
-              gcloud compute ssh "${vm_name}" \
-                --zone="${GCP_ZONE}" \
-                --tunnel-through-iap \
-                --command="cd ${remote_dir} && sudo docker run --rm --env-file .env -v \"\$(pwd)/identity-migrations:/migrations:ro\" postgres:16-alpine sh -c 'export PGPASSWORD=\"\$DB_PASSWORD\"; for dir in 01_extensions 02_tables 03_functions 04_views 05_procedures 06_triggers; do for file in /migrations/\$dir/*.sql; do [ -f \"\$file\" ] && psql -h \"\$DB_HOST\" -p \"\$DB_PORT\" -U \"\$DB_USER\" -d \"\$DB_NAME\" -v ON_ERROR_STOP=1 -f \"\$file\"; done; done'"
             fi
 
             gcloud compute ssh "${vm_name}" \
@@ -363,7 +399,7 @@ jobs:
           deploy_role "${VM_FRONTEND_NAME}" "frontend"
 
   smoke-test:
-    name: Smoke test deployment
+    name: Tests
     runs-on: ubuntu-latest
     environment: develop
     needs: deploy

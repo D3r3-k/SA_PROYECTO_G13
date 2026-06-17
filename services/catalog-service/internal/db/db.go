@@ -28,14 +28,31 @@ func ApplyMigrations(ctx context.Context, pool *pgxpool.Pool, migrationsDir stri
 		return err
 	}
 	sort.Strings(files)
+
+	conn, err := pool.Acquire(ctx)
+	if err != nil {
+		return fmt.Errorf("[catalog-service] Error: acquire migration connection: %w", err)
+	}
+	defer conn.Release()
+
 	for _, file := range files {
 		sqlBytes, err := os.ReadFile(file)
 		if err != nil {
-			return fmt.Errorf("read migration %s: %w", file, err)
+			return fmt.Errorf("[catalog-service] Error: read migration %s: %w", file, err)
 		}
-		if _, err := pool.Exec(ctx, string(sqlBytes)); err != nil {
-			return fmt.Errorf("apply migration %s: %w", file, err)
+		// pgconn.Exec usa simple query protocol, que soporta multi-statement SQL
+		// con BEGIN/COMMIT explicito (a diferencia del extended protocol de pool.Exec).
+		mrr := conn.Conn().PgConn().Exec(ctx, string(sqlBytes))
+		for mrr.NextResult() {
+			if _, err := mrr.ResultReader().Close(); err != nil {
+				_ = mrr.Close()
+				return fmt.Errorf("[catalog-service] Error: apply migration %s: %w", file, err)
+			}
+		}
+		if err := mrr.Close(); err != nil {
+			return fmt.Errorf("[catalog-service] Error: apply migration %s: %w", file, err)
 		}
 	}
 	return nil
 }
+

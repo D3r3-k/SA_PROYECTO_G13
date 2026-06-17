@@ -1,3 +1,4 @@
+BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 CREATE TABLE IF NOT EXISTS contents (
@@ -797,3 +798,4 @@ CREATE TRIGGER trg_audit_episodes AFTER INSERT OR UPDATE ON episodes FOR EACH RO
 
 DROP TRIGGER IF EXISTS trg_audit_sync_audit ON sync_audit;
 CREATE TRIGGER trg_audit_sync_audit AFTER INSERT OR UPDATE ON sync_audit FOR EACH ROW EXECUTE FUNCTION fn_standard_audit_log();
+COMMIT;
