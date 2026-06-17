@@ -14,7 +14,7 @@ El objetivo es dejar documentado el proceso completo desde cero, incluyendo VPC,
 > Los pasos se documentan como una construccion desde cero para produccion, pero cuando el recurso ya exista se debe validar y continuar reutilizandolo.
 
 ## Arquitectura del entorno
-
+ 
 | Componente     | Recurso GCP / Kubernetes                                                                  |
 | -------------- | ----------------------------------------------------------------------------------------- |
 | Orquestacion   | Google Kubernetes Engine (`qx-gke-release`)                                               |
