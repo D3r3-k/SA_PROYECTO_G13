@@ -251,6 +251,57 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE PROCEDURE sp_update_content_media(
+    IN p_content_id UUID,
+    IN p_media_type TEXT,
+    IN p_object_key TEXT,
+    IN p_content_type TEXT
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    IF COALESCE(p_media_type, '') = 'poster' THEN
+        UPDATE contents
+        SET poster_path = COALESCE(p_object_key, ''),
+            updated_at = NOW()
+        WHERE id = p_content_id;
+    ELSIF COALESCE(p_media_type, '') = 'movie_video' THEN
+        UPDATE contents
+        SET media_url = COALESCE(p_object_key, ''),
+            media_mime_type = COALESCE(p_content_type, ''),
+            updated_at = NOW()
+        WHERE id = p_content_id;
+    ELSE
+        RAISE EXCEPTION 'invalid media_type: %', p_media_type;
+    END IF;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'content not found: %', p_content_id;
+    END IF;
+END;
+$$;
+
+CREATE OR REPLACE PROCEDURE sp_update_episode_media(
+    IN p_content_id UUID,
+    IN p_episode_id UUID,
+    IN p_object_key TEXT,
+    IN p_content_type TEXT
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    UPDATE episodes
+    SET media_url = COALESCE(p_object_key, ''),
+        media_mime_type = COALESCE(p_content_type, '')
+    WHERE id = p_episode_id
+      AND content_id = p_content_id;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'episode not found: %', p_episode_id;
+    END IF;
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION fn_catalog_list(
     p_type TEXT,
     p_genre TEXT,

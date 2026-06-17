@@ -1,0 +1,106 @@
+version: "3.8"
+
+services:
+  identity-service:
+    image: ghcr.io/d3r3-k/sa_proyecto_g13/identity-service:latest
+    container_name: identity-service
+    restart: unless-stopped
+    ports:
+      - "${IDENTITY_GRPC_PORT}:${IDENTITY_GRPC_PORT}"
+    env_file:
+      - .env
+    environment:
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+    networks:
+      - sa_net
+
+  fx-service:
+    image: ghcr.io/d3r3-k/sa_proyecto_g13/fx-service:latest
+    container_name: sa_fx_service
+    restart: unless-stopped
+    ports:
+      - "${FX_GRPC_PORT}:${FX_GRPC_PORT}"
+    env_file:
+      - .env
+    networks:
+      - sa_net
+
+  payment-gateway-service:
+    image: ghcr.io/d3r3-k/sa_proyecto_g13/payment-gateway-service:latest
+    container_name: payment-gateway-service
+    restart: unless-stopped
+    ports:
+      - "${PAYMENT_GRPC_PORT}:${PAYMENT_GRPC_PORT}"
+    env_file:
+      - .env
+    networks:
+      - sa_net
+
+  subscription-service:
+    image: ghcr.io/d3r3-k/sa_proyecto_g13/subscription-service:latest
+    container_name: sa_subscription_service
+    restart: unless-stopped
+    ports:
+      - "${SUBSCRIPTION_GRPC_PORT}:${SUBSCRIPTION_GRPC_PORT}"
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: ${SUBSCRIPTION_DATABASE_URL}
+    networks:
+      - sa_net
+
+  catalog-service:
+    image: ghcr.io/d3r3-k/sa_proyecto_g13/catalog-service:latest
+    container_name: catalog-service
+    restart: unless-stopped
+    ports:
+      - "${CATALOG_GRPC_PORT}:${CATALOG_GRPC_PORT}"
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: ${CATALOG_DATABASE_URL}
+      GCS_PROJECT_ID: ${GCS_PROJECT_ID}
+      GCS_BUCKET_NAME: ${GCS_BUCKET_NAME}
+      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/gcp-service-account.json
+      GCS_SIGNED_UPLOAD_EXPIRES_MINUTES: ${GCS_SIGNED_UPLOAD_EXPIRES_MINUTES}
+      GCS_SIGNED_READ_EXPIRES_MINUTES: ${GCS_SIGNED_READ_EXPIRES_MINUTES}
+      GCS_ALLOWED_IMAGE_TYPES: ${GCS_ALLOWED_IMAGE_TYPES}
+      GCS_ALLOWED_VIDEO_TYPES: ${GCS_ALLOWED_VIDEO_TYPES}
+      GCS_MAX_IMAGE_MB: ${GCS_MAX_IMAGE_MB}
+      GCS_MAX_VIDEO_MB: ${GCS_MAX_VIDEO_MB}
+    volumes:
+      - ./secrets/gcp-service-account.json:/run/secrets/gcp-service-account.json:ro
+    networks:
+      - sa_net
+
+  engagement-service:
+    image: ghcr.io/d3r3-k/sa_proyecto_g13/engagement-service:latest
+    container_name: engagement-service
+    restart: unless-stopped
+    ports:
+      - "${ENGAGEMENT_GRPC_PORT}:${ENGAGEMENT_GRPC_PORT}"
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: ${ENGAGEMENT_DATABASE_URL}
+    networks:
+      - sa_net
+
+  notification-service:
+    image: ghcr.io/d3r3-k/sa_proyecto_g13/notification-service:latest
+    container_name: sa_notification_service
+    restart: unless-stopped
+    ports:
+      - "${NOTIFICATION_GRPC_PORT:-50054}:50054"
+    env_file:
+      - .env
+    networks:
+      - sa_net
+
+networks:
+  sa_net:
+    driver: bridge

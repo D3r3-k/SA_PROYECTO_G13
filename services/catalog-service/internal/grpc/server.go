@@ -37,6 +37,10 @@ func New(repo repository.Repository, svc catalogsvc.Service) (*Server, error) {
 			{MethodName: "SearchContent", Handler: s.searchHandler},
 			{MethodName: "GetContentDetail", Handler: s.detailHandler},
 			{MethodName: "ListEpisodes", Handler: s.episodesHandler},
+			{MethodName: "CreateContent", Handler: s.createContentHandler},
+			{MethodName: "GenerateUploadUrl", Handler: s.generateUploadURLHandler},
+			{MethodName: "ConfirmMedia", Handler: s.confirmMediaHandler},
+			{MethodName: "DeleteContent", Handler: s.deleteContentHandler},
 		},
 	}, s)
 	return s, nil
@@ -57,8 +61,19 @@ func str(m *dynamicpb.Message, f string) string {
 func i32(m *dynamicpb.Message, f string) int32 {
 	return int32(m.Get(m.Descriptor().Fields().ByName(protoreflect.Name(f))).Int())
 }
+func i64(m *dynamicpb.Message, f string) int64 {
+	return m.Get(m.Descriptor().Fields().ByName(protoreflect.Name(f))).Int()
+}
 func boolv(m *dynamicpb.Message, f string) bool {
 	return m.Get(m.Descriptor().Fields().ByName(protoreflect.Name(f))).Bool()
+}
+func strList(m *dynamicpb.Message, f string) []string {
+	list := m.Get(m.Descriptor().Fields().ByName(protoreflect.Name(f))).List()
+	out := []string{}
+	for i := 0; i < list.Len(); i++ {
+		out = append(out, list.Get(i).String())
+	}
+	return out
 }
 func setString(m *dynamicpb.Message, f string, v string) {
 	m.Set(m.Descriptor().Fields().ByName(protoreflect.Name(f)), protoreflect.ValueOfString(v))
@@ -166,6 +181,95 @@ func (s *Server) episodesHandler(_ interface{}, ctx context.Context, dec func(in
 	}
 	return res, nil
 }
+func (s *Server) createContentHandler(_ interface{}, ctx context.Context, dec func(interface{}) error, _ grpc.UnaryServerInterceptor) (interface{}, error) {
+	req, err := s.decode(ctx, dec, "CreateContentRequest")
+	if err != nil {
+		return nil, err
+	}
+	result := s.svc.CreateAdminContent(ctx, catalogsvc.AdminContentInput{
+		Type:        str(req, "type"),
+		Title:       str(req, "title"),
+		Overview:    str(req, "overview"),
+		ReleaseDate: str(req, "release_date"),
+		Genres:      strList(req, "genres"),
+		Cast:        s.adminCastInputs(req),
+		Episodes:    s.adminEpisodeInputs(req),
+	})
+	res := s.newMsg("CreateContentResponse")
+	setBool(res, "success", result.Success)
+	setString(res, "message", result.Message)
+	setString(res, "content_id", result.ContentID)
+	list := res.Mutable(res.Descriptor().Fields().ByName("episodes")).List()
+	for _, item := range result.Episodes {
+		episode := s.newMsg("CreatedEpisode")
+		setString(episode, "episode_id", item.EpisodeID)
+		setInt32(episode, "season_number", int32(item.SeasonNumber))
+		setInt32(episode, "episode_number", int32(item.EpisodeNumber))
+		setString(episode, "title", item.Title)
+		list.Append(protoreflect.ValueOfMessage(episode))
+	}
+	return res, nil
+}
+func (s *Server) generateUploadURLHandler(_ interface{}, ctx context.Context, dec func(interface{}) error, _ grpc.UnaryServerInterceptor) (interface{}, error) {
+	req, err := s.decode(ctx, dec, "GenerateUploadUrlRequest")
+	if err != nil {
+		return nil, err
+	}
+	result, err := s.svc.GenerateUploadURL(catalogsvc.UploadURLRequest{
+		ContentID:   str(req, "content_id"),
+		EpisodeID:   str(req, "episode_id"),
+		MediaType:   str(req, "media_type"),
+		FileName:    str(req, "file_name"),
+		ContentType: str(req, "content_type"),
+		SizeBytes:   i64(req, "size_bytes"),
+	})
+	res := s.newMsg("GenerateUploadUrlResponse")
+	if err != nil {
+		setBool(res, "success", false)
+		setString(res, "message", err.Error())
+		return res, nil
+	}
+	setBool(res, "success", true)
+	setString(res, "message", "upload url generated")
+	setString(res, "upload_url", result.UploadURL)
+	setString(res, "object_key", result.ObjectKey)
+	setInt32(res, "expires_in_minutes", int32(result.ExpiresInMinutes))
+	return res, nil
+}
+func (s *Server) confirmMediaHandler(_ interface{}, ctx context.Context, dec func(interface{}) error, _ grpc.UnaryServerInterceptor) (interface{}, error) {
+	req, err := s.decode(ctx, dec, "ConfirmMediaRequest")
+	if err != nil {
+		return nil, err
+	}
+	res := s.newMsg("BasicCatalogResponse")
+	err = s.svc.ConfirmMedia(ctx, catalogsvc.ConfirmMediaInput{
+		ContentID:   str(req, "content_id"),
+		EpisodeID:   str(req, "episode_id"),
+		MediaType:   str(req, "media_type"),
+		ObjectKey:   str(req, "object_key"),
+		ContentType: str(req, "content_type"),
+	})
+	if err != nil {
+		setBool(res, "success", false)
+		setString(res, "message", err.Error())
+		return res, nil
+	}
+	setBool(res, "success", true)
+	setString(res, "message", "media confirmed")
+	return res, nil
+}
+func (s *Server) deleteContentHandler(_ interface{}, ctx context.Context, dec func(interface{}) error, _ grpc.UnaryServerInterceptor) (interface{}, error) {
+	req, err := s.decode(ctx, dec, "DeleteContentRequest")
+	if err != nil {
+		return nil, err
+	}
+	result := s.svc.DeleteContent(ctx, str(req, "content_id"))
+	res := s.newMsg("DeleteContentResponse")
+	setBool(res, "success", result.Success)
+	setString(res, "message", result.Message)
+	setInt32(res, "deleted_objects", int32(result.DeletedObjects))
+	return res, nil
+}
 
 func (s *Server) contentListResponse(items []repository.ContentCard, err error) *dynamicpb.Message {
 	res := s.newMsg("ListContentResponse")
@@ -189,9 +293,9 @@ func (s *Server) cardMessage(item repository.ContentCard) protoreflect.Message {
 	setString(m, "type", item.Type)
 	setString(m, "title", item.Title)
 	setString(m, "overview", item.Overview)
-	setString(m, "poster_path", item.PosterPath)
+	setString(m, "poster_path", s.svc.ResolveReadURL(item.PosterPath))
 	setString(m, "release_date", item.ReleaseDate)
-	setString(m, "media_url", item.MediaURL)
+	setString(m, "media_url", s.svc.ResolveReadURL(item.MediaURL))
 	setString(m, "media_mime_type", item.MediaMimeType)
 	setString(m, "source_page_url", item.SourcePageURL)
 	setInt32(m, "seasons_count", int32(item.SeasonsCount))
@@ -220,9 +324,41 @@ func (s *Server) episodeMessage(e repository.Episode) protoreflect.Message {
 	setString(m, "title", e.Title)
 	setString(m, "overview", e.Overview)
 	setInt32(m, "runtime_minutes", int32(e.RuntimeMinutes))
-	setString(m, "media_url", e.MediaURL)
+	setString(m, "media_url", s.svc.ResolveReadURL(e.MediaURL))
 	setString(m, "media_mime_type", e.MediaMimeType)
 	return m
+}
+
+func (s *Server) adminCastInputs(req *dynamicpb.Message) []catalogsvc.AdminCastInput {
+	field := req.Descriptor().Fields().ByName("cast")
+	list := req.Get(field).List()
+	out := []catalogsvc.AdminCastInput{}
+	for i := 0; i < list.Len(); i++ {
+		msg := list.Get(i).Message()
+		out = append(out, catalogsvc.AdminCastInput{
+			ActorName:     msg.Get(msg.Descriptor().Fields().ByName("actor_name")).String(),
+			CharacterName: msg.Get(msg.Descriptor().Fields().ByName("character_name")).String(),
+			OrderIndex:    int(msg.Get(msg.Descriptor().Fields().ByName("order_index")).Int()),
+		})
+	}
+	return out
+}
+
+func (s *Server) adminEpisodeInputs(req *dynamicpb.Message) []catalogsvc.AdminEpisodeInput {
+	field := req.Descriptor().Fields().ByName("episodes")
+	list := req.Get(field).List()
+	out := []catalogsvc.AdminEpisodeInput{}
+	for i := 0; i < list.Len(); i++ {
+		msg := list.Get(i).Message()
+		out = append(out, catalogsvc.AdminEpisodeInput{
+			SeasonNumber:   int(msg.Get(msg.Descriptor().Fields().ByName("season_number")).Int()),
+			EpisodeNumber:  int(msg.Get(msg.Descriptor().Fields().ByName("episode_number")).Int()),
+			Title:          msg.Get(msg.Descriptor().Fields().ByName("title")).String(),
+			Overview:       msg.Get(msg.Descriptor().Fields().ByName("overview")).String(),
+			RuntimeMinutes: int(msg.Get(msg.Descriptor().Fields().ByName("runtime_minutes")).Int()),
+		})
+	}
+	return out
 }
 
 func buildDescriptors() (map[string]protoreflect.MessageDescriptor, error) {
@@ -243,6 +379,7 @@ func buildDescriptors() (map[string]protoreflect.MessageDescriptor, error) {
 	tStr := descriptorpb.FieldDescriptorProto_TYPE_STRING
 	tBool := descriptorpb.FieldDescriptorProto_TYPE_BOOL
 	tI32 := descriptorpb.FieldDescriptorProto_TYPE_INT32
+	tI64 := descriptorpb.FieldDescriptorProto_TYPE_INT64
 	tMsg := descriptorpb.FieldDescriptorProto_TYPE_MESSAGE
 	file := &descriptorpb.FileDescriptorProto{Syntax: strPtr("proto3"), Name: strPtr("catalog.proto"), Package: strPtr("catalog"), MessageType: []*descriptorpb.DescriptorProto{
 		msg("CatalogHealthRequest"), msg("CatalogHealthResponse", field("success", 1, tBool, opt, ""), field("status", 2, tStr, opt, ""), field("database", 3, tBool, opt, "")),
@@ -256,6 +393,17 @@ func buildDescriptors() (map[string]protoreflect.MessageDescriptor, error) {
 		msg("ListContentResponse", field("success", 1, tBool, opt, ""), field("message", 2, tStr, opt, ""), field("items", 3, tMsg, rep, ".catalog.ContentCard")),
 		msg("Episode", field("episode_id", 1, tStr, opt, ""), field("content_id", 2, tStr, opt, ""), field("season_number", 3, tI32, opt, ""), field("episode_number", 4, tI32, opt, ""), field("title", 5, tStr, opt, ""), field("overview", 6, tStr, opt, ""), field("runtime_minutes", 7, tI32, opt, ""), field("media_url", 8, tStr, opt, ""), field("media_mime_type", 9, tStr, opt, "")),
 		msg("ListEpisodesResponse", field("success", 1, tBool, opt, ""), field("message", 2, tStr, opt, ""), field("episodes", 3, tMsg, rep, ".catalog.Episode")),
+		msg("AdminCastInput", field("actor_name", 1, tStr, opt, ""), field("character_name", 2, tStr, opt, ""), field("order_index", 3, tI32, opt, "")),
+		msg("AdminEpisodeInput", field("season_number", 1, tI32, opt, ""), field("episode_number", 2, tI32, opt, ""), field("title", 3, tStr, opt, ""), field("overview", 4, tStr, opt, ""), field("runtime_minutes", 5, tI32, opt, "")),
+		msg("CreateContentRequest", field("type", 1, tStr, opt, ""), field("title", 2, tStr, opt, ""), field("overview", 3, tStr, opt, ""), field("release_date", 4, tStr, opt, ""), field("genres", 5, tStr, rep, ""), field("cast", 6, tMsg, rep, ".catalog.AdminCastInput"), field("episodes", 7, tMsg, rep, ".catalog.AdminEpisodeInput")),
+		msg("CreatedEpisode", field("episode_id", 1, tStr, opt, ""), field("season_number", 2, tI32, opt, ""), field("episode_number", 3, tI32, opt, ""), field("title", 4, tStr, opt, "")),
+		msg("CreateContentResponse", field("success", 1, tBool, opt, ""), field("message", 2, tStr, opt, ""), field("content_id", 3, tStr, opt, ""), field("episodes", 4, tMsg, rep, ".catalog.CreatedEpisode")),
+		msg("GenerateUploadUrlRequest", field("content_id", 1, tStr, opt, ""), field("episode_id", 2, tStr, opt, ""), field("media_type", 3, tStr, opt, ""), field("file_name", 4, tStr, opt, ""), field("content_type", 5, tStr, opt, ""), field("size_bytes", 6, tI64, opt, "")),
+		msg("GenerateUploadUrlResponse", field("success", 1, tBool, opt, ""), field("message", 2, tStr, opt, ""), field("upload_url", 3, tStr, opt, ""), field("object_key", 4, tStr, opt, ""), field("expires_in_minutes", 5, tI32, opt, "")),
+		msg("ConfirmMediaRequest", field("content_id", 1, tStr, opt, ""), field("episode_id", 2, tStr, opt, ""), field("media_type", 3, tStr, opt, ""), field("object_key", 4, tStr, opt, ""), field("content_type", 5, tStr, opt, "")),
+		msg("BasicCatalogResponse", field("success", 1, tBool, opt, ""), field("message", 2, tStr, opt, "")),
+		msg("DeleteContentRequest", field("content_id", 1, tStr, opt, "")),
+		msg("DeleteContentResponse", field("success", 1, tBool, opt, ""), field("message", 2, tStr, opt, ""), field("deleted_objects", 3, tI32, opt, "")),
 	}}
 	fd, err := protodesc.NewFile(file, nil)
 	if err != nil {

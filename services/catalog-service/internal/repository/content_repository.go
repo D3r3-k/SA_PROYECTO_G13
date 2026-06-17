@@ -35,6 +35,10 @@ type Detail struct {
 	Cast    []CastMember
 }
 
+type DeletedContentMedia struct {
+	ObjectKeys []string
+}
+
 func (r Repository) Ping(ctx context.Context) error { return r.DB.Ping(ctx) }
 
 func (r Repository) ClearCatalog(ctx context.Context) error {
@@ -106,6 +110,90 @@ func (r Repository) UpsertContent(ctx context.Context, seed provider.ContentSeed
 	return contentID, nil
 }
 
+func (r Repository) CreateAdminContent(ctx context.Context, seed provider.ContentSeed) (string, []Episode, error) {
+	if strings.TrimSpace(seed.ExternalID) == "" {
+		var generatedID string
+		if err := r.DB.QueryRow(ctx, "SELECT gen_random_uuid()::TEXT;").Scan(&generatedID); err != nil {
+			return "", nil, err
+		}
+		seed.ExternalID = "admin-" + generatedID
+	}
+	contentID, err := r.UpsertContent(ctx, seed)
+	if err != nil {
+		return "", nil, err
+	}
+	episodes, err := r.AllEpisodes(ctx, contentID)
+	if err != nil {
+		return "", nil, err
+	}
+	return contentID, episodes, nil
+}
+
+func (r Repository) UpdateContentMedia(ctx context.Context, contentID string, mediaType string, objectKey string, contentType string) error {
+	_, err := r.DB.Exec(ctx, "CALL sp_update_content_media($1::uuid,$2,$3,$4);", contentID, mediaType, objectKey, contentType)
+	return err
+}
+
+func (r Repository) UpdateEpisodeMedia(ctx context.Context, contentID string, episodeID string, objectKey string, contentType string) error {
+	_, err := r.DB.Exec(ctx, "CALL sp_update_episode_media($1::uuid,$2::uuid,$3,$4);", contentID, episodeID, objectKey, contentType)
+	return err
+}
+
+func (r Repository) ContentMediaKeys(ctx context.Context, contentID string) (DeletedContentMedia, bool, error) {
+	rows, err := r.DB.Query(ctx, `
+        SELECT object_key
+        FROM (
+            SELECT poster_path AS object_key
+            FROM contents
+            WHERE id = $1::uuid
+            UNION ALL
+            SELECT media_url AS object_key
+            FROM contents
+            WHERE id = $1::uuid
+            UNION ALL
+            SELECT media_url AS object_key
+            FROM episodes
+            WHERE content_id = $1::uuid
+        ) media
+        WHERE object_key LIKE 'covers/%'
+           OR object_key LIKE 'videos/%';`, contentID)
+	if err != nil {
+		return DeletedContentMedia{}, false, err
+	}
+	defer rows.Close()
+
+	keys := []string{}
+	for rows.Next() {
+		var key string
+		if err := rows.Scan(&key); err != nil {
+			return DeletedContentMedia{}, false, err
+		}
+		if strings.TrimSpace(key) != "" {
+			keys = append(keys, key)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return DeletedContentMedia{}, false, err
+	}
+
+	var exists bool
+	if err := r.DB.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM contents WHERE id = $1::uuid);", contentID).Scan(&exists); err != nil {
+		return DeletedContentMedia{}, false, err
+	}
+	return DeletedContentMedia{ObjectKeys: keys}, exists, nil
+}
+
+func (r Repository) DeleteContent(ctx context.Context, contentID string) error {
+	tag, err := r.DB.Exec(ctx, "DELETE FROM contents WHERE id = $1::uuid;", contentID)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return pgx.ErrNoRows
+	}
+	return nil
+}
+
 func (r Repository) InsertAudit(ctx context.Context, providerName string, success bool, message string, contents int, episodes int) {
 	_, _ = r.DB.Exec(ctx, "CALL sp_insert_sync_audit($1,$2,$3,$4,$5);", providerName, success, message, contents, episodes)
 }
@@ -172,6 +260,27 @@ func (r Repository) Episodes(ctx context.Context, id string, season int) ([]Epis
 	rows, err := r.DB.Query(ctx, `
         SELECT episode_id, content_id, season_number, episode_number, title, overview, runtime_minutes, media_url, media_mime_type
         FROM fn_catalog_episodes($1::uuid, $2);`, id, season)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Episode{}
+	for rows.Next() {
+		var item Episode
+		if err := rows.Scan(&item.EpisodeID, &item.ContentID, &item.SeasonNumber, &item.EpisodeNumber, &item.Title, &item.Overview, &item.RuntimeMinutes, &item.MediaURL, &item.MediaMimeType); err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+	return items, rows.Err()
+}
+
+func (r Repository) AllEpisodes(ctx context.Context, id string) ([]Episode, error) {
+	rows, err := r.DB.Query(ctx, `
+        SELECT id::TEXT, content_id::TEXT, season_number, episode_number, title, overview, runtime_minutes, media_url, media_mime_type
+        FROM episodes
+        WHERE content_id = $1::uuid
+        ORDER BY season_number, episode_number;`, id)
 	if err != nil {
 		return nil, err
 	}

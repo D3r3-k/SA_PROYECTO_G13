@@ -9,6 +9,14 @@ import (
 type Config struct {
 	Port                     string
 	DatabaseURL              string
+	GCSProjectID             string
+	GCSBucketName            string
+	GCSSignedUploadExpires   int
+	GCSSignedReadExpires     int
+	GCSAllowedImageTypes     []string
+	GCSAllowedVideoTypes     []string
+	GCSMaxImageMB            int
+	GCSMaxVideoMB            int
 	ArchiveMetadataBaseURL   string
 	ArchiveDownloadBaseURL   string
 	ArchiveImageBaseURL      string
@@ -27,6 +35,14 @@ func Load() Config {
 	return Config{
 		Port:                     getEnv("CATALOG_GRPC_PORT", "50055"),
 		DatabaseURL:              getEnv("DATABASE_URL", "postgresql://catalog_user:catalog_password@catalog-db:5432/catalog_db"),
+		GCSProjectID:             getEnv("GCS_PROJECT_ID", getEnv("GOOGLE_CLOUD_PROJECT", "")),
+		GCSBucketName:            getEnv("GCS_BUCKET_NAME", ""),
+		GCSSignedUploadExpires:   getInt("GCS_SIGNED_UPLOAD_EXPIRES_MINUTES", 15),
+		GCSSignedReadExpires:     getInt("GCS_SIGNED_READ_EXPIRES_MINUTES", 60),
+		GCSAllowedImageTypes:     splitList(getEnv("GCS_ALLOWED_IMAGE_TYPES", "image/jpeg,image/png,image/webp")),
+		GCSAllowedVideoTypes:     splitList(getEnv("GCS_ALLOWED_VIDEO_TYPES", "video/mp4,video/webm")),
+		GCSMaxImageMB:            getInt("GCS_MAX_IMAGE_MB", 10),
+		GCSMaxVideoMB:            getInt("GCS_MAX_VIDEO_MB", 1024),
 		ArchiveMetadataBaseURL:   getEnv("ARCHIVE_METADATA_BASE_URL", "https://archive.org/metadata"),
 		ArchiveDownloadBaseURL:   getEnv("ARCHIVE_DOWNLOAD_BASE_URL", "https://archive.org/download"),
 		ArchiveImageBaseURL:      getEnv("ARCHIVE_IMAGE_BASE_URL", "https://archive.org/services/img"),

@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import AuthLayout from '../layouts/AuthLayout'
 import styles from './AuthPage.module.css'
@@ -7,6 +7,8 @@ import styles from './AuthPage.module.css'
 export default function LoginPage() {
   const { login } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
+  const infoMessage = (location.state as { message?: string } | null)?.message ?? ''
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -62,7 +64,8 @@ export default function LoginPage() {
           />
         </div>
 
-        {error && <p className={styles.errorMsg}>{error}</p>}
+        {infoMessage && <p className={styles.infoMsg}>{infoMessage}</p>}
+      {error && <p className={styles.errorMsg}>{error}</p>}
 
         <button
           type="submit"
