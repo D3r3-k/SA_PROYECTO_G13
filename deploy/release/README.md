@@ -390,21 +390,21 @@ El pipeline automatizado requiere que los secretos y variables maestras vivan en
 
 ### Secrets requeridos
 
-| Secret                            | Descripcion                                     |
-| --------------------------------- | ----------------------------------------------- |
-| `GCP_SERVICE_ACCOUNT_KEY`         | JSON del service account de CI/CD (se creará en el siguiente paso) |
+| Secret                            | Descripcion                                                          |
+| --------------------------------- | -------------------------------------------------------------------- |
+| `GCP_SERVICE_ACCOUNT_KEY`         | JSON del service account de CI/CD (se creará en el siguiente paso)   |
 | `GCS_BACKEND_SERVICE_ACCOUNT_KEY` | JSON del service account `catalog-media-signer` (generado en Paso 5) |
-| `GHCR_USERNAME`                   | Usuario de GitHub                               |
-| `GHCR_TOKEN`                      | Token de GitHub con permiso `read:packages` y `write:packages` |
-| `JWT_SECRET`                      | Cadena segura para firmar JWT                   |
-| `IDENTITY_DB_PASSWORD`            | Password de `identity_user` (`admin1234`)       |
-| `SUBSCRIPTION_DB_PASSWORD`        | Password de `subscription_user` (`admin1234`)   |
-| `CATALOG_DB_PASSWORD`             | Password de `catalog_user` (`admin1234`)        |
-| `ENGAGEMENT_DB_PASSWORD`          | Password de `engagement_user` (`admin1234`)     |
-| `SMTP_HOST`                       | Host del servidor SMTP                          |
-| `SMTP_USERNAME`                   | Usuario SMTP                                    |
-| `SMTP_PASSWORD`                   | Password SMTP                                   |
-| `SMTP_FROM`                       | Correo remitente                                |
+| `GHCR_USERNAME`                   | Usuario de GitHub                                                    |
+| `GHCR_TOKEN`                      | Token de GitHub con permiso `read:packages` y `write:packages`       |
+| `JWT_SECRET`                      | Cadena segura para firmar JWT                                        |
+| `IDENTITY_DB_PASSWORD`            | Password de `identity_user` (`admin1234`)                            |
+| `SUBSCRIPTION_DB_PASSWORD`        | Password de `subscription_user` (`admin1234`)                        |
+| `CATALOG_DB_PASSWORD`             | Password de `catalog_user` (`admin1234`)                             |
+| `ENGAGEMENT_DB_PASSWORD`          | Password de `engagement_user` (`admin1234`)                          |
+| `SMTP_HOST`                       | Host del servidor SMTP                                               |
+| `SMTP_USERNAME`                   | Usuario SMTP                                                         |
+| `SMTP_PASSWORD`                   | Password SMTP                                                        |
+| `SMTP_FROM`                       | Correo remitente                                                     |
 
 ### Variables requeridas
 
@@ -428,6 +428,7 @@ GCS_MAX_IMAGE_MB=10
 GCS_MAX_VIDEO_MB=1024
 SMTP_PORT=587
 SMTP_STARTTLS=true
+ADMIN_EMAILS=[EMAIL_ADDRESS],[EMAIL_ADDRESS],[EMAIL_ADDRESS],[EMAIL_ADDRESS]
 ```
 
 ---
@@ -572,13 +573,13 @@ El workflow configurado en `.github/workflows/deploy-release.yml` ejecuta la sig
 ci-checks -> backup-cloud-sql -> build-and-push -> deploy-gke -> smoke-test
 ```
 
-| Etapa              | Que hace                                                                               |
-| ------------------ | -------------------------------------------------------------------------------------- |
-| `ci-checks`        | Compila frontend, gateway y servicios. Ejecuta pruebas y corta el flujo si algo falla. |
-| `backup-cloud-sql` | Exporta `identity_db`, `subscription_db`, `catalog_db` y `engagement_db` al bucket.    |
-| `build-and-push`   | Construye imagenes Docker y publica en GHCR con `latest`, SHA y tag semantico.         |
+| Etapa              | Que hace                                                                                                            |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------- |
+| `ci-checks`        | Compila frontend, gateway y servicios. Ejecuta pruebas y corta el flujo si algo falla.                              |
+| `backup-cloud-sql` | Exporta `identity_db`, `subscription_db`, `catalog_db` y `engagement_db` al bucket.                                 |
+| `build-and-push`   | Construye imagenes Docker y publica en GHCR con `latest`, SHA y tag semantico.                                      |
 | `deploy-gke`       | **Crea dinamicamente ConfigMaps y Secrets**, y aplica manifests con `kubectl apply` en namespace `quetxal-tv-prod`. |
-| `smoke-test`       | Valida Ingress con llamadas HTTP a la IP Publica del Balanceador Global.               |
+| `smoke-test`       | Valida Ingress con llamadas HTTP a la IP Publica del Balanceador Global.                                            |
 
 > [!TIP]
 > Todo el cluster se considera *stateless*. Si se elimina el namespace completo, el pipeline es capaz de reconstruir la configuracion, los secretos y todos los deployments en la siguiente ejecucion usando los Secrets almacenados directamente en GitHub.
