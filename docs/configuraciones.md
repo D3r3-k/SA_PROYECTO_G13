@@ -207,7 +207,8 @@ Configurar CORS del bucket para que el frontend pueda subir directo con signed U
     "origin": [
       "http://localhost:5173",
       "https://localhost:5173",
-      "http://34.66.234.222"
+      "http://34.66.234.222",
+      "http://localhost:8080"
     ],
     "method": ["GET", "PUT", "HEAD", "OPTIONS"],
     "responseHeader": ["Content-Type", "Content-Length", "x-goog-content-length-range"],

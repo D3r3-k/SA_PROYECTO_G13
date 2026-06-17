@@ -24,6 +24,7 @@ export const env = {
     port: Number(process.env.DB_PORT || 5432),
     database: process.env.DB_NAME || "identity_db",
     user: process.env.DB_USER || "identity_user",
-    password: process.env.DB_PASSWORD || "identity_password"
+    password: process.env.DB_PASSWORD || "identity_password",
+    ssl: process.env.DB_SSL === "true"
   }
 };

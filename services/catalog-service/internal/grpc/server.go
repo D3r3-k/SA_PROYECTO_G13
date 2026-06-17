@@ -320,6 +320,18 @@ func (s *Server) confirmMediaHandler(_ interface{}, ctx context.Context, dec fun
 	setString(res, "message", "media confirmed")
 	return res, nil
 }
+func (s *Server) deleteContentHandler(_ interface{}, ctx context.Context, dec func(interface{}) error, _ grpc.UnaryServerInterceptor) (interface{}, error) {
+	req, err := s.decode(ctx, dec, "DeleteContentRequest")
+	if err != nil {
+		return nil, err
+	}
+	result := s.svc.DeleteContent(ctx, str(req, "content_id"))
+	res := s.newMsg("DeleteContentResponse")
+	setBool(res, "success", result.Success)
+	setString(res, "message", result.Message)
+	setInt32(res, "deleted_objects", int32(result.DeletedObjects))
+	return res, nil
+}
 
 func (s *Server) listAuditLogsHandler(_ interface{}, ctx context.Context, dec func(interface{}) error, _ grpc.UnaryServerInterceptor) (interface{}, error) {
 	req, err := s.decode(ctx, dec, "ListAuditLogsRequest")

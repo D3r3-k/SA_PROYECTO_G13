@@ -309,7 +309,7 @@ jobs:
           deploy_role() {
             local vm_name="$1"
             local role="$2"
-            local compose_path="deploy/${role}/docker-compose.yml"
+            local compose_path="deploy/develop/${role}/docker-compose.yml"
             local env_path="runtime-envs/${role}.env"
             local remote_dir="~/quetxal-tv/${role}"
 

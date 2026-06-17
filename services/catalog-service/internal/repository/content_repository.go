@@ -182,6 +182,61 @@ func (r Repository) UpdateEpisodeMedia(ctx context.Context, contentID string, ep
 	return err
 }
 
+func (r Repository) ContentMediaKeys(ctx context.Context, contentID string) (DeletedContentMedia, bool, error) {
+	rows, err := r.DB.Query(ctx, `
+        SELECT object_key
+        FROM (
+            SELECT poster_path AS object_key
+            FROM contents
+            WHERE id = $1::uuid
+            UNION ALL
+            SELECT media_url AS object_key
+            FROM contents
+            WHERE id = $1::uuid
+            UNION ALL
+            SELECT media_url AS object_key
+            FROM episodes
+            WHERE content_id = $1::uuid
+        ) media
+        WHERE object_key LIKE 'covers/%'
+           OR object_key LIKE 'videos/%';`, contentID)
+	if err != nil {
+		return DeletedContentMedia{}, false, err
+	}
+	defer rows.Close()
+
+	keys := []string{}
+	for rows.Next() {
+		var key string
+		if err := rows.Scan(&key); err != nil {
+			return DeletedContentMedia{}, false, err
+		}
+		if strings.TrimSpace(key) != "" {
+			keys = append(keys, key)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return DeletedContentMedia{}, false, err
+	}
+
+	var exists bool
+	if err := r.DB.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM contents WHERE id = $1::uuid);", contentID).Scan(&exists); err != nil {
+		return DeletedContentMedia{}, false, err
+	}
+	return DeletedContentMedia{ObjectKeys: keys}, exists, nil
+}
+
+func (r Repository) DeleteContent(ctx context.Context, contentID string) error {
+	tag, err := r.DB.Exec(ctx, "DELETE FROM contents WHERE id = $1::uuid;", contentID)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return pgx.ErrNoRows
+	}
+	return nil
+}
+
 func (r Repository) InsertAudit(ctx context.Context, providerName string, success bool, message string, contents int, episodes int) {
 	_, _ = r.DB.Exec(ctx, "CALL sp_insert_sync_audit($1,$2,$3,$4,$5);", providerName, success, message, contents, episodes)
 }
