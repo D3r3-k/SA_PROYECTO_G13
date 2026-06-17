@@ -22,8 +22,10 @@ func main() {
 	}
 	defer pool.Close()
 
-	if err := db.ApplyMigrations(ctx, pool, "./migrations"); err != nil {
-		log.Fatalf("catalog migrations failed: %v", err)
+	if os.Getenv("RUN_MIGRATIONS") != "false" {
+		if err := db.ApplyMigrations(ctx, pool, "./migrations"); err != nil {
+			log.Fatalf("[catalog-service] Error: migrations failed: %v", err)
+		}
 	}
 
 	repo := repository.Repository{DB: pool}

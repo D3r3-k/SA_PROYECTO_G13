@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 from datetime import timezone
 
 import grpc
@@ -158,7 +159,8 @@ class EngagementServiceServicer(engagement_pb2_grpc.EngagementServiceServicer):
 
 
 async def serve() -> None:
-    apply_migrations()
+    if os.getenv("RUN_MIGRATIONS", "true").lower() != "false":
+        apply_migrations()
     with get_connection() as connection:
         with connection.cursor() as cursor:
             cursor.execute("SELECT 1;")

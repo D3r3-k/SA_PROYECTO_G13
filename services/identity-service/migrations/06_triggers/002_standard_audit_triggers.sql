@@ -1,3 +1,4 @@
+BEGIN;
 DROP TRIGGER IF EXISTS trg_audit_users ON users;
 CREATE TRIGGER trg_audit_users
 AFTER INSERT OR UPDATE ON users
@@ -32,3 +33,4 @@ DROP TRIGGER IF EXISTS trg_audit_role_permissions ON role_permissions;
 CREATE TRIGGER trg_audit_role_permissions
 AFTER INSERT OR UPDATE ON role_permissions
 FOR EACH ROW EXECUTE FUNCTION fn_standard_audit_log();
+COMMIT;

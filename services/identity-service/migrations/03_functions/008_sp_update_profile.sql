@@ -1,3 +1,4 @@
+BEGIN;
 CREATE OR REPLACE FUNCTION sp_update_profile(
     p_user_id UUID,
     p_profile_id UUID,
@@ -32,3 +33,4 @@ BEGIN
         p.updated_at;
 END;
 $$;
+COMMIT;

@@ -12,7 +12,6 @@ from src.repository import (
     create_subscription,
     delete_subscription,
     get_subscriptions_by_user,
-    initialize_database,
     list_audit_logs,
     list_plans,
     update_plan,
@@ -368,8 +367,6 @@ class SubscriptionServiceServicer(subscription_pb2_grpc.SubscriptionServiceServi
 
 
 async def serve() -> None:
-    initialize_database()
-
     server = grpc.aio.server()
     subscription_pb2_grpc.add_SubscriptionServiceServicer_to_server(
         SubscriptionServiceServicer(),
