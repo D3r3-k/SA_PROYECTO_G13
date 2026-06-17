@@ -27,13 +27,6 @@ type UpdatePlanResponse = {
   plan?: Plan;
 };
 
-type SyncResponse = {
-  success: boolean;
-  message: string;
-  contents_synced?: number;
-  episodes_synced?: number;
-  provider?: string;
-};
 
 type CreateContentResponse = {
   success: boolean;
@@ -192,23 +185,6 @@ adminRoutes.patch("/plans/:planId", adminMiddleware, async (req: Request, res: R
   } catch (error) {
     logAdminError("Admin update plan failed", error);
     return res.status(503).json({ success: false, message: "Subscription Service unavailable" });
-  }
-});
-
-adminRoutes.post("/catalog/sync", adminMiddleware, async (req: Request, res: Response) => {
-  try {
-    const response = await callCatalogMethod<Record<string, unknown>, SyncResponse>(
-      "SyncMinimumCatalog",
-      { force: Boolean(req.body?.force) }
-    );
-
-    if (!response.success) {
-      return res.status(400).json(response);
-    }
-    return res.status(201).json(response);
-  } catch (error) {
-    logAdminError("Admin sync catalog failed", error);
-    return res.status(503).json({ success: false, message: "Catalog Service unavailable" });
   }
 });
 
@@ -401,8 +377,9 @@ adminRoutes.get("/audit.csv", reportMiddleware, async (req: Request, res: Respon
 adminRoutes.get("/audit.pdf", reportMiddleware, async (req: Request, res: Response) => {
   try {
     const service = String(req.query.service ?? "all").trim();
-    const items = await collectAuditLogs(service, auditFiltersFromQuery(req.query));
-    const pdf = auditItemsToPdf(items);
+    const filters = auditFiltersFromQuery(req.query);
+    const items = await collectAllAuditLogs(service, filters);
+    const pdf = auditItemsToPdf(items, { ...filters, service });
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", "attachment; filename=quetxal-tv-audit.pdf");
     return res.send(pdf);
@@ -424,44 +401,59 @@ function auditFiltersFromQuery(query: Record<string, unknown>): AuditFilters {
   };
 }
 
-async function collectAuditLogs(service: string, filters: AuditFilters): Promise<AuditLogItem[]> {
-  const normalized = service || "all";
-  const loaders: Record<string, () => Promise<AuditResponse>> = {
+function auditLoaders(filters: AuditFilters): Record<string, () => Promise<AuditResponse>> {
+  return {
     catalog: () => callCatalogMethod<AuditFilters, AuditResponse>("ListAuditLogs", filters),
     identity: () => callIdentityMethod<AuditFilters, AuditResponse>("ListAuditLogs", filters),
     subscription: () => callSubscriptionMethod<AuditFilters, AuditResponse>("ListAuditLogs", filters),
     engagement: () => callEngagementMethod<AuditFilters, AuditResponse>("ListAuditLogs", filters)
   };
+}
+
+function assertAuditResponse(service: string, response: AuditResponse): AuditLogItem[] {
+  if (!response.success) {
+    throw new Error(`${service} audit failed: ${response.message}`);
+  }
+  return response.items ?? [];
+}
+
+async function collectAuditLogs(service: string, filters: AuditFilters): Promise<AuditLogItem[]> {
+  const normalized = service || "all";
+  const loaders = auditLoaders(filters);
 
   if (normalized !== "all") {
     const loader = loaders[normalized];
     if (!loader) {
       throw new Error("service must be all, catalog, identity, subscription or engagement");
     }
-
-    const response = await loader();
-    if (!response.success) {
-      throw new Error(`${normalized} audit failed: ${response.message}`);
-    }
-
-    return response.items ?? [];
+    return assertAuditResponse(normalized, await loader());
   }
 
   const responses = await Promise.all(
-    Object.entries(loaders).map(async ([serviceName, loader]) => {
-      const response = await loader();
-
-      if (!response.success) {
-        throw new Error(`${serviceName} audit failed: ${response.message}`);
-      }
-
-      return response;
-    })
+    Object.entries(loaders).map(async ([serviceName, loader]) =>
+      assertAuditResponse(serviceName, await loader())
+    )
   );
 
-  return responses.flatMap((response) => response.items ?? []).sort((a, b) =>
-    String(b.created_at).localeCompare(String(a.created_at))
-  );
+  return responses.flat().sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+}
+
+async function collectAllAuditLogs(service: string, filters: AuditFilters): Promise<AuditLogItem[]> {
+  const pageSize = 1000;
+  const allItems: AuditLogItem[] = [];
+  let offset = 0;
+
+  while (true) {
+    const page = await collectAuditLogs(service, { ...filters, limit: pageSize, offset });
+    allItems.push(...page);
+
+    if (page.length < pageSize) {
+      break;
+    }
+    offset += pageSize;
+  }
+
+  return allItems.sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
 }
 
 function auditItemsToCsv(items: AuditLogItem[]) {
@@ -488,43 +480,261 @@ function csvCell(value: string) {
   return `"${value.replace(/"/g, '""')}"`;
 }
 
-function auditItemsToPdf(items: AuditLogItem[]) {
-  const rows = items.slice(0, 120).map((item) =>
-    `${item.created_at} | ${item.service} | ${item.action} | ${item.table_name} | ${item.actor_email || item.actor_user_id}`
-  );
-  const lines = ["Quetxal TV - Reporte de auditoria", `Registros: ${items.length}`, "", ...rows];
-  return buildSimplePdf(lines);
-}
+function auditItemsToPdf(items: AuditLogItem[], filters: AuditFilters & { service: string }) {
+  const width = 842;
+  const height = 595;
+  const margin = 38;
+  const contentWidth = width - margin * 2;
+  const bottom = 42;
+  const topStart = 486;
+  const objects: string[] = [];
+  const pages: Array<{ pageId: number; contentId: number }> = [];
+  const pageStreams: string[] = [];
 
-function buildSimplePdf(lines: string[]) {
-  const safeLines = lines.map((line) => line.replace(/[()\\]/g, " ").slice(0, 110));
-  const content = ["BT", "/F1 10 Tf", "40 780 Td"];
-  safeLines.forEach((line, index) => {
-    if (index > 0) {
-      content.push("0 -14 Td");
-    }
-    content.push(`(${line}) Tj`);
+  const addObject = (content: string) => {
+    objects.push(content);
+    return objects.length;
+  };
+
+  addObject("");
+  addObject("");
+  addObject("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>");
+  addObject("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>");
+
+  let stream = "";
+  let y = topStart;
+
+  const addText = (x: number, yPos: number, size: number, text: string, bold = false) =>
+    `BT /${bold ? "F2" : "F1"} ${size} Tf ${x} ${yPos} Td (${pdfText(text)}) Tj ET\n`;
+
+  const startPage = () => {
+    if (stream) pageStreams.push(stream);
+    const pageNumber = pageStreams.length + 1;
+    stream = "";
+    stream += "0.96 0.96 0.96 rg 0 0 842 595 re f\n";
+    stream += "0.10 0.14 0.22 rg 0 548 842 47 re f\n";
+    stream += "1 1 1 rg\n";
+    stream += addText(margin, 567, 16, "Reporte de auditoria", true);
+    stream += addText(676, 567, 9, `Pagina ${pageNumber} de {{TOTAL_PAGES}}`);
+    stream += "0 0 0 rg\n";
+    stream += addText(margin, 528, 8.5, `Modulo consultado: ${serviceLabel(filters.service)}`);
+    stream += addText(margin + 205, 528, 8.5, `Tipo de cambio: ${filters.action ? actionLabel(filters.action) : "Todos"}`);
+    stream += addText(margin + 410, 528, 8.5, `Tabla filtrada: ${filters.table_name || "Todas"}`);
+    stream += addText(margin + 615, 528, 8.5, `Registros incluidos: ${items.length}`);
+    stream += addText(margin, 510, 8, `Fecha de generacion: ${formatDate(new Date().toISOString())}`);
+    stream += addText(margin, 494, 7.8, "Cada registro indica quien realizo el cambio, donde ocurrio y que informacion fue registrada.");
+    stream += "0.82 0.85 0.90 RG 0.7 w 38 484 766 0 l S\n";
+    y = topStart;
+  };
+
+  const ensureSpace = (needed: number) => {
+    if (y - needed < bottom) startPage();
+  };
+
+  const drawLine = (line: string, x = margin + 14, size = 7.2, bold = false, lineHeight = 9.4) => {
+    if (y < bottom) startPage();
+    stream += addText(x, y, size, line, bold);
+    y -= lineHeight;
+  };
+
+  const drawWrapped = (label: string, value: string, x = margin + 14, maxLength = 118) => {
+    const prefix = `${label}: `;
+    const lines = wrapPdfText(`${prefix}${value}`, maxLength);
+    lines.forEach((line, idx) => drawLine(line || " ", idx === 0 ? x : x + 10, 7.1, idx === 0 && line.startsWith(prefix)));
+  };
+
+  startPage();
+
+  if (items.length === 0) {
+    drawLine("No se encontraron registros con los filtros seleccionados.", margin, 10, true);
+  } else {
+    items.forEach((item, index) => {
+      ensureSpace(130);
+      const headerY = y - 2;
+      stream += "1 1 1 rg ";
+      stream += `${margin} ${headerY - 30} ${contentWidth} 36 re f\n`;
+      stream += "0.82 0.85 0.90 RG 0.5 w ";
+      stream += `${margin} ${headerY - 30} ${contentWidth} 36 re S\n`;
+      stream += "0 0 0 rg\n";
+      stream += addText(margin + 9, headerY - 8, 8.8, `Registro ${index + 1} de ${items.length}`, true);
+      stream += addText(margin + 120, headerY - 8, 8.2, `Tipo de cambio: ${actionLabel(item.action)}`, true);
+      stream += addText(margin + 310, headerY - 8, 8.2, `Modulo: ${serviceLabel(item.service)}`, true);
+      stream += addText(margin + 500, headerY - 8, 8.2, `Tabla afectada: ${item.table_name || "Sin tabla"}`, true);
+      stream += addText(margin + 9, headerY - 22, 7.4, "Encabezado: resume la accion auditada y permite ubicar rapidamente el registro.");
+      y -= 46;
+
+      const user = item.actor_email || item.actor_user_id || "Sistema";
+      const record = item.record_id || item.audit_id || "Sin registro asociado";
+      drawWrapped("Fecha y hora del cambio", formatDate(item.created_at));
+      drawWrapped("Usuario responsable", user);
+      drawWrapped("Identificador del registro afectado", record);
+      drawWrapped("Id interno de auditoria", item.audit_id || "Sin id de auditoria");
+      drawLine("Detalle de la informacion registrada", margin + 14, 7.4, true);
+      drawLine("Los bloques siguientes muestran los datos guardados automaticamente por la auditoria.", margin + 14, 6.9);
+
+      auditSectionsForPdf(item).forEach((section) => {
+        ensureSpace(50);
+        y -= 2;
+        drawLine(section.title, margin + 22, 7.3, true);
+        wrapPdfText(section.help, 116).forEach((line) => drawLine(line, margin + 32, 6.8));
+        wrapPdfText(section.body, 112).forEach((line) => drawLine(line || " ", margin + 32, 6.5));
+      });
+
+      y -= 10;
+    });
+  }
+
+  if (stream) pageStreams.push(stream);
+  const totalPages = Math.max(1, pageStreams.length);
+
+  pageStreams.forEach((pageStream) => {
+    const finalStream = pageStream.replace(/\{\{TOTAL_PAGES\}\}/g, String(totalPages));
+    const contentId = addObject(`<< /Length ${Buffer.byteLength(finalStream)} >>\nstream\n${finalStream}endstream`);
+    const pageId = addObject(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${width} ${height}] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ${contentId} 0 R >>`);
+    pages.push({ pageId, contentId });
   });
-  content.push("ET");
-  const stream = content.join("\n");
-  const objects = [
-    "1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n",
-    "2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n",
-    "3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>\nendobj\n",
-    "4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n",
-    `5 0 obj\n<< /Length ${Buffer.byteLength(stream)} >>\nstream\n${stream}\nendstream\nendobj\n`
-  ];
+
+  objects[0] = "<< /Type /Catalog /Pages 2 0 R >>";
+  objects[1] = `<< /Type /Pages /Kids [${pages.map((page) => `${page.pageId} 0 R`).join(" ")}] /Count ${pages.length} >>`;
+
   let pdf = "%PDF-1.4\n";
   const offsets = [0];
-  for (const obj of objects) {
+  objects.forEach((object, index) => {
     offsets.push(Buffer.byteLength(pdf));
-    pdf += obj;
-  }
-  const xrefStart = Buffer.byteLength(pdf);
+    pdf += `${index + 1} 0 obj\n${object}\nendobj\n`;
+  });
+
+  const xref = Buffer.byteLength(pdf);
   pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
   offsets.slice(1).forEach((offset) => {
-    pdf += `${offset.toString().padStart(10, "0")} 00000 n \n`;
+    pdf += `${String(offset).padStart(10, "0")} 00000 n \n`;
   });
-  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefStart}\n%%EOF`;
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`;
   return Buffer.from(pdf, "binary");
+}
+
+function pdfText(value: string) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[()\\]/g, " ")
+    .replace(/[\u0000-\u001f\u007f-\u009f]/g, " ")
+    .slice(0, 400);
+}
+
+function wrapPdfText(value: string, maxLength: number) {
+  const raw = String(value || "Sin datos")
+    .replace(/\t/g, "  ")
+    .replace(/\r/g, "")
+    .split("\n");
+  const lines: string[] = [];
+
+  raw.forEach((paragraph) => {
+    const normalized = paragraph.trim();
+    if (!normalized) {
+      lines.push("");
+      return;
+    }
+
+    let line = "";
+    normalized.split(/\s+/).forEach((word) => {
+      const chunks = word.length > maxLength
+        ? word.match(new RegExp(`.{1,${maxLength}}`, "g")) ?? [word]
+        : [word];
+
+      chunks.forEach((chunk) => {
+        const next = line ? `${line} ${chunk}` : chunk;
+        if (next.length > maxLength && line) {
+          lines.push(line);
+          line = chunk;
+        } else {
+          line = next;
+        }
+      });
+    });
+
+    if (line) lines.push(line);
+  });
+
+  return lines.length ? lines : ["Sin datos"];
+}
+
+function auditValueOrMessage(value: string, emptyMessage: string) {
+  const normalized = safeJson(value);
+  return normalized === "Sin datos" ? emptyMessage : normalized;
+}
+
+function auditSectionsForPdf(item: AuditLogItem) {
+  if (item.action === "UPDATE") {
+    return [
+      {
+        title: "Antes del cambio",
+        help: "Datos que tenia el registro antes de guardar esta accion.",
+        body: auditValueOrMessage(item.old_state_json, "No hay datos previos registrados para este cambio.")
+      },
+      {
+        title: "Despues del cambio",
+        help: "Datos que quedaron guardados despues de completar esta accion.",
+        body: auditValueOrMessage(item.new_state_json, "No hay datos posteriores registrados para este cambio.")
+      }
+    ];
+  }
+
+  if (item.action === "DELETE") {
+    return [
+      {
+        title: "Datos eliminados",
+        help: "Informacion que tenia el registro antes de ser eliminado.",
+        body: auditValueOrMessage(item.old_state_json, "No hay datos previos registrados para esta eliminacion.")
+      }
+    ];
+  }
+
+  return [
+    {
+      title: "Datos creados",
+      help: "Informacion guardada al crear el registro.",
+      body: auditValueOrMessage(item.new_state_json, "No hay datos registrados para esta creacion.")
+    }
+  ];
+}
+
+function safeJson(value: string) {
+  if (!value) return "Sin datos";
+  try {
+    return JSON.stringify(JSON.parse(value), null, 2);
+  } catch {
+    return value;
+  }
+}
+
+function serviceLabel(service: string) {
+  const labels: Record<string, string> = {
+    all: "Todos",
+    catalog: "Catalogo",
+    identity: "Usuarios",
+    subscription: "Suscripciones",
+    engagement: "Actividad"
+  };
+  return labels[service] ?? service;
+}
+
+function actionLabel(action: string) {
+  const labels: Record<string, string> = {
+    INSERT: "Creacion",
+    UPDATE: "Actualizacion",
+    DELETE: "Eliminacion"
+  };
+  return labels[action] ?? (action || "Todas");
+}
+
+function formatDate(value: string) {
+  if (!value) return "Sin fecha";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return new Intl.DateTimeFormat("es-GT", {
+    dateStyle: "short",
+    timeStyle: "short",
+    timeZone: "America/Guatemala"
+  }).format(parsed);
 }

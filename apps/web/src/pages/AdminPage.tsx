@@ -13,7 +13,6 @@ import {
   type EpisodeInput,
   type MediaType,
   type Plan,
-  type SyncResult,
 } from '../services/admin.service'
 import { catalogService, type Episode } from '../services/catalog.service'
 import { getPlanFeatures, setPlanFeatures } from '../utils/planFeatures'
@@ -28,7 +27,7 @@ const DEFAULT_FEATURES: Record<string, string[]> = {
 }
 
 type Notice = { type: 'success' | 'error' | 'info'; text: string }
-type PanelTab = 'catalog' | 'create' | 'edit' | 'audit' | 'plans' | 'sync'
+type PanelTab = 'catalog' | 'create' | 'edit' | 'audit' | 'plans'
 
 interface PlanWithFeatures extends Plan {
   features: string[]
@@ -287,225 +286,6 @@ function readableChange(item: AuditLogItem) {
   return compactJson(item.old_state_json || item.new_state_json)
 }
 
-function pdfText(value: string) {
-  return String(value ?? '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^\x20-\x7E]/g, ' ')
-    .replace(/\\/g, '\\\\')
-    .replace(/\(/g, '\\(')
-    .replace(/\)/g, '\\)')
-}
-
-function wrapPdfText(value: string, maxLength: number) {
-  const raw = String(value || 'Sin datos')
-    .replace(/\t/g, '  ')
-    .replace(/\r/g, '')
-    .split('\n')
-  const lines: string[] = []
-
-  raw.forEach((paragraph) => {
-    const normalized = paragraph.trim()
-    if (!normalized) {
-      lines.push('')
-      return
-    }
-
-    let line = ''
-    normalized.split(/\s+/).forEach((word) => {
-      const chunks = word.length > maxLength
-        ? word.match(new RegExp(`.{1,${maxLength}}`, 'g')) ?? [word]
-        : [word]
-
-      chunks.forEach((chunk) => {
-        const next = line ? `${line} ${chunk}` : chunk
-        if (next.length > maxLength && line) {
-          lines.push(line)
-          line = chunk
-        } else {
-          line = next
-        }
-      })
-    })
-
-    if (line) lines.push(line)
-  })
-
-  return lines.length ? lines : ['Sin datos']
-}
-
-function auditValueOrMessage(value: string, emptyMessage: string) {
-  const normalized = safeJson(value)
-  return normalized === 'Sin datos' ? emptyMessage : normalized
-}
-
-function auditSectionsForPdf(item: AuditLogItem) {
-  if (item.action === 'UPDATE') {
-    return [
-      {
-        title: 'Antes del cambio',
-        help: 'Datos que tenía el registro antes de guardar esta acción.',
-        body: auditValueOrMessage(item.old_state_json, 'No hay datos previos registrados para este cambio.'),
-      },
-      {
-        title: 'Después del cambio',
-        help: 'Datos que quedaron guardados después de completar esta acción.',
-        body: auditValueOrMessage(item.new_state_json, 'No hay datos posteriores registrados para este cambio.'),
-      },
-    ]
-  }
-
-  if (item.action === 'DELETE') {
-    return [
-      {
-        title: 'Datos eliminados',
-        help: 'Información que tenía el registro antes de ser eliminado.',
-        body: auditValueOrMessage(item.old_state_json, 'No hay datos previos registrados para esta eliminación.'),
-      },
-    ]
-  }
-
-  return [
-    {
-      title: 'Datos creados',
-      help: 'Información guardada al crear el registro.',
-      body: auditValueOrMessage(item.new_state_json, 'No hay datos registrados para esta creación.'),
-    },
-  ]
-}
-
-function buildAuditPdfBlob(items: AuditLogItem[], filters: AuditFilters) {
-  const width = 842
-  const height = 595
-  const margin = 38
-  const contentWidth = width - (margin * 2)
-  const bottom = 42
-  const topStart = 486
-  const objects: string[] = []
-  const pages: Array<{ pageId: number; contentId: number }> = []
-  const pageStreams: string[] = []
-
-  const addObject = (content: string) => {
-    objects.push(content)
-    return objects.length
-  }
-
-  addObject('')
-  addObject('')
-  addObject('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>')
-  addObject('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>')
-
-  const addText = (x: number, y: number, size: number, text: string, bold = false) => (
-    `BT /${bold ? 'F2' : 'F1'} ${size} Tf ${x} ${y} Td (${pdfText(text)}) Tj ET\n`
-  )
-
-  let stream = ''
-  let y = topStart
-
-  const startPage = () => {
-    if (stream) pageStreams.push(stream)
-    const pageNumber = pageStreams.length + 1
-    stream = ''
-    stream += '0.96 0.96 0.96 rg 0 0 842 595 re f\n'
-    stream += '0.10 0.14 0.22 rg 0 548 842 47 re f\n'
-    stream += '1 1 1 rg\n'
-    stream += addText(margin, 567, 16, 'Reporte de auditoría', true)
-    stream += addText(676, 567, 9, `Página ${pageNumber} de {{TOTAL_PAGES}}`)
-    stream += '0 0 0 rg\n'
-    stream += addText(margin, 528, 8.5, `Módulo consultado: ${serviceLabel(filters.service)}`)
-    stream += addText(margin + 205, 528, 8.5, `Tipo de cambio: ${filters.action ? actionLabel(filters.action) : 'Todos'}`)
-    stream += addText(margin + 410, 528, 8.5, `Tabla filtrada: ${filters.table_name || 'Todas'}`)
-    stream += addText(margin + 615, 528, 8.5, `Registros: ${items.length}`)
-    stream += addText(margin, 510, 8, `Fecha de generación: ${formatDate(new Date().toISOString())}`)
-    stream += addText(margin, 494, 7.8, 'Cada registro muestra quién realizó el cambio, dónde ocurrió y qué información quedó registrada.', false)
-    stream += '0.82 0.85 0.90 RG 0.7 w 38 484 766 0 l S\n'
-    y = topStart
-  }
-
-  const ensureSpace = (needed: number) => {
-    if (y - needed < bottom) startPage()
-  }
-
-  const drawLine = (line: string, x = margin + 14, size = 7.2, bold = false, lineHeight = 9.4) => {
-    if (y < bottom) startPage()
-    stream += addText(x, y, size, line, bold)
-    y -= lineHeight
-  }
-
-  const drawWrapped = (label: string, value: string, x = margin + 14, maxLength = 118) => {
-    const prefix = `${label}: `
-    const lines = wrapPdfText(`${prefix}${value}`, maxLength)
-    lines.forEach((line, idx) => drawLine(line || ' ', idx === 0 ? x : x + 10, 7.1, idx === 0 && line.startsWith(prefix)))
-  }
-
-  startPage()
-
-  if (items.length === 0) {
-    drawLine('No se encontraron registros con los filtros seleccionados.', margin, 10, true)
-  } else {
-    items.forEach((item, index) => {
-      ensureSpace(116)
-      const headerY = y - 2
-      stream += '1 1 1 rg '
-      stream += `${margin} ${headerY - 26} ${contentWidth} 32 re f\n`
-      stream += '0.82 0.85 0.90 RG 0.5 w '
-      stream += `${margin} ${headerY - 26} ${contentWidth} 32 re S\n`
-      stream += '0 0 0 rg\n'
-      stream += addText(margin + 9, headerY - 8, 8.8, `Registro ${index + 1} de ${items.length}`, true)
-      stream += addText(margin + 120, headerY - 8, 8.2, `Tipo de cambio: ${actionLabel(item.action)}`, true)
-      stream += addText(margin + 310, headerY - 8, 8.2, `Módulo: ${serviceLabel(item.service)}`, true)
-      stream += addText(margin + 500, headerY - 8, 8.2, `Tabla afectada: ${item.table_name || 'Sin tabla'}`, true)
-      y -= 42
-
-      const user = item.actor_email || item.actor_user_id || 'Sistema'
-      const record = item.record_id || item.audit_id || 'Sin registro asociado'
-      drawWrapped('Fecha y hora del cambio', formatDate(item.created_at))
-      drawWrapped('Usuario responsable', user)
-      drawWrapped('Identificador del registro afectado', record)
-      drawLine('Detalle de la información registrada', margin + 14, 7.4, true)
-      drawLine('El bloque siguiente muestra los datos guardados por la auditoría para esta acción.', margin + 14, 6.9)
-
-      auditSectionsForPdf(item).forEach((section) => {
-        ensureSpace(44)
-        y -= 2
-        drawLine(section.title, margin + 22, 7.3, true)
-        wrapPdfText(section.help, 116).forEach((line) => drawLine(line, margin + 32, 6.8))
-        wrapPdfText(section.body, 112).forEach((line) => drawLine(line || ' ', margin + 32, 6.5))
-      })
-
-      y -= 10
-    })
-  }
-
-  if (stream) pageStreams.push(stream)
-  const totalPages = Math.max(1, pageStreams.length)
-
-  pageStreams.forEach((pageStream) => {
-    const finalStream = pageStream.replace(/\{\{TOTAL_PAGES\}\}/g, String(totalPages))
-    const contentId = addObject(`<< /Length ${finalStream.length} >>\nstream\n${finalStream}endstream`)
-    const pageId = addObject(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${width} ${height}] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ${contentId} 0 R >>`)
-    pages.push({ pageId, contentId })
-  })
-
-  objects[0] = '<< /Type /Catalog /Pages 2 0 R >>'
-  objects[1] = `<< /Type /Pages /Kids [${pages.map((page) => `${page.pageId} 0 R`).join(' ')}] /Count ${pages.length} >>`
-
-  let pdf = '%PDF-1.4\n'
-  const offsets = [0]
-  objects.forEach((object, index) => {
-    offsets.push(pdf.length)
-    pdf += `${index + 1} 0 obj\n${object}\nendobj\n`
-  })
-
-  const xref = pdf.length
-  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`
-  offsets.slice(1).forEach((offset) => {
-    pdf += `${String(offset).padStart(10, '0')} 00000 n \n`
-  })
-  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`
-  return new Blob([pdf], { type: 'application/pdf' })
-}
-
 
 export default function AdminPage() {
   const navigate = useNavigate()
@@ -521,8 +301,6 @@ export default function AdminPage() {
   const [editPlanForm, setEditPlanForm] = useState<EditPlanForm>({ name: '', price_usd: '', features: '' })
   const [savingPlan, setSavingPlan] = useState(false)
 
-  const [syncing, setSyncing] = useState(false)
-  const [syncResult, setSyncResult] = useState<SyncResult | null>(null)
 
   const [contentItems, setContentItems] = useState<AdminContentItem[]>([])
   const [loadingContent, setLoadingContent] = useState(false)
@@ -1011,21 +789,6 @@ export default function AdminPage() {
     }
   }
 
-  const handleSync = async (force: boolean) => {
-    setSyncing(true)
-    setSyncResult(null)
-    setNotice(null)
-    try {
-      const response = await adminService.syncCatalog(force)
-      setSyncResult(response.data)
-      await loadContent()
-      showFeedback({ title: response.data.success ? 'Catálogo sincronizado' : 'Sincronización finalizada', text: response.data.message })
-    } catch (error) {
-      setNotice({ type: 'error', text: extractError(error, 'No se pudo sincronizar catálogo.') })
-    } finally {
-      setSyncing(false)
-    }
-  }
 
   const resetAuditFilters = () => {
     setAuditFilters({ service: 'all', limit: 500, offset: 0 })
@@ -1045,9 +808,9 @@ export default function AdminPage() {
         return
       }
 
-      const items = await fetchAllAuditItems()
-      downloadBlob(buildAuditPdfBlob(items, currentAuditFilters(items.length || 1, 0)), 'quetxal-tv-auditoria.pdf')
-      showFeedback({ title: 'PDF generado', text: `El reporte incluye ${items.length} registros.` })
+      const response = await adminService.downloadAuditPdf(currentAuditFilters(1000, 0))
+      downloadBlob(response.data, 'quetxal-tv-auditoria.pdf')
+      showFeedback({ title: 'PDF generado', text: 'El reporte fue generado por el servidor y está listo para revisar.' })
     } catch (error) {
       setNotice({ type: 'error', text: extractError(error, `No se pudo descargar ${format.toUpperCase()}.`) })
     } finally {
@@ -1061,7 +824,6 @@ export default function AdminPage() {
     { id: 'edit', label: 'Editar' },
     { id: 'audit', label: 'Auditoría' },
     { id: 'plans', label: 'Planes' },
-    { id: 'sync', label: 'Sincronizar' },
   ]
 
   const renderContentForm = (mode: 'create' | 'edit') => {
@@ -1562,30 +1324,6 @@ export default function AdminPage() {
                     )}
                   </div>
                 ))}
-              </div>
-            )}
-          </section>
-        )}
-
-        {activeTab === 'sync' && (
-          <section className={styles.card}>
-            <div className={styles.cardHeaderCompact}>
-              <div>
-                <h2 className={styles.cardTitle}>Sincronizar</h2>
-                <p className={styles.cardSub}>Actualiza el catálogo base.</p>
-              </div>
-            </div>
-            <div className={styles.syncActions}>
-              <button className="btn btn-primary" onClick={() => handleSync(false)} disabled={syncing}>{syncing ? <span className="spinner" /> : 'Sincronizar'}</button>
-              <button className="btn btn-secondary" onClick={() => handleSync(true)} disabled={syncing}>{syncing ? <span className="spinner" /> : 'Forzar actualización'}</button>
-            </div>
-            {syncResult && (
-              <div className={styles.syncResult}>
-                <div className={`${styles.syncStatus} ${syncResult.success ? styles.syncOk : styles.syncFail}`}>{syncResult.message}</div>
-                <div className={styles.syncStats}>
-                  <div className={styles.stat}><span className={styles.statNum}>{syncResult.contents_synced ?? 0}</span><span className={styles.statLabel}>contenidos</span></div>
-                  <div className={styles.stat}><span className={styles.statNum}>{syncResult.episodes_synced ?? 0}</span><span className={styles.statLabel}>episodios</span></div>
-                </div>
               </div>
             )}
           </section>
