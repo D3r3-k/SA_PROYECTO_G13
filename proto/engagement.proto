@@ -6,27 +6,19 @@ import "google/protobuf/timestamp.proto";
 
 service EngagementService {
   rpc RateContent(RateContentRequest) returns (RateContentResponse);
-
-  rpc GetContentRatingSummary(GetContentRatingSummaryRequest)
-      returns (GetContentRatingSummaryResponse);
-
+  rpc GetContentRatingSummary(GetContentRatingSummaryRequest) returns (GetContentRatingSummaryResponse);
   rpc SaveProgress(SaveProgressRequest) returns (SaveProgressResponse);
-
-  rpc GetRecentHistory(GetRecentHistoryRequest)
-      returns (GetRecentHistoryResponse);
-
+  rpc GetRecentHistory(GetRecentHistoryRequest) returns (GetRecentHistoryResponse);
   rpc ResumeContent(ResumeContentRequest) returns (ResumeContentResponse);
+  rpc ListAuditLogs(ListAuditLogsRequest) returns (ListAuditLogsResponse);
 }
 
-// Tipo de calificacion.
-// El sistema usara pulgar arriba o pulgar abajo.
 enum RatingValue {
   RATING_VALUE_UNSPECIFIED = 0;
   THUMBS_DOWN = 1;
   THUMBS_UP = 2;
 }
 
-// Sistema de calificaciones dinámico.
 message RateContentRequest {
   string profile_id = 1;
   string content_id = 2;
@@ -44,33 +36,17 @@ message GetContentRatingSummaryRequest {
 
 message GetContentRatingSummaryResponse {
   string content_id = 1;
-
-  // Total de perfiles que calificaron el contenido.
   int32 total_ratings = 2;
-
-  // Total de calificaciones positivas.
   int32 thumbs_up_count = 3;
-
-  // Total de calificaciones negativas.
   int32 thumbs_down_count = 4;
-
-  // Porcentaje global de recomendación calculado dinámicamente.
-  // Formula: thumbs_up_count / total_ratings * 100.
   double recommendation_percentage = 5;
 }
 
-// Historial de reproduccion reciente.
-// El backend genera updated_at automaticamente.
 message SaveProgressRequest {
   string profile_id = 1;
   string content_id = 2;
-
-  // Para peliculas se pueden enviar season_number = 0 y episode_number = 0.
-  // Para series se envia temporada y episodio correspondiente.
   int32 season_number = 3;
   int32 episode_number = 4;
-
-  // Minuto exacto donde quedo el perfil.
   int32 minute = 5;
 }
 
@@ -81,9 +57,6 @@ message SaveProgressResponse {
 
 message GetRecentHistoryRequest {
   string profile_id = 1;
-
-  // Cantidad maxima de elementos a retornar.
-  // Si no se envia desde Gateway, Engagement puede usar un valor por defecto.
   int32 limit = 2;
 }
 
@@ -113,4 +86,33 @@ message ResumeContentResponse {
   int32 episode_number = 5;
   int32 minute = 6;
   google.protobuf.Timestamp updated_at = 7;
+}
+
+message AuditLogItem {
+  string service = 1;
+  string audit_id = 2;
+  string actor_user_id = 3;
+  string actor_email = 4;
+  string action = 5;
+  string table_name = 6;
+  string record_id = 7;
+  string old_state_json = 8;
+  string new_state_json = 9;
+  string created_at = 10;
+}
+
+message ListAuditLogsRequest {
+  string table_name = 1;
+  string actor_user_id = 2;
+  string action = 3;
+  string from = 4;
+  string to = 5;
+  int32 limit = 6;
+  int32 offset = 7;
+}
+
+message ListAuditLogsResponse {
+  bool success = 1;
+  string message = 2;
+  repeated AuditLogItem items = 3;
 }

@@ -11,9 +11,18 @@ export interface LoginPayload {
   password: string
 }
 
+export interface AuthUser {
+  user_id: string
+  email: string
+  profile_id: string
+  roles: string[]
+  permissions: string[]
+  is_admin: boolean
+}
+
 export interface MeResponse {
   success: boolean
-  user: { user_id: string; email: string; profile_id: string }
+  user: AuthUser
 }
 
 export const authService = {

@@ -16,6 +16,10 @@ export interface ContentCard {
   media_url: string
   media_mime_type: string
   source_page_url: string
+  seasons_count: number
+  episodes_count: number
+  available_from: string
+  deleted_at: string
 }
 
 export interface CastMember {

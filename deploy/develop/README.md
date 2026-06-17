@@ -407,6 +407,7 @@ GCS_MAX_IMAGE_MB=10
 GCS_MAX_VIDEO_MB=1024
 SMTP_PORT=587
 SMTP_STARTTLS=true
+ADMIN_EMAILS=[EMAIL_ADDRESS],[EMAIL_ADDRESS],[EMAIL_ADDRESS],[EMAIL_ADDRESS]
 ```
 
 > [!NOTE]
@@ -466,6 +467,38 @@ Las migraciones se ejecutan automaticamente durante el despliegue. No es necesar
 
 > [!TIP]
 > Si el workflow falla antes de ejecutar `docker compose up`, revise el job **Deploy docker compose files** en la pestaña Actions para identificar el punto de falla.
+
+---
+
+## Limpiar datos (Bases de datos y Bucket)
+
+> [!WARNING]
+> Las bases de datos y el bucket de Cloud Storage son **compartidos** entre `develop` y `release`. Si limpia estos datos, afectara a ambos ambientes.
+
+Si desea vaciar todos los registros de las bases de datos y los archivos subidos al bucket sin destruir la infraestructura, ejecute:
+
+Borrar y recrear las bases de datos (los usuarios y contraseñas se mantienen intactos):
+
+```powershell
+gcloud sql databases delete identity_db --instance=qx-postgres --quiet
+gcloud sql databases delete subscription_db --instance=qx-postgres --quiet
+gcloud sql databases delete catalog_db --instance=qx-postgres --quiet
+gcloud sql databases delete engagement_db --instance=qx-postgres --quiet
+
+gcloud sql databases create identity_db --instance=qx-postgres
+gcloud sql databases create subscription_db --instance=qx-postgres
+gcloud sql databases create catalog_db --instance=qx-postgres
+gcloud sql databases create engagement_db --instance=qx-postgres
+```
+
+Vaciar todos los archivos del bucket (mantiene las configuraciones CORS y permisos):
+
+```powershell
+gcloud storage rm gs://$env:BUCKET_NAME/**
+```
+
+> [!TIP]
+> Despues de limpiar los datos, puede volver a ejecutar el pipeline de CI/CD para que los microservicios corran sus migraciones iniciales sobre las bases de datos vacias.
 
 ---
 

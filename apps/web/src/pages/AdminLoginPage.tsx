@@ -1,43 +1,62 @@
 import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../hooks/useAuth'
+import { authService } from '../services/auth.service'
 import AuthLayout from '../layouts/AuthLayout'
 import styles from './AuthPage.module.css'
 
-const ADMIN_USER = 'admin'
-const ADMIN_PASS = 'Admin1234#'
-
 export default function AdminLoginPage() {
   const navigate = useNavigate()
-  const [username, setUsername] = useState('')
+  const { login, logout, refresh } = useAuth()
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    if (username === ADMIN_USER && password === ADMIN_PASS) {
-      sessionStorage.setItem('adminAuthenticated', 'true')
-      sessionStorage.setItem('adminKey', ADMIN_PASS)
+    setError('')
+    setLoading(true)
+
+    try {
+      await login(email, password)
+      await refresh()
+      const me = await authService.me()
+      const user = me.data.user
+      const isAdmin = Boolean(user.is_admin || user.roles?.includes('admin'))
+
+      if (!isAdmin) {
+        await logout()
+        setError('Tu usuario no tiene rol de administrador.')
+        return
+      }
+
       navigate('/admin', { replace: true })
-    } else {
-      setError('Credenciales incorrectas.')
+    } catch (err: unknown) {
+      const msg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+        ?? 'Credenciales inválidas o servicio no disponible.'
+      setError(msg)
+    } finally {
+      setLoading(false)
     }
   }
 
   return (
     <AuthLayout>
       <h1 className={styles.title}>Panel Administrativo</h1>
-      <p className={styles.subtitle}>Acceso restringido — solo personal autorizado</p>
+      <p className={styles.subtitle}>Ingresa con una cuenta que tenga rol de administrador.</p>
 
       <form onSubmit={handleSubmit} className={styles.form}>
         <div className="input-group">
-          <label className="input-label" htmlFor="username">Usuario</label>
+          <label className="input-label" htmlFor="email">Correo electrónico</label>
           <input
-            id="username"
-            type="text"
+            id="email"
+            type="email"
             className="input"
-            placeholder="admin"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
+            placeholder="admin@quetxal.tv"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
             required
           />
         </div>
@@ -57,8 +76,8 @@ export default function AdminLoginPage() {
 
         {error && <p className={styles.errorMsg}>{error}</p>}
 
-        <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
-          Ingresar
+        <button type="submit" className="btn btn-primary" style={{ width: '100%' }} disabled={loading}>
+          {loading ? <span className="spinner" /> : 'Ingresar como administrador'}
         </button>
       </form>
     </AuthLayout>
