@@ -58,6 +58,10 @@ $env:ENGAGEMENT_DB_PASSWORD="admin1234"
 gcloud config set project $env:PROJECT_ID
 gcloud config set compute/region $env:REGION
 gcloud config set compute/zone $env:ZONE
+
+# Recomendado: Configurar DNS Zonal y habilitar OS Login para evitar warnings y fallos de metadatos SSH
+gcloud compute project-info add-metadata --metadata default-dns-type=zonal
+gcloud compute project-info add-metadata --metadata enable-oslogin=TRUE
 ```
 
 > [!IMPORTANT]
@@ -273,7 +277,7 @@ Una vez dentro de cada VM, ejecute el siguiente script para instalar Docker:
 
 ```bash
 sudo apt-get update
-sudo apt-get install -y ca-certificates curl gnupg git
+sudo apt-get install -y ca-certificates curl gnupg git postgresql-client
 sudo install -m 0755 -d /etc/apt/keyrings
 curl -fsSL https://download.docker.com/linux/debian/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
 sudo chmod a+r /etc/apt/keyrings/docker.gpg
