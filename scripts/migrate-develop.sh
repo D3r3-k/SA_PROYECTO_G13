@@ -21,38 +21,45 @@ REMOTE_DIR="~/quetxal-migrate"
 
 echo "[migrate-develop.sh] Iniciando migraciones en ${VM} -> ${SQL_IP}"
 
+# ─── Asegurar cliente PostgreSQL en la VM ──────────────────────────────────────
+
+echo "[migrate-develop.sh] Comprobando cliente PostgreSQL en la VM..."
+if ! gcloud compute ssh "${VM}" --zone="${ZONE}" --tunnel-through-iap --command="command -v psql" >/dev/null 2>&1; then
+  echo "[migrate-develop.sh] psql no encontrado en la VM. Instalando postgresql-client..."
+  gcloud compute ssh "${VM}" --zone="${ZONE}" --tunnel-through-iap --command="sudo apt-get update && sudo apt-get install -y postgresql-client"
+fi
+
 # ─── Copiar archivos SQL a la VM ───────────────────────────────────────────────
 
-echo "[migrate-develop.sh] Copiando archivos SQL a la VM..."
+echo "[migrate-develop.sh] Preparando estructura local de migraciones..."
+LOCAL_TMP="quetxal-migrate"
+rm -rf "${LOCAL_TMP}"
+mkdir -p "${LOCAL_TMP}/identity" "${LOCAL_TMP}/catalog" "${LOCAL_TMP}/engagement" "${LOCAL_TMP}/subscription"
 
-gcloud compute ssh "${VM}" --zone="${ZONE}" --tunnel-through-iap \
-  --command="mkdir -p ${REMOTE_DIR}/identity ${REMOTE_DIR}/catalog ${REMOTE_DIR}/engagement ${REMOTE_DIR}/subscription"
+# Copiar archivos identity ordenados
+cp -r services/identity-service/migrations/01_extensions "${LOCAL_TMP}/identity/"
+cp -r services/identity-service/migrations/02_tables "${LOCAL_TMP}/identity/"
+cp -r services/identity-service/migrations/03_functions "${LOCAL_TMP}/identity/"
+cp -r services/identity-service/migrations/04_views "${LOCAL_TMP}/identity/"
+cp -r services/identity-service/migrations/05_procedures "${LOCAL_TMP}/identity/"
+cp -r services/identity-service/migrations/06_triggers "${LOCAL_TMP}/identity/"
 
-# identity: directorios ordenados
-gcloud compute scp --recurse \
-  services/identity-service/migrations/01_extensions \
-  services/identity-service/migrations/02_tables \
-  services/identity-service/migrations/03_functions \
-  services/identity-service/migrations/04_views \
-  services/identity-service/migrations/05_procedures \
-  services/identity-service/migrations/06_triggers \
-  "${VM}:${REMOTE_DIR}/identity/" \
-  --zone="${ZONE}" --tunnel-through-iap
+# Copiar archivos unicos
+cp services/catalog-service/migrations/001_init.sql "${LOCAL_TMP}/catalog/"
+cp services/engagement-service/migrations/001_init.sql "${LOCAL_TMP}/engagement/"
+cp services/subscription-service/migrations/001_init.sql "${LOCAL_TMP}/subscription/"
 
-# catalog, engagement, subscription: archivo unico
-gcloud compute scp services/catalog-service/migrations/001_init.sql \
-  "${VM}:${REMOTE_DIR}/catalog/001_init.sql" \
-  --zone="${ZONE}" --tunnel-through-iap
+echo "[migrate-develop.sh] Transfiriendo archivos a la VM en una sola conexion..."
+# Limpiar directorio remoto previo para evitar conflictos de permisos
+gcloud compute ssh "${VM}" --zone="${ZONE}" --tunnel-through-iap --command="rm -rf ~/${LOCAL_TMP}"
 
-gcloud compute scp services/engagement-service/migrations/001_init.sql \
-  "${VM}:${REMOTE_DIR}/engagement/001_init.sql" \
-  --zone="${ZONE}" --tunnel-through-iap
+# Subir la carpeta completa de forma recursiva al home de la VM
+gcloud compute scp --recurse "${LOCAL_TMP}" "${VM}:~/" --zone="${ZONE}" --tunnel-through-iap
 
-gcloud compute scp services/subscription-service/migrations/001_init.sql \
-  "${VM}:${REMOTE_DIR}/subscription/001_init.sql" \
-  --zone="${ZONE}" --tunnel-through-iap
+# Limpiar directorio local temporal
+rm -rf "${LOCAL_TMP}"
 
-echo "[migrate-develop.sh] Archivos copiados."
+echo "[migrate-develop.sh] Archivos copiados con exito."
 
 # ─── Funcion auxiliar: ejecutar psql via SSH ────────────────────────────────────
 
