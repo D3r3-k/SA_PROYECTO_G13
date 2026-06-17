@@ -145,6 +145,12 @@
   margin-bottom: 1rem;
 }
 
+.videoDuration {
+  font-size: var(--fs-sm);
+  color: var(--color-text-muted);
+  margin-bottom: 0.75rem;
+}
+
 .videoWrapper {
   position: relative;
   width: 100%;

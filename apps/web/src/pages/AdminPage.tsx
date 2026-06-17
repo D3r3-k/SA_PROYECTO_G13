@@ -1,4 +1,8 @@
+<<<<<<< Updated upstream
 import { useCallback, useEffect, useMemo, useState } from 'react'
+=======
+import { useEffect, useRef, useState } from 'react'
+>>>>>>> Stashed changes
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import {
@@ -17,6 +21,7 @@ import {
 } from '../services/admin.service'
 import { catalogService, type Episode } from '../services/catalog.service'
 import { getPlanFeatures, setPlanFeatures } from '../utils/planFeatures'
+import type { ContentCard } from '../services/catalog.service'
 import styles from './AdminPage.module.css'
 
 const DEFAULT_FEATURES: Record<string, string[]> = {
@@ -60,12 +65,36 @@ interface ContentForm {
   cast: string
 }
 
+<<<<<<< Updated upstream
 interface MediaUploadState {
   contentId: string
   episodeId: string
   mediaType: MediaType
   file: File | null
   durationLabel: string
+=======
+interface AuditLogEntry {
+  id: number
+  user_email: string
+  action: string
+  table_name: string
+  record_id: string
+  old_value: string | null
+  new_value: string | null
+  created_at: string
+}
+
+interface CreateContentResponse {
+  success: boolean
+  message: string
+  content_id: string
+  episodes: Array<{
+    episode_id: string
+    season_number: number
+    episode_number: number
+    title: string
+  }>
+>>>>>>> Stashed changes
 }
 
 interface FeedbackModal {
@@ -538,6 +567,7 @@ export default function AdminPage() {
   const [savingContent, setSavingContent] = useState(false)
   const [editingContentId, setEditingContentId] = useState<string | null>(null)
 
+<<<<<<< Updated upstream
   const [mediaUpload, setMediaUpload] = useState<MediaUploadState>(initialMediaUpload)
   const [mediaEpisodes, setMediaEpisodes] = useState<Episode[]>([])
   const [uploadingMedia, setUploadingMedia] = useState(false)
@@ -545,6 +575,30 @@ export default function AdminPage() {
 
   const [premiereEditor, setPremiereEditor] = useState<{ content: AdminContentItem; value: string } | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<AdminContentItem | null>(null)
+=======
+  const [catalogItems, setCatalogItems] = useState<ContentCard[]>([])
+  const [loadingCatalog, setLoadingCatalog] = useState(true)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [deleteMsg, setDeleteMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const scheduleDates = useRef<Record<string, string>>({})
+  const [scheduleMsg, setScheduleMsg] = useState<{ id: string; type: 'success' | 'error'; text: string } | null>(null)
+
+  const [auditLog, setAuditLog] = useState<AuditLogEntry[]>([])
+  const [loadingAudit, setLoadingAudit] = useState(true)
+  const [auditError, setAuditError] = useState('')
+
+  useEffect(() => {
+    if (sessionStorage.getItem('adminAuthenticated') !== 'true') {
+      navigate('/login/admin', { replace: true })
+    }
+  }, [navigate])
+
+  useEffect(() => {
+    fetchPlans()
+    fetchCatalogList()
+    fetchAuditLog()
+  }, [])
+>>>>>>> Stashed changes
 
   const [auditFilters, setAuditFilters] = useState<AuditFilters>({ service: 'all', limit: 500, offset: 0 })
   const [auditFromInput, setAuditFromInput] = useState('')
@@ -903,6 +957,7 @@ export default function AdminPage() {
     }
   }
 
+<<<<<<< Updated upstream
   const startEditContent = async (content: AdminContentItem) => {
     setNotice(null)
     try {
@@ -945,6 +1000,100 @@ export default function AdminPage() {
     } catch (error) {
       setNotice({ type: 'error', text: extractError(error, 'No se pudo cargar el contenido.') })
     }
+=======
+  const fetchCatalogList = async () => {
+    setLoadingCatalog(true)
+    try {
+      const res = await adminApi.get<{ success: boolean; items: ContentCard[] }>('/catalog/list')
+      setCatalogItems(res.data.items ?? [])
+    } catch (err) {
+      logAdminPageError('Error al cargar lista del catálogo', err)
+    } finally {
+      setLoadingCatalog(false)
+    }
+  }
+
+  const handleDeleteContent = async (contentId: string, title: string) => {
+    if (!window.confirm(`¿Eliminar "${title}"? Esta acción no se puede deshacer.`)) return
+    setDeletingId(contentId)
+    setDeleteMsg(null)
+    try {
+      await adminApi.delete(`/catalog/content/${contentId}`)
+      setDeleteMsg({ type: 'success', text: `"${title}" eliminado correctamente.` })
+      setCatalogItems((items) => items.filter((item) => item.content_id !== contentId))
+    } catch (err: any) {
+      logAdminPageError('Error al eliminar contenido', err)
+      setDeleteMsg({ type: 'error', text: err.response?.data?.message ?? 'Error al eliminar.' })
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
+  const handleScheduleContent = async (contentId: string, title: string) => {
+    const date = scheduleDates.current[contentId]
+    if (!date) return
+    setScheduleMsg(null)
+    try {
+      await adminApi.patch(`/catalog/content/${contentId}/schedule`, { scheduled_at: date })
+      setScheduleMsg({ id: contentId, type: 'success', text: `Estreno de "${title}" programado para ${date}.` })
+    } catch (err: any) {
+      const status = err.response?.status
+      if (status === 404 || status === 503) {
+        setScheduleMsg({ id: contentId, type: 'error', text: 'Endpoint pendiente: PATCH /catalog/content/:id/schedule no implementado aún en el backend.' })
+      } else {
+        setScheduleMsg({ id: contentId, type: 'error', text: err.response?.data?.message ?? 'Error al programar estreno.' })
+      }
+    }
+  }
+
+  const fetchAuditLog = async () => {
+    setLoadingAudit(true)
+    setAuditError('')
+    try {
+      const res = await adminApi.get<{ entries: AuditLogEntry[] }>('/audit-log')
+      setAuditLog(res.data.entries ?? [])
+    } catch (err: any) {
+      const status = err.response?.status
+      if (status === 404 || status === 503) {
+        setAuditError('Endpoint pendiente: GET /api/admin/audit-log no está implementado en el backend.')
+      } else {
+        setAuditError(err.response?.data?.message ?? 'Error al cargar el log.')
+      }
+    } finally {
+      setLoadingAudit(false)
+    }
+  }
+
+  const downloadAuditCSV = () => {
+    if (!auditLog.length) return
+    const headers = ['ID', 'Usuario', 'Accion', 'Tabla', 'ID Registro', 'Valor Anterior', 'Valor Nuevo', 'Fecha']
+    const rows = auditLog.map((e) => [
+      e.id,
+      e.user_email,
+      e.action,
+      e.table_name,
+      e.record_id,
+      e.old_value ?? '',
+      e.new_value ?? '',
+      e.created_at,
+    ])
+    const csv = [headers, ...rows]
+      .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      .join('\n')
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `audit-log-${new Date().toISOString().split('T')[0]}.csv`
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const logout = () => {
+    sessionStorage.removeItem('adminAuthenticated')
+    sessionStorage.removeItem('adminKey')
+    navigate('/login/admin', { replace: true })
+>>>>>>> Stashed changes
   }
 
   const requestDeleteContent = (content: AdminContentItem) => {
@@ -1724,8 +1873,196 @@ export default function AdminPage() {
               </button>
             </div>
           </div>
+<<<<<<< Updated upstream
         </div>
       )}
+=======
+        </section>
+
+        {/* === LISTADO DEL CATÁLOGO === */}
+        <section className={styles.card}>
+          <div className={styles.cardHeader}>
+            <h2 className={styles.cardTitle}>Contenido en catálogo</h2>
+            <p className={styles.cardSub}>
+              Lista completa de películas y series. El calendarizador de estreno requiere soporte de
+              <code> scheduled_at</code> en el catalog-service (pendiente de backend).
+            </p>
+          </div>
+
+          {deleteMsg && (
+            <div className={deleteMsg.type === 'success' ? styles.successMsg : styles.errorMsg}>
+              {deleteMsg.text}
+            </div>
+          )}
+
+          {scheduleMsg && (
+            <div className={scheduleMsg.type === 'success' ? styles.successMsg : styles.errorMsg}>
+              {scheduleMsg.text}
+            </div>
+          )}
+
+          {loadingCatalog ? (
+            <div className={styles.loading}><span className="spinner" /></div>
+          ) : catalogItems.length === 0 ? (
+            <div className={styles.emptyState}>
+              No hay contenido en el catálogo. Sincroniza desde archive.org o crea contenido manualmente.
+            </div>
+          ) : (
+            <div className={styles.catalogTableWrapper}>
+              <table className={styles.catalogTable}>
+                <thead>
+                  <tr>
+                    <th>Portada</th>
+                    <th>Título</th>
+                    <th>Tipo</th>
+                    <th>Géneros</th>
+                    <th>Año</th>
+                    <th className={styles.scheduleCol}>
+                      Calendarizador de estreno
+                      <span className={styles.pendingTag}>Backend pendiente</span>
+                    </th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {catalogItems.map((item) => {
+                    const year = item.release_date ? new Date(item.release_date).getFullYear() : '—'
+                    const genreNames = item.genres?.map((g) => g.name).join(', ') || '—'
+                    return (
+                      <tr key={item.content_id}>
+                        <td>
+                          {item.poster_path ? (
+                            <img
+                              src={item.poster_path}
+                              alt={item.title}
+                              className={styles.catalogThumb}
+                            />
+                          ) : (
+                            <div className={styles.catalogThumbPlaceholder}>
+                              {item.type === 'series' ? '📺' : '🎬'}
+                            </div>
+                          )}
+                        </td>
+                        <td className={styles.catalogTitle}>{item.title}</td>
+                        <td>
+                          <span className={`${styles.typeBadge} ${item.type === 'series' ? styles.typeSeries : styles.typeMovie}`}>
+                            {item.type === 'series' ? 'Serie' : 'Película'}
+                          </span>
+                        </td>
+                        <td className={styles.catalogGenres}>{genreNames}</td>
+                        <td>{year}</td>
+                        <td className={styles.scheduleCell}>
+                          <div className={styles.scheduleRow}>
+                            <input
+                              type="date"
+                              className={styles.dateInput}
+                              defaultValue={item.release_date ? item.release_date.split('T')[0] : ''}
+                              onChange={(e) => { scheduleDates.current[item.content_id] = e.target.value }}
+                              title="Fecha en que el contenido será visible para los usuarios"
+                            />
+                            <button
+                              className={`btn btn-secondary ${styles.scheduleBtn}`}
+                              onClick={() => handleScheduleContent(item.content_id, item.title)}
+                            >
+                              Programar
+                            </button>
+                          </div>
+                        </td>
+                        <td>
+                          <button
+                            className={styles.deleteBtn}
+                            onClick={() => handleDeleteContent(item.content_id, item.title)}
+                            disabled={deletingId === item.content_id}
+                          >
+                            {deletingId === item.content_id ? <span className="spinner" /> : 'Eliminar'}
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+
+        {/* === LOG DE AUDITORÍA === */}
+        <section className={styles.card}>
+          <div className={styles.cardHeader}>
+            <h2 className={styles.cardTitle}>Log de auditoría</h2>
+            <p className={styles.cardSub}>
+              Historial transaccional de operaciones administrativas (usuario, timestamp, tabla, valor anterior/nuevo).
+            </p>
+          </div>
+
+          <div className={styles.auditActions}>
+            <button
+              className="btn btn-secondary"
+              onClick={downloadAuditCSV}
+              disabled={auditLog.length === 0}
+            >
+              Descargar CSV
+            </button>
+            <button
+              className="btn btn-secondary"
+              onClick={() => window.print()}
+              disabled={auditLog.length === 0}
+            >
+              Imprimir / PDF
+            </button>
+          </div>
+
+          {loadingAudit ? (
+            <div className={styles.loading}><span className="spinner" /></div>
+          ) : auditError ? (
+            <div className={styles.auditPending}>
+              <div className={styles.auditPendingIcon}>⚙</div>
+              <p className={styles.auditPendingTitle}>Endpoint pendiente de backend</p>
+              <p className={styles.auditPendingDesc}>{auditError}</p>
+              <p className={styles.auditPendingDesc}>
+                Implementar: <code>GET /api/admin/audit-log</code> → tabla con campos:
+                id, user_email, action, table_name, record_id, old_value, new_value, created_at
+              </p>
+            </div>
+          ) : auditLog.length === 0 ? (
+            <div className={styles.emptyState}>No hay registros de auditoría.</div>
+          ) : (
+            <div className={styles.auditTableWrapper}>
+              <table className={styles.auditTable}>
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Usuario</th>
+                    <th>Acción</th>
+                    <th>Tabla</th>
+                    <th>ID Registro</th>
+                    <th>Valor anterior</th>
+                    <th>Valor nuevo</th>
+                    <th>Fecha</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {auditLog.map((entry) => (
+                    <tr key={entry.id}>
+                      <td className={styles.auditId}>{entry.id}</td>
+                      <td>{entry.user_email}</td>
+                      <td><span className={styles.actionTag}>{entry.action}</span></td>
+                      <td><code>{entry.table_name}</code></td>
+                      <td className={styles.auditRecordId}>{entry.record_id}</td>
+                      <td className={styles.auditValue}>{entry.old_value ?? '—'}</td>
+                      <td className={styles.auditValue}>{entry.new_value ?? '—'}</td>
+                      <td className={styles.auditDate}>
+                        {new Date(entry.created_at).toLocaleString('es-GT')}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      </main>
+>>>>>>> Stashed changes
     </div>
   )
 }
