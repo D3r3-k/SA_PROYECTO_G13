@@ -406,7 +406,7 @@ func (s *Server) episodeMessage(e repository.Episode) protoreflect.Message {
 func (s *Server) auditLogMessage(item repository.AuditLog) protoreflect.Message {
 	m := s.newMsg("AuditLogItem")
 	setString(m, "service", "catalog")
-	setString(m, "audit_id", fmt.Sprintf("%d", item.ID))
+	setString(m, "audit_id", item.ID)
 	setString(m, "actor_user_id", item.ActorUserID)
 	setString(m, "actor_email", item.ActorEmail)
 	setString(m, "action", item.Action)

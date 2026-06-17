@@ -60,7 +60,7 @@ type AdminContentWrite struct {
 }
 
 type AuditLog struct {
-	ID          int64
+	ID          string
 	ActorUserID string
 	ActorEmail  string
 	Action      string
@@ -358,17 +358,35 @@ func (r Repository) AllEpisodes(ctx context.Context, id string) ([]Episode, erro
 
 func (r Repository) ListAuditLogs(ctx context.Context, tableName string, actorUserID string, action string, from string, to string, limit int, offset int) ([]AuditLog, error) {
 	rows, err := r.DB.Query(ctx, `
-        SELECT id, actor_user_id, actor_email, action, table_name, record_id, old_state, new_state, created_at
-        FROM fn_catalog_audit_report($1, $2, $3, $4, $5, $6, $7);`,
-		nullString(tableName), nullString(actorUserID), nullString(action), nullString(from), nullString(to), limit, offset)
+        SELECT audit_id, actor_user_id, actor_email, action, table_name, record_id, old_state_json, new_state_json, created_at
+        FROM fn_catalog_audit_report($1, $2, $3, $4::timestamptz, $5::timestamptz, $6, $7);`,
+		nullString(tableName),
+		nullString(actorUserID),
+		nullString(action),
+		nullString(from),
+		nullString(to),
+		limit,
+		offset,
+	)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
+
 	items := []AuditLog{}
 	for rows.Next() {
 		var item AuditLog
-		if err := rows.Scan(&item.ID, &item.ActorUserID, &item.ActorEmail, &item.Action, &item.TableName, &item.RecordID, &item.OldState, &item.NewState, &item.CreatedAt); err != nil {
+		if err := rows.Scan(
+			&item.ID,
+			&item.ActorUserID,
+			&item.ActorEmail,
+			&item.Action,
+			&item.TableName,
+			&item.RecordID,
+			&item.OldState,
+			&item.NewState,
+			&item.CreatedAt,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, item)

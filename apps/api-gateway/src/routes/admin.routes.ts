@@ -438,11 +438,27 @@ async function collectAuditLogs(service: string, filters: AuditFilters): Promise
     if (!loader) {
       throw new Error("service must be all, catalog, identity, subscription or engagement");
     }
+
     const response = await loader();
+    if (!response.success) {
+      throw new Error(`${normalized} audit failed: ${response.message}`);
+    }
+
     return response.items ?? [];
   }
 
-  const responses = await Promise.all(Object.values(loaders).map((loader) => loader()));
+  const responses = await Promise.all(
+    Object.entries(loaders).map(async ([serviceName, loader]) => {
+      const response = await loader();
+
+      if (!response.success) {
+        throw new Error(`${serviceName} audit failed: ${response.message}`);
+      }
+
+      return response;
+    })
+  );
+
   return responses.flatMap((response) => response.items ?? []).sort((a, b) =>
     String(b.created_at).localeCompare(String(a.created_at))
   );
