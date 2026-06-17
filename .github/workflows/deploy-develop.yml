@@ -203,23 +203,52 @@ jobs:
       - name: Configure gcloud project
         run: gcloud config set project "${GCP_PROJECT_ID}"
 
-      - name: Get Cloud SQL IP
+      - name: Install PostgreSQL client
         run: |
-          CLOUD_SQL_IP=$(gcloud sql instances describe ${{ env.SQL_INSTANCE_NAME }} --format='value(ipAddresses[0].ipAddress)')
-          echo "CLOUD_SQL_PRIVATE_IP=${CLOUD_SQL_IP}" >> $GITHUB_ENV
+          if ! command -v psql >/dev/null; then
+            sudo apt-get update && sudo apt-get install -y postgresql-client
+          fi
 
-      - name: Run migrations
-        shell: bash
-        env:
-          GCP_ZONE: ${{ env.GCP_ZONE }}
-          VM_SERVICES_NAME: ${{ env.VM_SERVICES_NAME }}
-          IDENTITY_DB_PASSWORD: ${{ secrets.IDENTITY_DB_PASSWORD }}
-          SUBSCRIPTION_DB_PASSWORD: ${{ secrets.SUBSCRIPTION_DB_PASSWORD }}
-          CATALOG_DB_PASSWORD: ${{ secrets.CATALOG_DB_PASSWORD }}
-          ENGAGEMENT_DB_PASSWORD: ${{ secrets.ENGAGEMENT_DB_PASSWORD }}
+      - name: Start IAP Tunnel to Cloud SQL via VM
         run: |
-          chmod +x scripts/migrate-develop.sh
-          ./scripts/migrate-develop.sh
+          gcloud compute start-iap-tunnel ${{ env.VM_SERVICES_NAME }} 5432 \
+            --local-host-port=localhost:5432 \
+            --zone=${{ env.GCP_ZONE }} &
+          sleep 5 # Esperar propagacion de la conexion
+
+      - name: Run SQL Migrations
+        run: |
+          set -euo pipefail
+          
+          # 1. identity_db
+          export PGPASSWORD="${{ secrets.IDENTITY_DB_PASSWORD }}"
+          echo "Migrando identity_db..."
+          for dir in 01_extensions 02_tables 03_functions 04_views 05_procedures 06_triggers; do
+            for f in $(ls services/identity-service/migrations/$dir/*.sql | sort); do
+              echo "  -> Aplicando $f"
+              psql -h localhost -p 5432 -U identity_user -d identity_db -v ON_ERROR_STOP=1 -f "$f"
+            done
+          done
+
+          # 2. catalog_db
+          export PGPASSWORD="${{ secrets.CATALOG_DB_PASSWORD }}"
+          echo "Migrando catalog_db..."
+          psql -h localhost -p 5432 -U catalog_user -d catalog_db -v ON_ERROR_STOP=1 -f services/catalog-service/migrations/001_init.sql
+
+          # 3. engagement_db
+          export PGPASSWORD="${{ secrets.ENGAGEMENT_DB_PASSWORD }}"
+          echo "Migrando engagement_db..."
+          psql -h localhost -p 5432 -U engagement_user -d engagement_db -v ON_ERROR_STOP=1 -f services/engagement-service/migrations/001_init.sql
+
+          # 4. subscription_db
+          export PGPASSWORD="${{ secrets.SUBSCRIPTION_DB_PASSWORD }}"
+          echo "Migrando subscription_db..."
+          psql -h localhost -p 5432 -U subscription_user -d subscription_db -v ON_ERROR_STOP=1 -f services/subscription-service/migrations/001_init.sql
+
+      - name: Stop IAP Tunnel
+        if: always()
+        run: |
+          pkill -f "start-iap-tunnel" || true
 
   deploy:
     name: Deploy
