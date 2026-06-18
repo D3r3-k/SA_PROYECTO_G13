@@ -7,7 +7,7 @@
 
 ### Diagrama de Actividades — Login y Validacion JWT
 
-![Diagrama de Actividades Login y JWT](../00_assets/diagrams/04_diagramas/actividadloginactualizado.drawio.png)
+![Diagrama de Actividades Login y JWT](../00_assets/diagrams/04_diagramas/loginjwt.png)
 
 
 Este diagrama modela los tres flujos de actividad del modulo de autenticacion distribuidos en cinco carriles: Usuario, API Gateway, Identity Service, DB Identity y Redis.
@@ -34,14 +34,6 @@ En la tercera seccion el administrador selecciona un plan, edita el nombre o el 
 En la cuarta seccion el administrador cierra sesion. El frontend ejecuta `sessionStorage.removeItem('adminAuthenticated')` y redirige a `/login/admin`.
 
 ---
-### Diagrama de Actividades — Publicacion de Contenido y Notificaciones
-
-![Diagrama de Actividades — Publicacion de Contenido y Notificaciones](../00_assets/diagrams/04_diagramas/actividadgestionusuarios.drawio.png)
-
-
-
----
-
 ### Diagrama de Actividades — Consumo de video
 
 ![Diagrama de Actividades Login y JWT](../00_assets/diagrams/04_diagramas/consumovideo.png)
