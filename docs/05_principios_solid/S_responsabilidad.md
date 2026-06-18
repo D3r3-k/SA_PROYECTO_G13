@@ -65,9 +65,13 @@ export async function publishNotificationEvent(payload: Record<string, unknown>)
 
 ---
 
-## 3. ¿Por qué se aplicó? (Justificación Técnica)
+## 3. ¿Por qué se aplicó?
 
-Al aislar cada responsabilidad en su propio módulo:
+**Problema de diseño inicial:** Sin SRP, un único módulo concentraría el transporte gRPC, las reglas de negocio, las llamadas a PostgreSQL y la publicación de eventos Redis. Un cambio en un stored procedure de la base de datos obligaría a modificar el mismo archivo que inicializa el servidor gRPC, aumentando el riesgo de introducir regresiones en capas no relacionadas. La ausencia de separación también imposibilita probar la lógica de negocio de forma aislada, ya que todo estaría acoplado a infraestructura concreta.
+
+## 4. ¿Para qué se aplicó?
+
+**Beneficio obtenido:**
 - Un cambio en los stored procedures de PostgreSQL solo afecta `user.repository.ts`, sin tocar la lógica de negocio ni el transporte gRPC.
 - Si se cambia el broker de notificaciones de Redis a otro sistema, solo se modifica `notification.publisher.ts`.
 - La lógica de negocio en `identity.service.ts` puede ser probada de forma aislada mockeando el repositorio y el publisher, sin levantar un servidor gRPC real ni una base de datos.

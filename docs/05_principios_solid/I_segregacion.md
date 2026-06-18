@@ -66,8 +66,15 @@ service SubscriptionService {
 
 ---
 
-## 3. ¿Por qué se aplicó? (Justificación Técnica)
+## 3. ¿Por qué se aplicó?
 
-La segregación de `AuthenticatedRequest` evita que los handlers de rutas accedan accidentalmente a propiedades del request que no deberían modificar, garantizando tipado seguro en TypeScript y reduciendo el riesgo de errores en tiempo de ejecución. La separación de contratos `.proto` por dominio evita que un cambio en el contrato de pagos obligue a regenerar los clientes gRPC de subscripción o de catálogo. Cada servicio depende únicamente de la interfaz que consume, siguiendo el principio de mínimo conocimiento.
+**Problema de diseño inicial:** Sin ISP, los handlers de rutas del API Gateway dependerían del objeto `Request` completo de Express, que expone más de 40 propiedades (headers crudos, cookies raw, métodos de bajo nivel) que ningún handler de negocio debería leer ni modificar. Un error tipográfico accediendo a `req.rawHeaders` en lugar de `req.user.email` pasaría desapercibido en TypeScript sin interfaces segregadas. A nivel gRPC, un único archivo `.proto` monolítico significaría que cualquier cambio en el contrato de pagos forzaría la regeneración de clientes en todos los servicios, creando acoplamiento artificial entre dominios que no se comunican entre sí.
+
+## 4. ¿Para qué se aplicó?
+
+**Beneficio obtenido:**
+- `AuthenticatedRequest` garantiza que los handlers de rutas protegidas solo accedan a `user_id`, `email` y `profile_id`, con tipado estricto en TypeScript que detecta en compilación cualquier acceso a propiedades inexistentes.
+- La separación de contratos `.proto` por dominio evita que un cambio en `payment.proto` obligue a regenerar los clientes gRPC de `subscription-service` o `catalog-service`. Cada servicio depende únicamente de la interfaz que consume.
+- El acoplamiento entre dominios queda limitado a los contratos explícitamente definidos, facilitando la evolución independiente de cada microservicio.
 
 ---

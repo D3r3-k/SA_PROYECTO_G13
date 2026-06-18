@@ -1,0 +1,201 @@
+<mxfile host="65bd71144e">
+    <diagram id="k8s-arch-quetxal" name="Arquitectura GKE — Quetxal TV">
+        <mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1150" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+
+                <!-- TITLE -->
+                <mxCell id="title" value="Arquitectura del Clúster GKE — Quetxal TV" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=17;fontStyle=1;" vertex="1" parent="1">
+                    <mxGeometry x="250" y="15" width="1100" height="35" as="geometry"/>
+                </mxCell>
+
+                <!-- GKE CLUSTER BACKGROUND -->
+                <mxCell id="gke-bg" value="GKE Cluster: qx-gke-release" style="text;html=1;strokeColor=#6c8ebf;fillColor=#dae8fc;align=left;verticalAlign=top;spacingLeft=10;spacingTop=8;fontSize=12;fontStyle=1;rounded=1;" vertex="1" parent="1">
+                    <mxGeometry x="170" y="60" width="1390" height="1050" as="geometry"/>
+                </mxCell>
+
+                <!-- NAMESPACE BACKGROUND -->
+                <mxCell id="ns-bg" value="namespace: quetxal-tv-prod" style="text;html=1;strokeColor=#666666;fillColor=#f5f5f5;align=left;verticalAlign=top;spacingLeft=10;spacingTop=8;fontSize=11;fontStyle=3;dashed=1;rounded=1;" vertex="1" parent="1">
+                    <mxGeometry x="190" y="110" width="920" height="960" as="geometry"/>
+                </mxCell>
+
+                <!-- EXTERNAL SERVICES BACKGROUND -->
+                <mxCell id="ext-bg" value="Servicios externos — GCP Managed" style="text;html=1;strokeColor=#d6b656;fillColor=#fff2cc;align=left;verticalAlign=top;spacingLeft=10;spacingTop=8;fontSize=11;fontStyle=1;rounded=1;" vertex="1" parent="1">
+                    <mxGeometry x="1140" y="110" width="400" height="960" as="geometry"/>
+                </mxCell>
+
+                <!-- ==================== INTERNET ==================== -->
+                <mxCell id="internet" value="Internet" style="shape=cloud;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+                    <mxGeometry x="25" y="195" width="130" height="80" as="geometry"/>
+                </mxCell>
+
+                <!-- ==================== INGRESS ==================== -->
+                <mxCell id="ingress" value="&lt;b&gt;Ingress: quetxal-tv-ingress&lt;/b&gt;&lt;br&gt;IP estática: prod-release-ingress-ip&lt;br&gt;rule: /* → web:80" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="1">
+                    <mxGeometry x="220" y="150" width="270" height="65" as="geometry"/>
+                </mxCell>
+
+                <!-- Arrow: Internet → Ingress -->
+                <mxCell id="e-int-ing" value="HTTP público" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#9673a6;fontColor=#9673a6;fontStyle=1;fontSize=10;" edge="1" source="internet" target="ingress" parent="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+
+                <!-- ==================== WEB ==================== -->
+                <mxCell id="web" value="&lt;b&gt;web&lt;/b&gt; — Deployment + ClusterIP Service&lt;br&gt;React / Vite · port: 80&lt;br&gt;Probe: httpGet GET / :80" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+                    <mxGeometry x="220" y="270" width="270" height="70" as="geometry"/>
+                </mxCell>
+
+                <!-- Arrow: Ingress → web -->
+                <mxCell id="e-ing-web" value="HTTP :80" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#82b366;fontColor=#82b366;fontStyle=1;fontSize=10;" edge="1" source="ingress" target="web" parent="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+
+                <!-- ==================== API GATEWAY ==================== -->
+                <mxCell id="apigw" value="&lt;b&gt;api-gateway&lt;/b&gt; — Deployment + ClusterIP Service&lt;br&gt;Express v5 (TypeScript) · port: 3000&lt;br&gt;Probe: httpGet GET /api/health :3000" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
+                    <mxGeometry x="220" y="400" width="270" height="70" as="geometry"/>
+                </mxCell>
+
+                <!-- Arrow: web → api-gateway -->
+                <mxCell id="e-web-gw" value="HTTP :3000" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#6c8ebf;fontColor=#6c8ebf;fontStyle=1;fontSize=10;" edge="1" source="web" target="apigw" parent="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+
+                <!-- ==================== MICROSERVICES ROW 1 ==================== -->
+
+                <mxCell id="ms-identity" value="&lt;b&gt;identity-service&lt;/b&gt;&lt;br&gt;TypeScript · gRPC :50051&lt;br&gt;Probe: tcpSocket :50051" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" vertex="1" parent="1">
+                    <mxGeometry x="210" y="540" width="165" height="65" as="geometry"/>
+                </mxCell>
+
+                <mxCell id="ms-fx" value="&lt;b&gt;fx-service&lt;/b&gt;&lt;br&gt;Python · gRPC :50052&lt;br&gt;Probe: tcpSocket :50052" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" vertex="1" parent="1">
+                    <mxGeometry x="390" y="540" width="165" height="65" as="geometry"/>
+                </mxCell>
+
+                <mxCell id="ms-sub" value="&lt;b&gt;subscription-service&lt;/b&gt;&lt;br&gt;Python · gRPC :50053&lt;br&gt;Probe: tcpSocket :50053" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" vertex="1" parent="1">
+                    <mxGeometry x="570" y="540" width="165" height="65" as="geometry"/>
+                </mxCell>
+
+                <mxCell id="ms-notif" value="&lt;b&gt;notification-service&lt;/b&gt;&lt;br&gt;Python · gRPC :50054&lt;br&gt;Probe: tcpSocket :50054" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" vertex="1" parent="1">
+                    <mxGeometry x="750" y="540" width="165" height="65" as="geometry"/>
+                </mxCell>
+
+                <mxCell id="ms-catalog" value="&lt;b&gt;catalog-service&lt;/b&gt;&lt;br&gt;Go · gRPC :50055&lt;br&gt;Probe: tcpSocket :50055" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" vertex="1" parent="1">
+                    <mxGeometry x="930" y="540" width="165" height="65" as="geometry"/>
+                </mxCell>
+
+                <!-- ==================== MICROSERVICES ROW 2 ==================== -->
+
+                <mxCell id="ms-engage" value="&lt;b&gt;engagement-service&lt;/b&gt;&lt;br&gt;Python · gRPC :50056&lt;br&gt;Probe: tcpSocket :50056" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" vertex="1" parent="1">
+                    <mxGeometry x="300" y="670" width="165" height="65" as="geometry"/>
+                </mxCell>
+
+                <mxCell id="ms-payment" value="&lt;b&gt;payment-gateway-service&lt;/b&gt;&lt;br&gt;Python · gRPC :50057&lt;br&gt;Probe: tcpSocket :50057" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" vertex="1" parent="1">
+                    <mxGeometry x="570" y="670" width="165" height="65" as="geometry"/>
+                </mxCell>
+
+                <!-- ROLLOUT BADGE -->
+                <mxCell id="rollout-badge" value="Todos los Pods: RollingUpdate · maxSurge=1 · maxUnavailable=0&lt;br&gt;resources — cpu: 100m→500m · memory: 128Mi→512Mi" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;fontStyle=1;" vertex="1" parent="1">
+                    <mxGeometry x="750" y="675" width="340" height="50" as="geometry"/>
+                </mxCell>
+
+                <!-- ==================== CONFIGMAP & SECRETS ==================== -->
+
+                <mxCell id="cm" value="&lt;b&gt;ConfigMap: app-config&lt;/b&gt;&lt;br&gt;URLs gRPC · puertos · GCS config" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="1">
+                    <mxGeometry x="210" y="810" width="195" height="55" as="geometry"/>
+                </mxCell>
+
+                <mxCell id="s-app" value="&lt;b&gt;Secret: app-secrets&lt;/b&gt;&lt;br&gt;JWT · passwords BD · SMTP" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="1">
+                    <mxGeometry x="425" y="795" width="175" height="50" as="geometry"/>
+                </mxCell>
+
+                <mxCell id="s-conn" value="&lt;b&gt;Secret: connection-secrets&lt;/b&gt;&lt;br&gt;DATABASE_URL por servicio" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="1">
+                    <mxGeometry x="615" y="795" width="175" height="50" as="geometry"/>
+                </mxCell>
+
+                <mxCell id="s-gcs" value="&lt;b&gt;Secret: gcs-service-account&lt;/b&gt;&lt;br&gt;GCP Service Account JSON" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="1">
+                    <mxGeometry x="425" y="855" width="175" height="50" as="geometry"/>
+                </mxCell>
+
+                <mxCell id="s-ghcr" value="&lt;b&gt;Secret: ghcr-pull-secret&lt;/b&gt;&lt;br&gt;Token GHCR (imagePullSecrets)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="1">
+                    <mxGeometry x="615" y="855" width="175" height="50" as="geometry"/>
+                </mxCell>
+
+                <!-- ==================== EXTERNAL: CLOUD SQL ==================== -->
+
+                <mxCell id="db-id" value="Cloud SQL&lt;br&gt;&lt;b&gt;identity_db&lt;/b&gt;&lt;br&gt;PostgreSQL 16" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" vertex="1" parent="1">
+                    <mxGeometry x="1165" y="160" width="145" height="70" as="geometry"/>
+                </mxCell>
+
+                <mxCell id="db-cat" value="Cloud SQL&lt;br&gt;&lt;b&gt;catalog_db&lt;/b&gt;&lt;br&gt;PostgreSQL 16" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" vertex="1" parent="1">
+                    <mxGeometry x="1345" y="160" width="145" height="70" as="geometry"/>
+                </mxCell>
+
+                <mxCell id="db-sub2" value="Cloud SQL&lt;br&gt;&lt;b&gt;subscription_db&lt;/b&gt;&lt;br&gt;PostgreSQL 15" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" vertex="1" parent="1">
+                    <mxGeometry x="1165" y="270" width="145" height="70" as="geometry"/>
+                </mxCell>
+
+                <mxCell id="db-eng" value="Cloud SQL&lt;br&gt;&lt;b&gt;engagement_db&lt;/b&gt;&lt;br&gt;PostgreSQL 16" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" vertex="1" parent="1">
+                    <mxGeometry x="1345" y="270" width="145" height="70" as="geometry"/>
+                </mxCell>
+
+                <!-- EXTERNAL: REDIS -->
+                <mxCell id="redis" value="&lt;b&gt;Redis 7&lt;/b&gt;&lt;br&gt;Cache FX + Cola notificaciones" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="1">
+                    <mxGeometry x="1245" y="400" width="155" height="70" as="geometry"/>
+                </mxCell>
+
+                <!-- EXTERNAL: GCS -->
+                <mxCell id="gcs" value="&lt;b&gt;Google Cloud Storage&lt;/b&gt;&lt;br&gt;media-bucket&lt;br&gt;audit-bucket · thumbnail-bucket" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;" vertex="1" parent="1">
+                    <mxGeometry x="1225" y="530" width="195" height="65" as="geometry"/>
+                </mxCell>
+
+                <!-- ==================== ARROWS: api-gateway → microservices ==================== -->
+
+                <mxCell id="e-gw-id" value="gRPC" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#d6b656;fontColor=#d6b656;fontStyle=1;fontSize=9;" edge="1" source="apigw" target="ms-identity" parent="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e-gw-fx" value="gRPC" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#d6b656;fontColor=#d6b656;fontStyle=1;fontSize=9;" edge="1" source="apigw" target="ms-fx" parent="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e-gw-sub" value="gRPC" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#d6b656;fontColor=#d6b656;fontStyle=1;fontSize=9;" edge="1" source="apigw" target="ms-sub" parent="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e-gw-notif" value="gRPC" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#d6b656;fontColor=#d6b656;fontStyle=1;fontSize=9;" edge="1" source="apigw" target="ms-notif" parent="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e-gw-cat" value="gRPC" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#d6b656;fontColor=#d6b656;fontStyle=1;fontSize=9;" edge="1" source="apigw" target="ms-catalog" parent="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e-gw-eng" value="gRPC" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#d6b656;fontColor=#d6b656;fontStyle=1;fontSize=9;" edge="1" source="apigw" target="ms-engage" parent="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e-gw-pay" value="gRPC" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#d6b656;fontColor=#d6b656;fontStyle=1;fontSize=9;" edge="1" source="apigw" target="ms-payment" parent="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+
+                <!-- ==================== ARROWS: microservices → external ==================== -->
+
+                <mxCell id="e-id-db" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#d6b656;dashed=1;fontSize=9;" edge="1" source="ms-identity" target="db-id" parent="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e-cat-db" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#d6b656;dashed=1;fontSize=9;" edge="1" source="ms-catalog" target="db-cat" parent="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e-sub-db" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#d6b656;dashed=1;fontSize=9;" edge="1" source="ms-sub" target="db-sub2" parent="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e-eng-db" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#d6b656;dashed=1;fontSize=9;" edge="1" source="ms-engage" target="db-eng" parent="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e-fx-redis" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#b85450;dashed=1;fontSize=9;" edge="1" source="ms-fx" target="redis" parent="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e-notif-redis" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#b85450;dashed=1;fontSize=9;" edge="1" source="ms-notif" target="redis" parent="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e-cat-gcs" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#6c8ebf;dashed=1;fontSize=9;" edge="1" source="ms-catalog" target="gcs" parent="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>

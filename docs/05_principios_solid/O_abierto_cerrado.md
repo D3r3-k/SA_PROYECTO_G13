@@ -68,8 +68,15 @@ async def AuthorizePayment(self, request, context):
 
 ---
 
-## 3. ¿Por qué se aplicó? (Justificación Técnica)
+## 3. ¿Por qué se aplicó?
 
-Si en el futuro se necesita agregar una nueva regla de rechazo (por ejemplo, tarjetas de un BIN específico), solo se extiende la función `_decline_reason` sin modificar `AuthorizePayment`. Si se necesita soportar una nueva moneda, se agrega a `SUPPORTED_CURRENCIES` sin tocar la lógica de validación. El flujo principal del método permanece **cerrado a la modificación**, mientras que las reglas de negocio están **abiertas a la extensión** mediante sus funciones auxiliares.
+**Problema de diseño inicial:** Sin OCP, cada nueva regla sandbox (rechazar por BIN, agregar moneda, introducir un límite de monto) requeriría modificar directamente el cuerpo de `AuthorizePayment`. Con cada modificación crece el riesgo de romper los caminos de aprobación o rechazo ya validados, ya que la lógica nueva convive con la lógica existente dentro del mismo bloque condicional. En un servicio de pagos, cualquier regresión introducida por una extensión mal delimitada tiene impacto directo en los flujos de suscripción.
+
+## 4. ¿Para qué se aplicó?
+
+**Beneficio obtenido:**
+- Para agregar una nueva regla de rechazo (por ejemplo, tarjetas de un BIN específico), solo se extiende la función `_decline_reason` sin modificar `AuthorizePayment`.
+- Para soportar una nueva moneda, se agrega a `SUPPORTED_CURRENCIES` sin tocar la lógica de validación existente.
+- El flujo principal del método permanece **cerrado a la modificación**, eliminando el riesgo de regresiones ante extensiones futuras, mientras que las reglas de negocio están **abiertas a la extensión** mediante sus funciones auxiliares.
 
 ---
