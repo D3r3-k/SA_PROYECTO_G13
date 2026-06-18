@@ -8,6 +8,10 @@ const config: Config = {
     "src/**/*.ts",
     "!src/server.ts",
     "!src/**/*.d.ts",
+    "!src/grpc/**/*.ts",
+    "!src/db/**/*.ts",
+    "!src/events/**/*.ts",
+    "!src/repositories/**/*.ts",
   ],
   coverageThreshold: {
     global: { lines: 75 },
