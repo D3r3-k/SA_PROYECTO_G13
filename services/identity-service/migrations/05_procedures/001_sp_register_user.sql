@@ -1,3 +1,4 @@
+BEGIN;
 CREATE OR REPLACE PROCEDURE sp_register_user(
     p_id UUID,
     p_email VARCHAR,
@@ -21,3 +22,4 @@ BEGIN
     );
 END;
 $$;
+COMMIT;

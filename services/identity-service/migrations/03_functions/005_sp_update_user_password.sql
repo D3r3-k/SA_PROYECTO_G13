@@ -1,3 +1,4 @@
+BEGIN;
 CREATE OR REPLACE PROCEDURE sp_update_user_password(
     p_user_id UUID,
     p_password_hash TEXT
@@ -12,3 +13,4 @@ BEGIN
     WHERE id = p_user_id;
 END;
 $$;
+COMMIT;

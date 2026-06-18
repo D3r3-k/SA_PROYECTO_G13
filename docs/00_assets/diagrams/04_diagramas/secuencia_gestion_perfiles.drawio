@@ -1,0 +1,359 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="720" pageHeight="880" math="0" shadow="0">
+  <root>
+    <mxCell id="0" />
+    <mxCell id="1" parent="0" />
+
+    <!-- ===== TITULO ===== -->
+    <mxCell id="gps_title" parent="1" style="text;html=1;whiteSpace=wrap;align=center;verticalAlign=middle;rounded=0;fontFamily=Helvetica;fontSize=14;fontStyle=1;" value="Diagrama de Secuencia — Gestion de Perfiles" vertex="1">
+      <mxGeometry x="0" y="0" width="720" height="12" as="geometry" />
+    </mxCell>
+
+    <!-- ===== PARTICIPANTES ===== -->
+    <mxCell id="gps_p1" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontSize=11;fontStyle=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="USUARIO" vertex="1">
+      <mxGeometry x="12" y="15" width="155" height="30" as="geometry" />
+    </mxCell>
+    <mxCell id="gps_p2" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontSize=11;fontStyle=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="API GATEWAY" vertex="1">
+      <mxGeometry x="192" y="15" width="155" height="30" as="geometry" />
+    </mxCell>
+    <mxCell id="gps_p3" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontSize=11;fontStyle=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="IDENTITY SERVICE" vertex="1">
+      <mxGeometry x="372" y="15" width="155" height="30" as="geometry" />
+    </mxCell>
+    <mxCell id="gps_p4" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontSize=11;fontStyle=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="DB IDENTITY" vertex="1">
+      <mxGeometry x="552" y="15" width="155" height="30" as="geometry" />
+    </mxCell>
+
+    <!-- ===== LIFELINES (lineas de vida verticales punteadas) ===== -->
+    <mxCell id="gps_ll1" parent="1" style="endArrow=none;dashed=1;html=1;strokeColor=#000000;strokeWidth=1;" edge="1">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="90" y="45" as="sourcePoint" />
+        <mxPoint x="90" y="860" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="gps_ll2" parent="1" style="endArrow=none;dashed=1;html=1;strokeColor=#000000;strokeWidth=1;" edge="1">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="270" y="45" as="sourcePoint" />
+        <mxPoint x="270" y="860" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="gps_ll3" parent="1" style="endArrow=none;dashed=1;html=1;strokeColor=#000000;strokeWidth=1;" edge="1">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="450" y="45" as="sourcePoint" />
+        <mxPoint x="450" y="860" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="gps_ll4" parent="1" style="endArrow=none;dashed=1;html=1;strokeColor=#000000;strokeWidth=1;" edge="1">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="630" y="45" as="sourcePoint" />
+        <mxPoint x="630" y="860" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+
+    <!-- ===================================================== -->
+    <!-- FLUJO 1: LISTAR PERFILES                              -->
+    <!-- ===================================================== -->
+    <mxCell id="gps_s1" parent="1" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;rounded=0;fontFamily=Helvetica;fontSize=11;fontStyle=1;" value="— Flujo 1: Listar Perfiles —" vertex="1">
+      <mxGeometry x="10" y="53" width="700" height="15" as="geometry" />
+    </mxCell>
+
+    <!-- llamada: USUARIO → API GW -->
+    <mxCell id="gps_m1_1" parent="1" style="endArrow=block;endFill=1;html=1;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;" edge="1" value="1. GET /profiles">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="90" y="73" as="sourcePoint" />
+        <mxPoint x="270" y="73" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+    <!-- llamada: API GW → IDENTITY -->
+    <mxCell id="gps_m1_2" parent="1" style="endArrow=block;endFill=1;html=1;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;" edge="1" value="2. ListProfiles gRPC">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="270" y="89" as="sourcePoint" />
+        <mxPoint x="450" y="89" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+    <!-- llamada: IDENTITY → DB -->
+    <mxCell id="gps_m1_3" parent="1" style="endArrow=block;endFill=1;html=1;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;" edge="1" value="3. sp_list_profiles_by_user">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="450" y="105" as="sourcePoint" />
+        <mxPoint x="630" y="105" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+    <!-- retorno: DB → IDENTITY -->
+    <mxCell id="gps_m1_4" parent="1" style="endArrow=open;dashed=1;html=1;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;" edge="1" value="4. lista de perfiles">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="630" y="121" as="sourcePoint" />
+        <mxPoint x="450" y="121" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+    <!-- retorno: IDENTITY → API GW -->
+    <mxCell id="gps_m1_5" parent="1" style="endArrow=open;dashed=1;html=1;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;" edge="1" value="5. perfiles[ ]">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="450" y="137" as="sourcePoint" />
+        <mxPoint x="270" y="137" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+    <!-- retorno: API GW → USUARIO -->
+    <mxCell id="gps_m1_6" parent="1" style="endArrow=open;dashed=1;html=1;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;" edge="1" value="6. 200 OK">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="270" y="153" as="sourcePoint" />
+        <mxPoint x="90" y="153" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+
+    <!-- ===================================================== -->
+    <!-- FLUJO 2: SELECCIONAR PERFIL                           -->
+    <!-- ===================================================== -->
+    <mxCell id="gps_s2" parent="1" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;rounded=0;fontFamily=Helvetica;fontSize=11;fontStyle=1;" value="— Flujo 2: Seleccionar Perfil —" vertex="1">
+      <mxGeometry x="10" y="175" width="700" height="15" as="geometry" />
+    </mxCell>
+
+    <!-- llamada: USUARIO → API GW -->
+    <mxCell id="gps_m2_1" parent="1" style="endArrow=block;endFill=1;html=1;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;" edge="1" value="7. POST /profiles/:id/select">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="90" y="195" as="sourcePoint" />
+        <mxPoint x="270" y="195" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+    <!-- llamada: API GW → IDENTITY -->
+    <mxCell id="gps_m2_2" parent="1" style="endArrow=block;endFill=1;html=1;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;" edge="1" value="8. SelectProfile gRPC">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="270" y="211" as="sourcePoint" />
+        <mxPoint x="450" y="211" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+    <!-- llamada: IDENTITY → DB -->
+    <mxCell id="gps_m2_3" parent="1" style="endArrow=block;endFill=1;html=1;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;" edge="1" value="9. sp_find_profile_by_user_and_profile">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="450" y="227" as="sourcePoint" />
+        <mxPoint x="630" y="227" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+    <!-- retorno: DB → IDENTITY -->
+    <mxCell id="gps_m2_4" parent="1" style="endArrow=open;dashed=1;html=1;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;" edge="1" value="10. datos del perfil">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="630" y="243" as="sourcePoint" />
+        <mxPoint x="450" y="243" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+    <!-- nota interna: signIdentityToken (accion interna de Identity) -->
+    <mxCell id="gps_note2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontSize=10;fillColor=#fff2cc;strokeColor=#d6b656;" value="signIdentityToken con profile_id → nuevo JWT" vertex="1">
+      <mxGeometry x="453" y="251" width="155" height="28" as="geometry" />
+    </mxCell>
+    <!-- retorno: IDENTITY → API GW (con nuevo JWT) -->
+    <mxCell id="gps_m2_5" parent="1" style="endArrow=open;dashed=1;html=1;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;" edge="1" value="11. nuevo JWT con profile_id">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="450" y="289" as="sourcePoint" />
+        <mxPoint x="270" y="289" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+    <!-- retorno: API GW → USUARIO -->
+    <mxCell id="gps_m2_6" parent="1" style="endArrow=open;dashed=1;html=1;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;" edge="1" value="12. 200 + cookie actualizada">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="270" y="305" as="sourcePoint" />
+        <mxPoint x="90" y="305" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+    <!-- nota interna: refresh y navigate (accion del frontend) -->
+    <mxCell id="gps_note2b" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontSize=10;fillColor=#fff2cc;strokeColor=#d6b656;" value="refresh() → navigate /catalog" vertex="1">
+      <mxGeometry x="10" y="313" width="155" height="24" as="geometry" />
+    </mxCell>
+
+    <!-- ===================================================== -->
+    <!-- FLUJO 3: CREAR PERFIL                                 -->
+    <!-- ===================================================== -->
+    <mxCell id="gps_s3" parent="1" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;rounded=0;fontFamily=Helvetica;fontSize=11;fontStyle=1;" value="— Flujo 3: Crear Perfil —" vertex="1">
+      <mxGeometry x="10" y="352" width="700" height="15" as="geometry" />
+    </mxCell>
+
+    <!-- llamada: USUARIO → API GW -->
+    <mxCell id="gps_m3_1" parent="1" style="endArrow=block;endFill=1;html=1;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;" edge="1" value="13. POST /profiles {name}">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="90" y="372" as="sourcePoint" />
+        <mxPoint x="270" y="372" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+    <!-- llamada: API GW → IDENTITY -->
+    <mxCell id="gps_m3_2" parent="1" style="endArrow=block;endFill=1;html=1;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;" edge="1" value="14. CreateProfile gRPC">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="270" y="388" as="sourcePoint" />
+        <mxPoint x="450" y="388" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+    <!-- llamada: IDENTITY → DB (verificacion) -->
+    <mxCell id="gps_m3_3" parent="1" style="endArrow=block;endFill=1;html=1;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;" edge="1" value="15. findUserById + conteo">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="450" y="404" as="sourcePoint" />
+        <mxPoint x="630" y="404" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+    <!-- retorno: DB → IDENTITY -->
+    <mxCell id="gps_m3_4" parent="1" style="endArrow=open;dashed=1;html=1;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;" edge="1" value="16. conteo actual">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="630" y="420" as="sourcePoint" />
+        <mxPoint x="450" y="420" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+
+    <!-- BLOQUE alt: dos caminos segun el conteo -->
+    <mxCell id="gps_alt" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;verticalAlign=top;align=left;spacingLeft=5;fontFamily=Helvetica;fontSize=10;fontStyle=1;" value="alt" vertex="1">
+      <mxGeometry x="10" y="430" width="700" height="130" as="geometry" />
+    </mxCell>
+    <!-- guardia 1 -->
+    <mxCell id="gps_alt_g1" parent="1" style="text;html=1;fontFamily=Helvetica;fontSize=10;fontStyle=2;align=left;" value="[limite 5 perfiles]" vertex="1">
+      <mxGeometry x="15" y="430" width="130" height="15" as="geometry" />
+    </mxCell>
+    <!-- retorno error: IDENTITY → API GW -->
+    <mxCell id="gps_m3_si1" parent="1" style="endArrow=open;dashed=1;html=1;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;" edge="1" value="17. error 400 limite">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="450" y="450" as="sourcePoint" />
+        <mxPoint x="270" y="450" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+    <!-- retorno error: API GW → USUARIO -->
+    <mxCell id="gps_m3_si2" parent="1" style="endArrow=open;dashed=1;html=1;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;" edge="1" value="18. 400 Bad Request">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="270" y="466" as="sourcePoint" />
+        <mxPoint x="90" y="466" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+    <!-- linea divisora del alt -->
+    <mxCell id="gps_alt_div" parent="1" style="endArrow=none;dashed=1;html=1;strokeColor=#000000;" edge="1">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="10" y="482" as="sourcePoint" />
+        <mxPoint x="710" y="482" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+    <!-- guardia 2 -->
+    <mxCell id="gps_alt_g2" parent="1" style="text;html=1;fontFamily=Helvetica;fontSize=10;fontStyle=2;align=left;" value="[menos de 5 perfiles]" vertex="1">
+      <mxGeometry x="15" y="482" width="145" height="15" as="geometry" />
+    </mxCell>
+    <!-- llamada: IDENTITY → DB crear -->
+    <mxCell id="gps_m3_5" parent="1" style="endArrow=block;endFill=1;html=1;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;" edge="1" value="19. sp_create_profile">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="450" y="502" as="sourcePoint" />
+        <mxPoint x="630" y="502" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+    <!-- retorno: DB → IDENTITY -->
+    <mxCell id="gps_m3_6" parent="1" style="endArrow=open;dashed=1;html=1;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;" edge="1" value="20. nuevo perfil">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="630" y="518" as="sourcePoint" />
+        <mxPoint x="450" y="518" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+    <!-- retorno: IDENTITY → API GW -->
+    <mxCell id="gps_m3_7" parent="1" style="endArrow=open;dashed=1;html=1;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;" edge="1" value="21. perfil creado">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="450" y="575" as="sourcePoint" />
+        <mxPoint x="270" y="575" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+    <!-- retorno: API GW → USUARIO -->
+    <mxCell id="gps_m3_8" parent="1" style="endArrow=open;dashed=1;html=1;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;" edge="1" value="22. 201 Created">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="270" y="591" as="sourcePoint" />
+        <mxPoint x="90" y="591" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+
+    <!-- ===================================================== -->
+    <!-- FLUJO 4: ACTUALIZAR PERFIL                            -->
+    <!-- ===================================================== -->
+    <mxCell id="gps_s4" parent="1" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;rounded=0;fontFamily=Helvetica;fontSize=11;fontStyle=1;" value="— Flujo 4: Actualizar Perfil —" vertex="1">
+      <mxGeometry x="10" y="615" width="700" height="15" as="geometry" />
+    </mxCell>
+
+    <!-- llamada: USUARIO → API GW -->
+    <mxCell id="gps_m4_1" parent="1" style="endArrow=block;endFill=1;html=1;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;" edge="1" value="23. PUT /profiles/:id">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="90" y="635" as="sourcePoint" />
+        <mxPoint x="270" y="635" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+    <!-- llamada: API GW → IDENTITY -->
+    <mxCell id="gps_m4_2" parent="1" style="endArrow=block;endFill=1;html=1;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;" edge="1" value="24. UpdateProfile gRPC">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="270" y="651" as="sourcePoint" />
+        <mxPoint x="450" y="651" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+    <!-- llamada: IDENTITY → DB -->
+    <mxCell id="gps_m4_3" parent="1" style="endArrow=block;endFill=1;html=1;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;" edge="1" value="25. sp_update_profile">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="450" y="667" as="sourcePoint" />
+        <mxPoint x="630" y="667" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+    <!-- retorno: DB → IDENTITY -->
+    <mxCell id="gps_m4_4" parent="1" style="endArrow=open;dashed=1;html=1;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;" edge="1" value="26. perfil actualizado">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="630" y="683" as="sourcePoint" />
+        <mxPoint x="450" y="683" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+    <!-- retorno: IDENTITY → API GW -->
+    <mxCell id="gps_m4_5" parent="1" style="endArrow=open;dashed=1;html=1;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;" edge="1" value="27. OK">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="450" y="699" as="sourcePoint" />
+        <mxPoint x="270" y="699" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+    <!-- retorno: API GW → USUARIO -->
+    <mxCell id="gps_m4_6" parent="1" style="endArrow=open;dashed=1;html=1;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;" edge="1" value="28. 200 OK">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="270" y="715" as="sourcePoint" />
+        <mxPoint x="90" y="715" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+
+    <!-- ===================================================== -->
+    <!-- FLUJO 5: ELIMINAR PERFIL                              -->
+    <!-- ===================================================== -->
+    <mxCell id="gps_s5" parent="1" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;rounded=0;fontFamily=Helvetica;fontSize=11;fontStyle=1;" value="— Flujo 5: Eliminar Perfil —" vertex="1">
+      <mxGeometry x="10" y="740" width="700" height="15" as="geometry" />
+    </mxCell>
+
+    <!-- llamada: USUARIO → API GW -->
+    <mxCell id="gps_m5_1" parent="1" style="endArrow=block;endFill=1;html=1;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;" edge="1" value="29. DELETE /profiles/:id">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="90" y="760" as="sourcePoint" />
+        <mxPoint x="270" y="760" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+    <!-- llamada: API GW → IDENTITY -->
+    <mxCell id="gps_m5_2" parent="1" style="endArrow=block;endFill=1;html=1;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;" edge="1" value="30. DeleteProfile gRPC">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="270" y="776" as="sourcePoint" />
+        <mxPoint x="450" y="776" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+    <!-- llamada: IDENTITY → DB -->
+    <mxCell id="gps_m5_3" parent="1" style="endArrow=block;endFill=1;html=1;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;" edge="1" value="31. sp_delete_profile">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="450" y="792" as="sourcePoint" />
+        <mxPoint x="630" y="792" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+    <!-- retorno: DB → IDENTITY -->
+    <mxCell id="gps_m5_4" parent="1" style="endArrow=open;dashed=1;html=1;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;" edge="1" value="32. success=true">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="630" y="808" as="sourcePoint" />
+        <mxPoint x="450" y="808" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+    <!-- retorno: IDENTITY → API GW -->
+    <mxCell id="gps_m5_5" parent="1" style="endArrow=open;dashed=1;html=1;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;" edge="1" value="33. OK">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="450" y="824" as="sourcePoint" />
+        <mxPoint x="270" y="824" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+    <!-- retorno: API GW → USUARIO -->
+    <mxCell id="gps_m5_6" parent="1" style="endArrow=open;dashed=1;html=1;fontFamily=Helvetica;fontSize=11;fontColor=default;labelBackgroundColor=default;" edge="1" value="34. 200 OK">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="270" y="840" as="sourcePoint" />
+        <mxPoint x="90" y="840" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+
+  </root>
+</mxGraphModel>

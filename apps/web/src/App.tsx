@@ -22,7 +22,9 @@ export default function App() {
           <Route path="/login"       element={<LoginPage />} />
           <Route path="/register"    element={<RegisterPage />} />
           <Route path="/login/admin" element={<AdminLoginPage />} />
-          <Route path="/admin"       element={<AdminPage />} />
+          <Route path="/admin" element={
+            <ProtectedRoute requireAdmin><AdminPage /></ProtectedRoute>
+          } />
 
           {/* Rutas protegidas */}
           <Route path="/profiles" element={

@@ -5,6 +5,9 @@ export type IdentityTokenPayload = {
   user_id: string;
   email: string;
   profile_id?: string;
+  roles?: string[];
+  permissions?: string[];
+  is_admin?: boolean;
 };
 
 export function signIdentityToken(payload: IdentityTokenPayload): string {
@@ -23,10 +26,18 @@ export function verifyIdentityToken(token: string): IdentityTokenPayload | null 
       return null;
     }
 
+    const roles = Array.isArray(decoded.roles) ? decoded.roles.map(String) : [];
+    const permissions = Array.isArray(decoded.permissions)
+      ? decoded.permissions.map(String)
+      : [];
+
     return {
       user_id: decoded.user_id,
       email: decoded.email,
-      profile_id: decoded.profile_id || ""
+      profile_id: decoded.profile_id || "",
+      roles,
+      permissions,
+      is_admin: Boolean(decoded.is_admin || roles.includes("admin"))
     };
   } catch {
     return null;

@@ -82,3 +82,28 @@ def resume_content(profile_id: str, content_id: str) -> dict | None:
             (profile_id, content_id),
         )
         return cursor.fetchone()
+
+
+def list_audit_logs(table_name: str = "", actor_user_id: str = "", action: str = "", from_ts: str = "", to_ts: str = "", limit: int = 100, offset: int = 0) -> list[dict]:
+    with get_cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT *
+            FROM fn_engagement_audit_report(
+                %s::text,
+                %s::text,
+                %s::text,
+                NULLIF(%s::text, '')::timestamptz,
+                NULLIF(%s::text, '')::timestamptz,
+                %s::integer,
+                %s::integer
+            );
+            """,
+            (table_name, actor_user_id, action, from_ts, to_ts, limit, offset),
+        )
+        rows = []
+        for row in cursor.fetchall():
+            item = dict(row)
+            item["service"] = "engagement"
+            rows.append(item)
+        return rows

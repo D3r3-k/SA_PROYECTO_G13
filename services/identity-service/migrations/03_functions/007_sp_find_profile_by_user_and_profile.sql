@@ -1,3 +1,4 @@
+BEGIN;
 CREATE OR REPLACE FUNCTION sp_find_profile_by_user_and_profile(
     p_user_id UUID,
     p_profile_id UUID
@@ -27,3 +28,4 @@ BEGIN
     LIMIT 1;
 END;
 $$;
+COMMIT;
