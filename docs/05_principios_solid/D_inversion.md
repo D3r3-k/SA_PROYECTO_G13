@@ -77,8 +77,15 @@ async def serve() -> None:
 
 ---
 
-## 3. ¿Por qué se aplicó? (Justificación Técnica)
+## 3. ¿Por qué se aplicó?
 
-En el API Gateway, si se necesita reemplazar el Payment Gateway de Python por una implementación en Go o un proveedor externo real, solo se actualiza el archivo `.proto` y se regeneran los clientes. Las rutas de alto nivel no requieren ningún cambio. El Gateway depende del contrato (`.proto`), no de la implementación. En el FX Service, si se necesita reemplazar Redis por Memcached u otro sistema de cache, solo se crea una nueva clase que implemente los métodos `get_json`, `set_json` y `ping`, y se inyecta en lugar de `RedisCache` sin modificar el servidor gRPC. Esto garantiza que los módulos de alto nivel permanezcan estables ante cambios en la infraestructura.
+**Problema de diseño inicial:** Sin DIP, las rutas del API Gateway instanciarían directamente los clientes gRPC concretos (por ejemplo, `new PaymentGatewayServiceClient(...)`), acoplando el módulo de alto nivel a la implementación específica del lenguaje y el host del servicio. Un cambio de proveedor de pagos obligaría a modificar cada archivo de ruta que lo invoca. En el FX Service, si el servidor gRPC creara internamente la conexión Redis, sería imposible sustituirla por un doble de prueba durante el testing, forzando a levantar una instancia Redis real para ejecutar cualquier test unitario.
+
+## 4. ¿Para qué se aplicó?
+
+**Beneficio obtenido:**
+- En el API Gateway, si se reemplaza el Payment Gateway de Python por una implementación en Go o un proveedor externo real, solo se actualiza el archivo `.proto` y se regeneran los clientes. Las rutas de alto nivel no requieren ningún cambio porque dependen del contrato `.proto`, no de la implementación.
+- En el FX Service, si se necesita reemplazar Redis por Memcached u otro sistema de cache, solo se crea una nueva clase con los métodos `get_json`, `set_json` y `ping`, y se inyecta en lugar de `RedisCache` sin modificar el servidor gRPC.
+- Los módulos de alto nivel permanecen estables ante cambios de infraestructura, y las dependencias son sustituibles en tests sin levantar servicios externos.
 
 ---

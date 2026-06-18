@@ -59,8 +59,15 @@ Cualquier implementación concreta de `repository.Repository` puede sustituirse 
 
 ---
 
-## 3. ¿Por qué se aplicó? (Justificación Técnica)
+## 3. ¿Por qué se aplicó?
 
-Al respetar LSP, el sistema garantiza que los módulos de alto nivel (`Server`, `grpc_server.py`) puedan operar con cualquier implementación de sus dependencias sin modificar su lógica. En el caso de Pydantic, `SubscriptionUpdate` puede sustituirse en cualquier función que acepte validación de `plan_id` sin romper el contrato de validación `gt=0`. En el caso de Go, si se reemplaza la implementación de `Repository` por una de pruebas (mock), el `Server` funciona de forma idéntica, lo que facilita el testing unitario.
+**Problema de diseño inicial:** Sin LSP, una clase derivada podría relajar las restricciones de validación de su base (por ejemplo, permitir `plan_id=0` en `SubscriptionUpdate` cuando la base exige `gt=0`), generando comportamientos inconsistentes según el tipo concreto utilizado. En Go, si una implementación de `Repository` lanzara excepciones donde la interfaz promete retornar `nil`, el `Server` fallaría en tiempo de ejecución de forma impredecible. La sustitución silenciosa de contratos es una fuente habitual de bugs difíciles de rastrear en sistemas políglotas.
+
+## 4. ¿Para qué se aplicó?
+
+**Beneficio obtenido:**
+- `SubscriptionUpdate` puede usarse en cualquier función que acepte validación de `plan_id` sin romper el contrato `gt=0`, garantizando consistencia en todos los handlers que validan planes.
+- En Go, la implementación de `Repository` puede reemplazarse por un mock en pruebas y el `Server` opera de forma idéntica, habilitando testing unitario sin base de datos real.
+- Los módulos de alto nivel (`Server`, `grpc_server.py`) permanecen estables ante cambios de implementación en sus dependencias, ya que confían en el contrato de la abstracción y no en detalles concretos.
 
 ---

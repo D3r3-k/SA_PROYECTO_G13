@@ -136,3 +136,31 @@
 - **¿Para qué?** Garantizar alta disponibilidad del sistema en producción con despliegues progresivos que no interrumpan las transmisiones de video activas, y con capacidad de recuperación automática ante fallos sin requerir intervención del equipo fuera de horario.
 
 ---
+
+### 2.7. PostgreSQL como Motor de Base de Datos Relacional
+
+- **Decisión:** Utilizar PostgreSQL como sistema gestor de base de datos relacional para los cuatro dominios con persistencia estructurada: `identity_db`, `catalog_db`, `subscription_db` y `engagement_db`.
+- **¿Qué?** PostgreSQL es un motor de base de datos objeto-relacional de código abierto. El sistema utiliza PostgreSQL 16 para los servicios de Identity, Catalog y Engagement, y PostgreSQL 15 para Subscription, cada instancia aislada en su propio contenedor siguiendo el patrón Database per Microservice.
+- **¿Por qué?**
+  - **Cumplimiento ACID:** Las operaciones críticas del sistema — registro de usuarios, autorización de pagos, creación de suscripciones — involucran múltiples tablas y deben ser atómicas. PostgreSQL garantiza que una transacción fallida no deje la base de datos en un estado parcialmente modificado.
+  - **Objetos programables nativos:** PostgreSQL soporta stored procedures, triggers, vistas y funciones almacenadas como ciudadanos de primera clase del motor. Esto permite que la lógica de auditoría (`trg_audit_*`), los cálculos de recomendación (`fn_recommendation_percentage`) y los flujos transaccionales (`sp_register_user`, `sp_rate_content`) residan en la base de datos, garantizando su ejecución independientemente del servicio que origine el cambio.
+  - **JSONB para datos semi-estructurados:** El catálogo de contenido almacena géneros, elenco y episodios como columnas JSONB, evitando tablas de relación adicionales para atributos variables sin sacrificar la capacidad de indexación y consulta estructurada.
+  - **Aislamiento por esquema:** Cada microservicio opera sobre su propia instancia de base de datos. Un cambio de esquema en `subscription_db` no requiere coordinación con `catalog_db` ni con `identity_db`, permitiendo migraciones independientes por dominio.
+  - **Ecosistema maduro:** Librerías como `psycopg2` (Python) y `pg` (Node.js) ofrecen integración directa sin capas ORM que oculten la ejecución de stored procedures o limiten el control sobre las transacciones.
+- **¿Para qué?** Garantizar integridad transaccional en los flujos de negocio críticos (registro, pago, suscripción), asegurar que los triggers de auditoría se ejecuten de forma inevitable ante cualquier modificación de datos, y soportar consultas complejas del catálogo con índices y vistas sin duplicar lógica en el código de aplicación.
+
+---
+
+### 2.8. Seguridad de Sesión: JWT con Cookies HttpOnly
+
+- **Decisión:** Autenticar las sesiones de usuario mediante JSON Web Tokens (JWT) firmados con HMAC-SHA256, transportados exclusivamente en cookies HttpOnly gestionadas por el API Gateway.
+- **¿Qué?** El API Gateway emite un JWT al completarse el login exitoso (`Identity Service → gRPC → Gateway → Set-Cookie`). El token se almacena en una cookie con nombre `access_token`, configurada como HttpOnly, con `Secure=true` en producción y `SameSite=lax`. Cada request subsiguiente incluye la cookie automáticamente; el Gateway extrae y verifica el JWT antes de enrutar la petición al microservicio correspondiente.
+- **¿Por qué?**
+  - **HttpOnly neutraliza XSS:** Al marcar la cookie como HttpOnly, el token es completamente inaccesible desde JavaScript del navegador. Un script malicioso inyectado en la página no puede leer ni exfiltrar el token de sesión, eliminando la superficie de ataque más común en aplicaciones SPA.
+  - **Secure en producción:** La variable `COOKIE_SECURE=true` en el entorno cloud garantiza que la cookie únicamente se transmite sobre conexiones HTTPS, impidiendo su captura en tráfico HTTP plano.
+  - **SameSite=lax protege contra CSRF:** La política `lax` bloquea el envío de la cookie en requests cross-site iniciados desde contextos de terceros (iframes, formularios externos), mitigando ataques de Cross-Site Request Forgery sin requerir tokens CSRF adicionales.
+  - **JWT stateless:** El Gateway verifica la firma del token localmente usando `JWT_SECRET` sin necesidad de consultar ninguna base de datos ni session store por cada request. Esto elimina una dependencia de latencia en el camino crítico de autenticación y permite escalar el Gateway horizontalmente sin estado compartido.
+  - **Expiración acotada:** `JWT_EXPIRES_IN=1d` limita la ventana de exposición ante un token comprometido a un máximo de 24 horas, tras las cuales el usuario debe re-autenticarse.
+- **¿Para qué?** Proveer autenticación stateless en el API Gateway que proteja contra XSS y CSRF, permita escalar horizontalmente sin session store centralizado, y limite el impacto de un token comprometido mediante expiración automática.
+
+---
