@@ -242,8 +242,8 @@ jobs:
           kubectl cp services/ db-migrator:/tmp/services --namespace="${GKE_NAMESPACE}"
 
           echo "Migrando identity_db..."
-          kubectl exec db-migrator --namespace="${GKE_NAMESPACE}" --env="PGPASSWORD=${IDENTITY_DB_PASSWORD}" -- \
-            sh -c 'for dir in 01_extensions 02_tables 03_functions 04_views 05_procedures 06_triggers; do
+          kubectl exec db-migrator --namespace="${GKE_NAMESPACE}" -- \
+            sh -c 'export PGPASSWORD='"${IDENTITY_DB_PASSWORD}"'; for dir in 01_extensions 02_tables 03_functions 04_views 05_procedures 06_triggers; do
               for f in $(ls /tmp/services/identity-service/migrations/$dir/*.sql | sort); do
                 echo "  -> Aplicando $f"
                 psql -h '"${CLOUD_SQL_PRIVATE_IP}"' -p 5432 -U identity_user -d identity_db -v ON_ERROR_STOP=1 -f "$f"
@@ -251,16 +251,16 @@ jobs:
             done'
 
           echo "Migrando catalog_db..."
-          kubectl exec db-migrator --namespace="${GKE_NAMESPACE}" --env="PGPASSWORD=${CATALOG_DB_PASSWORD}" -- \
-            psql -h "${CLOUD_SQL_PRIVATE_IP}" -p 5432 -U catalog_user -d catalog_db -v ON_ERROR_STOP=1 -f /tmp/services/catalog-service/migrations/001_init.sql
+          kubectl exec db-migrator --namespace="${GKE_NAMESPACE}" -- \
+            sh -c 'export PGPASSWORD='"${CATALOG_DB_PASSWORD}"'; psql -h '"${CLOUD_SQL_PRIVATE_IP}"' -p 5432 -U catalog_user -d catalog_db -v ON_ERROR_STOP=1 -f /tmp/services/catalog-service/migrations/001_init.sql'
 
           echo "Migrando engagement_db..."
-          kubectl exec db-migrator --namespace="${GKE_NAMESPACE}" --env="PGPASSWORD=${ENGAGEMENT_DB_PASSWORD}" -- \
-            psql -h "${CLOUD_SQL_PRIVATE_IP}" -p 5432 -U engagement_user -d engagement_db -v ON_ERROR_STOP=1 -f /tmp/services/engagement-service/migrations/001_init.sql
+          kubectl exec db-migrator --namespace="${GKE_NAMESPACE}" -- \
+            sh -c 'export PGPASSWORD='"${ENGAGEMENT_DB_PASSWORD}"'; psql -h '"${CLOUD_SQL_PRIVATE_IP}"' -p 5432 -U engagement_user -d engagement_db -v ON_ERROR_STOP=1 -f /tmp/services/engagement-service/migrations/001_init.sql'
 
           echo "Migrando subscription_db..."
-          kubectl exec db-migrator --namespace="${GKE_NAMESPACE}" --env="PGPASSWORD=${SUBSCRIPTION_DB_PASSWORD}" -- \
-            psql -h "${CLOUD_SQL_PRIVATE_IP}" -p 5432 -U subscription_user -d subscription_db -v ON_ERROR_STOP=1 -f /tmp/services/subscription-service/migrations/001_init.sql
+          kubectl exec db-migrator --namespace="${GKE_NAMESPACE}" -- \
+            sh -c 'export PGPASSWORD='"${SUBSCRIPTION_DB_PASSWORD}"'; psql -h '"${CLOUD_SQL_PRIVATE_IP}"' -p 5432 -U subscription_user -d subscription_db -v ON_ERROR_STOP=1 -f /tmp/services/subscription-service/migrations/001_init.sql'
 
   deploy-gke:
     name: Deploy to GKE
