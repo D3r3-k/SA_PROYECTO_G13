@@ -9,9 +9,36 @@ import (
 	"quetxaltv/catalog-service/internal/repository"
 )
 
+// RepositoryI is the persistence contract used by Service.
+// repository.Repository satisfies this interface automatically.
+type RepositoryI interface {
+	ClearCatalog(ctx context.Context) error
+	UpsertContent(ctx context.Context, seed provider.ContentSeed) (string, error)
+	InsertAudit(ctx context.Context, providerName string, success bool, message string, contents int, episodes int)
+	CreateAdminContent(ctx context.Context, input repository.AdminContentWrite) (string, []repository.Episode, error)
+	UpdateAdminContent(ctx context.Context, input repository.AdminContentWrite) error
+	AllEpisodes(ctx context.Context, id string) ([]repository.Episode, error)
+	SoftDeleteContent(ctx context.Context, contentID string, actorUserID string, actorEmail string) error
+	SchedulePremiere(ctx context.Context, contentID string, availableFrom string, actorUserID string, actorEmail string) error
+	UpdateContentMedia(ctx context.Context, contentID string, mediaType string, objectKey string, contentType string, actorUserID string, actorEmail string) error
+	UpdateEpisodeMedia(ctx context.Context, contentID string, episodeID string, objectKey string, contentType string, actorUserID string, actorEmail string) error
+	ContentMediaKeys(ctx context.Context, contentID string) (repository.DeletedContentMedia, bool, error)
+	DeleteContent(ctx context.Context, contentID string) error
+}
+
+// ArchiveI is the archive provider contract used by Service.
+// provider.ArchiveClient satisfies this interface automatically.
+type ArchiveI interface {
+	ItemToMovieSeed(identifier string) (provider.ContentSeed, error)
+	SearchIdentifiers(query string, rows int) ([]string, error)
+	EpisodeItemsToSeriesSeed(seriesTitle string, identifiers []string) (provider.ContentSeed, error)
+	ItemToSeriesSeed(identifier string, maxEpisodes int) (provider.ContentSeed, error)
+	SearchEpisodeItemsToSeriesSeed(seriesTitle string, query string, maxEpisodes int) (provider.ContentSeed, error)
+}
+
 type Service struct {
-	Repo                     repository.Repository
-	Archive                  provider.ArchiveClient
+	Repo                     RepositoryI
+	Archive                  ArchiveI
 	MediaStore               *MediaStore
 	ArchiveMovieIdentifiers  []string
 	ArchiveSeriesIdentifier  string
