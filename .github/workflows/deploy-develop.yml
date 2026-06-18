@@ -382,7 +382,15 @@ jobs:
           # 1. Obtener la IP privada de Cloud SQL
           CLOUD_SQL_PRIVATE_IP=$(gcloud sql instances describe ${{ env.SQL_INSTANCE_NAME }} --format='value(ipAddresses[0].ipAddress)')
           
-          # 2. Iniciar tunel SSH en segundo plano
+          # 2. Sincronizar llaves SSH con la VM de forma síncrona
+          echo "Sincronizando llaves SSH con la VM..."
+          gcloud compute ssh ${{ env.VM_SERVICES_NAME }} \
+            --zone=${{ env.GCP_ZONE }} \
+            --quiet \
+            --tunnel-through-iap \
+            --command="echo 'SSH ready'"
+
+          # 3. Iniciar tunel SSH en segundo plano
           echo "Iniciando tunel SSH a Cloud SQL IP: ${CLOUD_SQL_PRIVATE_IP}..."
           gcloud compute ssh ${{ env.VM_SERVICES_NAME }} \
             --zone=${{ env.GCP_ZONE }} \
