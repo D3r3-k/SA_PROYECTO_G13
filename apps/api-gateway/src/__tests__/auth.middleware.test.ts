@@ -69,7 +69,7 @@ describe("authMiddleware", () => {
 
     callIdentityMethod.mockResolvedValueOnce(fakeResp);
 
-    const cookieName = process.env.COOKIE_NAME || "session";
+    const cookieName = process.env.COOKIE_NAME || "access_token";
     const req = makeMockReq({ cookies: { [cookieName]: "valid.jwt.token" } });
     const res = makeMockRes();
 
@@ -84,7 +84,7 @@ describe("authMiddleware", () => {
 
     callIdentityMethod.mockResolvedValueOnce({ valid: false });
 
-    const cookieName = process.env.COOKIE_NAME || "session";
+    const cookieName = process.env.COOKIE_NAME || "access_token";
     const req = makeMockReq({ cookies: { [cookieName]: "expired.jwt.token" } });
     const res = makeMockRes();
 
@@ -99,7 +99,7 @@ describe("authMiddleware", () => {
 
     callIdentityMethod.mockRejectedValueOnce(new Error("gRPC unavailable"));
 
-    const cookieName = process.env.COOKIE_NAME || "session";
+    const cookieName = process.env.COOKIE_NAME || "access_token";
     const req = makeMockReq({ cookies: { [cookieName]: "some.token" } });
     const res = makeMockRes();
 
