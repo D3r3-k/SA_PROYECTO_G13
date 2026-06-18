@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - 'release/*'
-      - 'test/*'
     paths-ignore:
       - '**.md'
       - 'LICENSE'
@@ -13,7 +12,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   packages: write
 
 env:
@@ -340,15 +339,24 @@ jobs:
           username: ${{ secrets.GHCR_USERNAME }}
           password: ${{ secrets.GHCR_TOKEN }}
 
+      - name: Calculate Docker tags
+        id: docker_tags
+        shell: bash
+        run: |
+          TAGS="${{ env.IMAGE_NAMESPACE }}/${{ matrix.image }}:latest,${{ env.IMAGE_NAMESPACE }}/${{ matrix.image }}:${{ github.sha }}"
+          if [[ "${{ github.ref_name }}" =~ ^release/(v[0-9]+\.[0-9]+\.[0-9]+)$ ]] || [[ "${{ github.ref_name }}" =~ ^test/(v[0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+            SEMANTIC_TAG="${BASH_REMATCH[1]}"
+            TAGS="${TAGS},${{ env.IMAGE_NAMESPACE }}/${{ matrix.image }}:${SEMANTIC_TAG}"
+          fi
+          echo "tags=${TAGS}" >> $GITHUB_OUTPUT
+
       - name: Build and push image
         uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.dockerfile }}
           push: true
-          tags: |
-            ${{ env.IMAGE_NAMESPACE }}/${{ matrix.image }}:latest
-            ${{ env.IMAGE_NAMESPACE }}/${{ matrix.image }}:${{ github.sha }}
+          tags: ${{ steps.docker_tags.outputs.tags }}
 
   migrate-databases:
     name: Migrar DBs
@@ -578,6 +586,16 @@ jobs:
             --from-file=gcp-service-account.json=gcp-service-account.json \
             --dry-run=client -o yaml | kubectl apply -f -
 
+      - name: Replace image tags in manifests
+        shell: bash
+        run: |
+          VERSION_TAG="latest"
+          if [[ "${{ github.ref_name }}" =~ ^release/(v[0-9]+\.[0-9]+\.[0-9]+)$ ]] || [[ "${{ github.ref_name }}" =~ ^test/(v[0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+            VERSION_TAG="${BASH_REMATCH[1]}"
+          fi
+          echo "Using version tag: ${VERSION_TAG}"
+          sed -i "s|image: ${{ env.IMAGE_NAMESPACE }}/\(.*\):latest|image: ${{ env.IMAGE_NAMESPACE }}/\1:${VERSION_TAG}|g" deploy/release/k8s/deployments/*.yml
+
       - name: Apply Kubernetes manifests
         run: |
           kubectl apply -f deploy/release/k8s/services/
@@ -592,13 +610,32 @@ jobs:
             fi
           done
 
-  smoke-test:
+  tests:
     name: Tests
     runs-on: ubuntu-latest
     environment: release
     needs: deploy-gke
 
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Generate and push Git tag
+        shell: bash
+        run: |
+          if [[ "${{ github.ref_name }}" =~ ^release/(v[0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+            TAG_NAME="${BASH_REMATCH[1]}"
+            git config --global user.name "github-actions[bot]"
+            git config --global user.email "github-actions[bot]@users.noreply.github.com"
+            if ! git rev-parse "$TAG_NAME" >/dev/null 2>&1; then
+              echo "Creating and pushing Git tag: ${TAG_NAME}"
+              git tag "$TAG_NAME"
+              git push origin "$TAG_NAME"
+            else
+              echo "Tag ${TAG_NAME} already exists."
+            fi
+          fi
+
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
