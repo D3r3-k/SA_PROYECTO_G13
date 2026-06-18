@@ -72,7 +72,7 @@ los microservicios — el Gateway es el único punto de entrada.
 | Llamada | Métodos gRPC |
 | :------ | :----------- |
 | Gateway → Identity Service | `RegisterUser`, `Login`, `ValidateToken`, `CreateProfile`, `ListProfiles`, `SelectProfile`, `UpdateProfile`, `DeleteProfile`, `UpdateCredentials` |
-| Gateway → Catalog Service | `ListContent`, `SearchContent`, `GetContentDetail`, `CreateContent`, `UpdateContent`, `DeleteContent`, `SyncMinimumCatalog` |
+| Gateway → Catalog Service | `ListContent`, `SearchContent`, `GetContentDetail`, `CreateContent`, `DeleteContent`, `SyncMinimumCatalog` |
 | Gateway → Subscription Service | `ListPlans`, `CreateSubscription`, `UpdateSubscription`, `CancelSubscription`, `ListUserSubscriptions`, `UpdatePlan` |
 | Gateway → FX Service | `GetRate` |
 | Gateway → Payment Gateway Service | `AuthorizePayment`, `Health` |

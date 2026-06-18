@@ -11,7 +11,7 @@ El cliente web se comunica con el API Gateway mediante HTTP con cookies seguras.
 | Llamada | Metodos gRPC |
 | :------ | :----------- |
 | Gateway → Identity Service | RegisterUser, Login, ValidateToken, CreateProfile |
-| Gateway → Catalog Service | ListContent, GetContentDetail, SyncMinimumCatalog |
+| Gateway → Catalog Service | ListContent, SearchContent, GetContentDetail, CreateContent, DeleteContent, ListAuditLogs |
 | Gateway → Subscription Service | ListPlans, CreateSubscription, UpdateSubscription, CancelSubscription, UpdatePlan |
 | Gateway → FX Service | GetRate |
 | Gateway → Payment Gateway Service | AuthorizePayment, Health |

@@ -68,6 +68,18 @@ Este modulo corre en paralelo e independiente de todos los anteriores. El Notifi
 
 
 ---
+
+#### Modulo 10 — Panel de Administracion [Fase 2]
+
+El Administrador accede al Panel Admin ingresando la clave `x-admin-key`. El Panel Admin la envia al Gateway donde el `adminMiddleware` la valida contra la variable de entorno `ADMIN_KEY`. Si es valida concede acceso al panel de administracion. Desde el panel el administrador puede crear contenido nuevo enviando tipo, titulo, generos, reparto y episodios via `gRPC CreateContent` al Catalog Service, que persiste el registro con `sp_upsert_content` y retorna el `content_id` UUID. Para subir archivos de media, el Gateway llama a `gRPC GenerateUploadUrl` que genera una URL firmada de Google Cloud Storage con tiempo de expiracion; el Panel Admin sube el archivo directamente a GCS y luego llama a `gRPC ConfirmMedia` para registrar la carga en DB Catalog. El administrador tambien puede eliminar contenido via `gRPC DeleteContent` y actualizar planes de suscripcion va `gRPC UpdatePlan` al Subscription Service.
+
+---
+
+#### Modulo 11 — Auditoria y Reportes [Fase 2]
+
+Los microservicios registran automaticamente los cambios criticos a traves de triggers de base de datos: `trg_audit_subscription_change` en Subscription Service registra cambios en `subscription_audit`, `trg_audit_credential_update` en Identity Service registra actualizaciones de `password_hash` en `credential_audit`, y `trg_audit_rating_changes` en Engagement Service registra cambios de calificacion en `rating_audit`. El administrador accede al log de auditoria desde el Panel Admin, que llama al Gateway con la clave de administrador. El Gateway consulta al servicio correspondiente via `gRPC ListAuditLogs`, que ejecuta la consulta sobre la tabla de auditoria ordenada por fecha descendente y retorna los registros con tabla afectada, tipo de operacion, usuario responsable y timestamp. El administrador puede filtrar los registros por tabla, tipo de operacion y rango de fechas, y puede descargar el reporte filtrado en formato CSV o PDF. La generacion del archivo ocurre directamente en el API Gateway, que recopila los registros de todos los servicios y construye el documento sin delegar esa responsabilidad a los servicios individuales.
+
+---
 ## Diagrama de Secuencia por Modulos
 
 ### Diagrama de Secuencia — Login y JWT
@@ -182,10 +194,45 @@ En la sexta seccion el FX Service guarda el resultado con `guardarEnCache(fx:rat
 ![Diagrama de Secuencia — Publicacion de Contenido y Notificaciones](../00_assets/diagrams/04_diagramas/diagramasecuencia_publicacion.drawio.png)
 
 
-En la primera seccion el proceso de sincronizacion llama a `sincronizarCatalogo(SyncMinimumCatalog, force:false)`. El Catalog Service consulta la API externa de archive.org con `fetchContenidoExterno` obteniendo `title`, `type`, `overview`, `genres`, `cast` y `episodes`. Llama a la base de datos con `CALL sp_upsert_content_from_external(external_id, provider, type, title, overview, poster_path, genres::jsonb, cast::jsonb, episodes::jsonb)`. El trigger `trg_catalog_updated_at` actualiza `updated_at=NOW()` automaticamente antes de cada UPDATE. La DB retorna el `content_id` como UUID. Finalmente llama a `sp_insert_sync_audit(provider, success:true, message, contents_synced, episodes_synced)` y retorna `sincronizacionCompletada`.
+En la primera seccion el administrador crea contenido nuevo desde el panel enviando tipo, titulo, overview, poster, generos como JSONB, cast como JSONB y episodios como JSONB. El Gateway llama a `gRPC CreateContent` al Catalog Service, que persiste el registro con `sp_upsert_content` en DB Catalog. El trigger `trg_catalog_updated_at` actualiza `updated_at=NOW()` automaticamente y el servicio retorna el `content_id` UUID del nuevo contenido.
 
-En la segunda seccion el Catalog Service publica el evento con `RPUSH notification:queue` incluyendo `type:content-publication`, `content_title`, `category` y `email`. Redis ejecuta `lpush` y retorna `eventoPublicado(accepted:true, message_id:UUID)`. Este paso es completamente asincrono: el Catalog Service no espera al Notification Worker. El contenido queda disponible en el catalogo inmediatamente despues de la sincronizacion.
+En la segunda seccion el Catalog Service publica el evento con `RPUSH notification:queue` incluyendo `type:content-publication`, `content_title`, `category` y `email`. Redis ejecuta `lpush` y retorna `eventoPublicado(accepted:true, message_id:UUID)`. Este paso es completamente asincrono: el Catalog Service no espera al Notification Worker. El contenido queda disponible en el catalogo inmediatamente despues de la creacion.
 
 En la tercera seccion el Notification Worker, corriendo en su propio loop de `asyncio`, consume el evento con `BLPOP notification:queue` con timeout de 5 segundos. Deserializa con `json.loads(raw_payload)`, registra `logger.info(dequeued_redis)` y llama a `construirContenidoNotificacion` que detecta `type:content-publication` y genera el subject "Nueva publicacion en Quetxal TV" y el body con `content_title` y `category`.
 
 En la cuarta seccion el worker envia el correo con `enviarCorreo(email, subject, htmlBody)`. `aiosmtplib.send` conecta al servidor SMTP con `hostname`, `port` y `start_tls` configurados via variables de entorno. El SMTP confirma el envio y el worker registra `logger.info(Email sent to {email} via {SMTP_HOST}:{SMTP_PORT)`.
+
+---
+
+### Diagrama de Secuencia — Panel de Administracion [Fase 2]
+
+![Diagrama de Secuencia — Panel de Administracion [Fase 2]](../00_assets/diagrams/04_diagramas/paneladminf2.drawio.png)
+
+
+Este diagrama muestra la interaccion temporal entre ocho participantes: Administrador, Panel Admin, API Gateway, Catalog Service, Subscription Service, GCS, DB Catalog y DB Subscription, cubriendo los cinco flujos del panel de administracion de Fase 2.
+
+En el primer flujo el administrador ingresa la clave `x-admin-key` en el panel. El Panel Admin envia la cabecera al API Gateway donde el `adminMiddleware` valida que el valor coincida con la variable de entorno `ADMIN_KEY`. Si es valida concede acceso al panel.
+
+En el segundo flujo el administrador crea contenido nuevo enviando tipo, titulo, generos, reparto y episodios. El Gateway llama a `gRPC CreateContent` al Catalog Service, que persiste el contenido en DB Catalog con `sp_upsert_content` y retorna el `content_id` UUID. El trigger `trg_catalog_updated_at` actualiza el timestamp automaticamente.
+
+En el tercer flujo el administrador carga un archivo de media. El Gateway llama a `gRPC GenerateUploadUrl` al Catalog Service, que genera una URL firmada de GCS con tiempo de expiracion. El Panel Admin sube el archivo directamente a GCS usando esa URL sin pasar por el Gateway. Luego confirma la carga llamando a `gRPC ConfirmMedia`, que actualiza el estado del media en DB Catalog.
+
+En el cuarto flujo el administrador elimina un contenido. El Gateway llama a `gRPC DeleteContent` al Catalog Service, que elimina el registro y sus recursos asociados de DB Catalog y retorna la cantidad de objetos eliminados.
+
+En el quinto flujo el administrador actualiza un plan de suscripcion. El Gateway llama a `gRPC UpdatePlan` al Subscription Service, que actualiza nombre y precio en DB Subscription y retorna el plan actualizado.
+
+---
+
+### Diagrama de Secuencia — Auditoria y Reportes [Fase 2]
+
+![Diagrama de Secuencia — Auditoria y Reportes [Fase 2]](../00_assets/diagrams/04_diagramas/auditoriaf2.drawio.png)
+
+Este diagrama muestra la interaccion temporal entre cinco participantes: Administrador, Panel Admin, API Gateway, Servicio Auditado y DB Auditoria, cubriendo los cuatro flujos de auditoria y reportes de Fase 2. El participante "Servicio Auditado" representa genericamente a todos los microservicios que poseen tablas de auditoria: Subscription Service con `subscription_audit`, Identity Service con `credential_audit`, Engagement Service con `rating_audit` y Catalog Service con `sync_audit`.
+
+En el primer flujo se muestra el registro automatico por trigger. Cuando el Servicio Auditado ejecuta una operacion que modifica datos en la tabla principal, la DB activa automaticamente el trigger correspondiente, el cual inserta un registro en la tabla de auditoria sin intervencion adicional del servicio. El trigger captura la tabla afectada, el tipo de operacion, el usuario responsable, el timestamp y los valores anterior y nuevo cuando aplica.
+
+En el segundo flujo el administrador solicita ver el log completo de auditoria. El Panel Admin envia la solicitud al API Gateway con la clave de administrador en el encabezado `x-admin-key`. El Gateway la enruta al Servicio Auditado, que ejecuta una consulta sobre la tabla de auditoria ordenada por fecha descendente. La DB retorna los registros con tabla afectada, tipo de operacion, usuario responsable y timestamp. El resultado sube por la cadena hasta mostrarse en el panel como un log paginado.
+
+En el tercer flujo el administrador aplica filtros por tabla afectada, tipo de operacion y rango de fechas. El panel envia los parametros al Gateway, que los propaga al servicio. El servicio ejecuta la consulta filtrada sobre la tabla de auditoria y retorna unicamente los registros que coinciden con los criterios. La vista del panel se actualiza con el resultado filtrado.
+
+En el cuarto flujo el administrador solicita descargar el reporte en formato CSV o PDF. El panel envia la solicitud con los filtros activos al Gateway, que recopila los registros de todos los servicios via `gRPC ListAuditLogs` y genera el archivo directamente en el Gateway. El archivo resultante es retornado al navegador del administrador, que inicia la descarga automaticamente.
