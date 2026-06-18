@@ -82,9 +82,9 @@ describe("JWT round-trip básico", () => {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let svc: any;
 
-beforeAll(async () => {
-  const mod = await import("../services/identity.service");
-  svc = mod.identityService;
+beforeAll(() => {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  svc = require("../services/identity.service").identityService;
 });
 
 // ─── ValidateToken ─────────────────────────────────────────────────────────────

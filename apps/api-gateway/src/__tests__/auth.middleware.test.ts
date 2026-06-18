@@ -4,14 +4,9 @@
  */
 
 // Mock del cliente gRPC ANTES de importar el middleware
-jest.mock("../../clients/identity.client", () => ({
+jest.mock("../grpc/identity.client", () => ({
   callIdentityMethod: jest.fn(),
 }));
-
-// También mock para el módulo de clientes si se accede distinto
-jest.mock("../../grpc/clients", () => ({
-  callIdentityMethod: jest.fn(),
-}), { virtual: true });
 
 import { Request, Response, NextFunction } from "express";
 import { authMiddleware } from "../middleware/auth.middleware";
@@ -20,12 +15,7 @@ import { authMiddleware } from "../middleware/auth.middleware";
 let callIdentityMethod: jest.Mock;
 
 beforeAll(() => {
-  // Intentamos obtener el mock desde diferentes rutas
-  try {
-    callIdentityMethod = require("../../clients/identity.client").callIdentityMethod;
-  } catch {
-    callIdentityMethod = jest.fn();
-  }
+  callIdentityMethod = require("../grpc/identity.client").callIdentityMethod;
 });
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

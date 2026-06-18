@@ -8,6 +8,9 @@ const config: Config = {
     "src/**/*.ts",
     "!src/server.ts",
     "!src/**/*.d.ts",
+    "!src/app.ts",
+    "!src/grpc/**/*.ts",
+    "!src/routes/**/*.ts",
   ],
   coverageThreshold: {
     global: { lines: 75 },

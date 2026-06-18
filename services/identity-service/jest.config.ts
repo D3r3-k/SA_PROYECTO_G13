@@ -1,8 +1,21 @@
 import type { Config } from "jest";
 
 const config: Config = {
-  preset: "ts-jest",
   testEnvironment: "node",
+  transform: {
+    "^.+\\.tsx?$": [
+      "ts-jest",
+      {
+        tsconfig: {
+          module: "CommonJS",
+          moduleResolution: "Node",
+          isolatedModules: true,
+          types: ["node", "jest"],
+          esModuleInterop: true,
+        },
+      },
+    ],
+  },
   testMatch: ["**/__tests__/**/*.test.ts"],
   collectCoverageFrom: [
     "src/**/*.ts",
