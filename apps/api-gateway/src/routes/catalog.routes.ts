@@ -28,24 +28,6 @@ function statusFromResponse(response: BasicResponse): number {
   return 400;
 }
 
-catalogRoutes.post("/sync-minimum", authMiddleware, async (req, res) => {
-  try {
-    const response = await callCatalogMethod<Record<string, unknown>, BasicResponse>(
-      "SyncMinimumCatalog",
-      { force: Boolean(req.body?.force) }
-    );
-
-    if (!response.success) {
-      return res.status(statusFromResponse(response)).json(response);
-    }
-
-    return res.status(201).json(response);
-  } catch (error) {
-    console.error("Sync catalog gRPC failed", error);
-    return res.status(503).json({ success: false, message: "Catalog Service unavailable" });
-  }
-});
-
 catalogRoutes.get("/", authMiddleware, async (req, res) => {
   try {
     

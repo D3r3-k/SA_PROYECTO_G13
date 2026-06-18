@@ -9,9 +9,37 @@ import (
 	"quetxaltv/catalog-service/internal/repository"
 )
 
+// RepositoryI is the persistence contract used by Service.
+// repository.Repository satisfies this interface automatically.
+type RepositoryI interface {
+	ClearCatalog(ctx context.Context) error
+	UpsertContent(ctx context.Context, seed provider.ContentSeed) (string, error)
+	InsertAudit(ctx context.Context, providerName string, success bool, message string, contents int, episodes int)
+	CreateAdminContent(ctx context.Context, input repository.AdminContentWrite) (string, []repository.Episode, error)
+	UpdateAdminContent(ctx context.Context, input repository.AdminContentWrite) error
+	AllEpisodes(ctx context.Context, id string) ([]repository.Episode, error)
+	SoftDeleteContent(ctx context.Context, contentID string, actorUserID string, actorEmail string) error
+	SchedulePremiere(ctx context.Context, contentID string, availableFrom string, actorUserID string, actorEmail string) error
+	UpdateContentMedia(ctx context.Context, contentID string, mediaType string, objectKey string, contentType string, actorUserID string, actorEmail string) error
+	UpdateEpisodeMedia(ctx context.Context, contentID string, episodeID string, objectKey string, contentType string, actorUserID string, actorEmail string) error
+	ContentMediaKeys(ctx context.Context, contentID string) (repository.DeletedContentMedia, bool, error)
+	DeleteContent(ctx context.Context, contentID string) error
+}
+
+// ArchiveI is the archive provider contract used by Service.
+// provider.ArchiveClient satisfies this interface automatically.
+type ArchiveI interface {
+	ItemToMovieSeed(identifier string) (provider.ContentSeed, error)
+	SearchIdentifiers(query string, rows int) ([]string, error)
+	EpisodeItemsToSeriesSeed(seriesTitle string, identifiers []string) (provider.ContentSeed, error)
+	ItemToSeriesSeed(identifier string, maxEpisodes int) (provider.ContentSeed, error)
+	SearchEpisodeItemsToSeriesSeed(seriesTitle string, query string, maxEpisodes int) (provider.ContentSeed, error)
+}
+
 type Service struct {
-	Repo                     repository.Repository
-	Archive                  provider.ArchiveClient
+	Repo                     RepositoryI
+	Archive                  ArchiveI
+	MediaStore               *MediaStore
 	ArchiveMovieIdentifiers  []string
 	ArchiveSeriesIdentifier  string
 	ArchiveSeriesIdentifiers []string
@@ -29,6 +57,59 @@ type SyncResult struct {
 	Contents int
 	Episodes int
 	Provider string
+}
+
+type AdminContentInput struct {
+	ContentID     string
+	ExternalID    string
+	Type          string
+	Title         string
+	Overview      string
+	PosterPath    string
+	ReleaseDate   string
+	AvailableFrom string
+	Genres        []string
+	Cast          []AdminCastInput
+	Episodes      []AdminEpisodeInput
+	ActorUserID   string
+	ActorEmail    string
+}
+
+type AdminCastInput struct {
+	ActorName     string
+	CharacterName string
+	OrderIndex    int
+}
+
+type AdminEpisodeInput struct {
+	SeasonNumber   int
+	EpisodeNumber  int
+	Title          string
+	Overview       string
+	RuntimeMinutes int
+}
+
+type AdminContentResult struct {
+	Success   bool
+	Message   string
+	ContentID string
+	Episodes  []repository.Episode
+}
+
+type ConfirmMediaInput struct {
+	ContentID   string
+	EpisodeID   string
+	MediaType   string
+	ObjectKey   string
+	ContentType string
+	ActorUserID string
+	ActorEmail  string
+}
+
+type DeleteContentResult struct {
+	Success        bool
+	Message        string
+	DeletedObjects int
 }
 
 func (s Service) SyncMinimum(ctx context.Context, force bool) SyncResult {
@@ -56,6 +137,118 @@ func (s Service) SyncMinimum(ctx context.Context, force bool) SyncResult {
 	msg := fmt.Sprintf("catalog synced with %s: %d contents and %d episodes", providerName, contents, episodes)
 	s.Repo.InsertAudit(ctx, providerName, true, msg, contents, episodes)
 	return SyncResult{Success: true, Message: msg, Contents: contents, Episodes: episodes, Provider: providerName}
+}
+
+func (s Service) CreateAdminContent(ctx context.Context, input AdminContentInput) AdminContentResult {
+	write, err := adminInputToWrite(input, false)
+	if err != nil {
+		return AdminContentResult{Success: false, Message: err.Error()}
+	}
+	contentID, episodes, err := s.Repo.CreateAdminContent(ctx, write)
+	if err != nil {
+		return AdminContentResult{Success: false, Message: fmt.Sprintf("catalog persistence failed: %v", err)}
+	}
+	return AdminContentResult{
+		Success:   true,
+		Message:   "content created",
+		ContentID: contentID,
+		Episodes:  episodes,
+	}
+}
+
+func (s Service) UpdateAdminContent(ctx context.Context, input AdminContentInput) AdminContentResult {
+	write, err := adminInputToWrite(input, true)
+	if err != nil {
+		return AdminContentResult{Success: false, Message: err.Error()}
+	}
+	if err := s.Repo.UpdateAdminContent(ctx, write); err != nil {
+		return AdminContentResult{Success: false, Message: fmt.Sprintf("catalog update failed: %v", err)}
+	}
+	episodes, err := s.Repo.AllEpisodes(ctx, input.ContentID)
+	if err != nil {
+		return AdminContentResult{Success: false, Message: fmt.Sprintf("catalog episode reload failed: %v", err)}
+	}
+	return AdminContentResult{Success: true, Message: "content updated", ContentID: input.ContentID, Episodes: episodes}
+}
+
+func (s Service) DeleteAdminContent(ctx context.Context, contentID string, actorUserID string, actorEmail string) AdminContentResult {
+	if strings.TrimSpace(contentID) == "" {
+		return AdminContentResult{Success: false, Message: "content_id is required"}
+	}
+	if err := s.Repo.SoftDeleteContent(ctx, contentID, actorUserID, actorEmail); err != nil {
+		return AdminContentResult{Success: false, Message: fmt.Sprintf("catalog delete failed: %v", err)}
+	}
+	return AdminContentResult{Success: true, Message: "content deleted", ContentID: contentID}
+}
+
+func (s Service) SchedulePremiere(ctx context.Context, contentID string, availableFrom string, actorUserID string, actorEmail string) AdminContentResult {
+	if strings.TrimSpace(contentID) == "" {
+		return AdminContentResult{Success: false, Message: "content_id is required"}
+	}
+	if strings.TrimSpace(availableFrom) == "" {
+		return AdminContentResult{Success: false, Message: "available_from is required"}
+	}
+	if err := s.Repo.SchedulePremiere(ctx, contentID, availableFrom, actorUserID, actorEmail); err != nil {
+		return AdminContentResult{Success: false, Message: fmt.Sprintf("catalog schedule failed: %v", err)}
+	}
+	return AdminContentResult{Success: true, Message: "premiere scheduled", ContentID: contentID}
+}
+
+func (s Service) GenerateUploadURL(req UploadURLRequest) (UploadURLResult, error) {
+	return s.MediaStore.GenerateUploadURL(req)
+}
+
+func (s Service) ConfirmMedia(ctx context.Context, input ConfirmMediaInput) error {
+	if err := s.MediaStore.ObjectExists(ctx, input.ObjectKey); err != nil {
+		return err
+	}
+	switch input.MediaType {
+	case "poster", "movie_video":
+		return s.Repo.UpdateContentMedia(ctx, input.ContentID, input.MediaType, input.ObjectKey, input.ContentType, input.ActorUserID, input.ActorEmail)
+	case "episode_video":
+		return s.Repo.UpdateEpisodeMedia(ctx, input.ContentID, input.EpisodeID, input.ObjectKey, input.ContentType, input.ActorUserID, input.ActorEmail)
+	default:
+		return fmt.Errorf("media_type must be poster, movie_video or episode_video")
+	}
+}
+
+func (s Service) DeleteContent(ctx context.Context, contentID string) DeleteContentResult {
+	contentID = strings.TrimSpace(contentID)
+	if contentID == "" {
+		return DeleteContentResult{Success: false, Message: "content_id is required"}
+	}
+
+	media, found, err := s.Repo.ContentMediaKeys(ctx, contentID)
+	if err != nil {
+		return DeleteContentResult{Success: false, Message: fmt.Sprintf("resolve content media failed: %v", err)}
+	}
+	if !found {
+		return DeleteContentResult{Success: false, Message: "content not found"}
+	}
+
+	deletedObjects := 0
+	for _, objectKey := range media.ObjectKeys {
+		if err := s.MediaStore.DeleteObject(ctx, objectKey); err != nil {
+			return DeleteContentResult{Success: false, Message: err.Error()}
+		}
+		deletedObjects++
+	}
+
+	if err := s.Repo.DeleteContent(ctx, contentID); err != nil {
+		return DeleteContentResult{Success: false, Message: fmt.Sprintf("delete content failed: %v", err)}
+	}
+	return DeleteContentResult{
+		Success:        true,
+		Message:        "content deleted",
+		DeletedObjects: deletedObjects,
+	}
+}
+
+func (s Service) ResolveReadURL(value string) string {
+	if strings.HasPrefix(value, "http://") || strings.HasPrefix(value, "https://") {
+		return value
+	}
+	return s.MediaStore.SignedReadURL(value)
 }
 
 func (s Service) archiveSeeds() ([]provider.ContentSeed, error) {
@@ -311,4 +504,75 @@ func sanitizeExternalID(value string) string {
 		return "archive"
 	}
 	return value
+}
+
+func adminInputToWrite(input AdminContentInput, requireContentID bool) (repository.AdminContentWrite, error) {
+	typ := strings.TrimSpace(input.Type)
+	if typ != "movie" && typ != "series" {
+		return repository.AdminContentWrite{}, fmt.Errorf("type must be movie or series")
+	}
+	title := strings.TrimSpace(input.Title)
+	if title == "" {
+		return repository.AdminContentWrite{}, fmt.Errorf("title is required")
+	}
+
+	if requireContentID && strings.TrimSpace(input.ContentID) == "" {
+		return repository.AdminContentWrite{}, fmt.Errorf("content_id is required")
+	}
+
+	write := repository.AdminContentWrite{
+		ContentID:     strings.TrimSpace(input.ContentID),
+		ExternalID:    strings.TrimSpace(input.ExternalID),
+		Type:          typ,
+		Title:         title,
+		Overview:      strings.TrimSpace(input.Overview),
+		PosterPath:    strings.TrimSpace(input.PosterPath),
+		ReleaseDate:   strings.TrimSpace(input.ReleaseDate),
+		AvailableFrom: strings.TrimSpace(input.AvailableFrom),
+		Genres:        input.Genres,
+		ActorUserID:   strings.TrimSpace(input.ActorUserID),
+		ActorEmail:    strings.TrimSpace(input.ActorEmail),
+	}
+	for _, item := range input.Cast {
+		if strings.TrimSpace(item.ActorName) == "" {
+			continue
+		}
+		write.Cast = append(write.Cast, provider.CastSeed{
+			ActorName:     strings.TrimSpace(item.ActorName),
+			CharacterName: strings.TrimSpace(item.CharacterName),
+			OrderIndex:    item.OrderIndex,
+		})
+	}
+	maxSeason := 0
+	for _, item := range input.Episodes {
+		if typ != "series" {
+			continue
+		}
+		if strings.TrimSpace(item.Title) == "" {
+			return repository.AdminContentWrite{}, fmt.Errorf("episode title is required")
+		}
+		seasonNumber := item.SeasonNumber
+		if seasonNumber <= 0 {
+			seasonNumber = 1
+		}
+		episodeNumber := item.EpisodeNumber
+		if episodeNumber <= 0 {
+			return repository.AdminContentWrite{}, fmt.Errorf("episode_number must be positive")
+		}
+		if seasonNumber > maxSeason {
+			maxSeason = seasonNumber
+		}
+		write.Episodes = append(write.Episodes, provider.EpisodeSeed{
+			SeasonNumber:   seasonNumber,
+			EpisodeNumber:  episodeNumber,
+			Title:          strings.TrimSpace(item.Title),
+			Overview:       strings.TrimSpace(item.Overview),
+			RuntimeMinutes: item.RuntimeMinutes,
+		})
+	}
+	if typ == "series" && len(write.Episodes) == 0 {
+		return repository.AdminContentWrite{}, fmt.Errorf("series requires at least one episode")
+	}
+	_ = maxSeason
+	return write, nil
 }

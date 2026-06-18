@@ -5,129 +5,16 @@ from psycopg2 import IntegrityError
 from src.db import get_connection, get_cursor
 
 
-PLAN_SEED = [
-    (1, "Básico", 5.0, True),
-    (2, "Estándar", 8.0, True),
-    (3, "Premium", 12.0, True),
-]
 
 
-def initialize_database() -> None:
+def update_plan(plan_id: int, name: str, price_usd: float, actor_user_id: str = "", actor_email: str = "") -> dict:
     with get_cursor() as cursor:
-        cursor.execute(
-            """
-            CREATE TABLE IF NOT EXISTS plans (
-                id SERIAL PRIMARY KEY,
-                name VARCHAR(50) NOT NULL UNIQUE,
-                price_usd NUMERIC(10, 2) NOT NULL CHECK (price_usd >= 0),
-                is_active BOOLEAN NOT NULL DEFAULT TRUE,
-                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-            );
-
-            CREATE TABLE IF NOT EXISTS subscriptions (
-                id SERIAL PRIMARY KEY,
-                user_id TEXT NOT NULL,
-                plan_id INTEGER NOT NULL REFERENCES plans(id),
-                status VARCHAR(20) NOT NULL DEFAULT 'active',
-                started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-            );
-            """
-        )
-
-        cursor.execute(
-            """
-            CREATE UNIQUE INDEX IF NOT EXISTS ux_subscriptions_one_active_per_user
-            ON subscriptions (user_id)
-            WHERE status = 'active';
-            """
-        )
-
-        cursor.execute("DROP VIEW IF EXISTS vw_user_active_subscription;")
-        cursor.execute("ALTER TABLE subscriptions ALTER COLUMN user_id TYPE TEXT USING user_id::text;")
-
-        cursor.execute(
-            """
-            CREATE TABLE IF NOT EXISTS subscription_audit (
-                id SERIAL PRIMARY KEY,
-                subscription_id INTEGER NOT NULL,
-                old_plan_id INTEGER,
-                new_plan_id INTEGER,
-                old_status VARCHAR(20),
-                new_status VARCHAR(20),
-                changed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-            );
-
-            CREATE OR REPLACE VIEW vw_user_active_subscription AS
-            SELECT
-                s.id AS subscription_id,
-                s.user_id,
-                s.plan_id,
-                p.name AS plan_name,
-                p.price_usd,
-                s.status,
-                s.started_at,
-                s.updated_at
-            FROM subscriptions s
-            JOIN plans p ON p.id = s.plan_id
-            WHERE s.status = 'active';
-
-            CREATE OR REPLACE FUNCTION fn_calculate_monthly_price(plan_price NUMERIC)
-            RETURNS NUMERIC AS $$
-            BEGIN
-                RETURN ROUND(plan_price, 2);
-            END;
-            $$ LANGUAGE plpgsql;
-
-            CREATE OR REPLACE FUNCTION fn_audit_subscription_change()
-            RETURNS TRIGGER AS $$
-            BEGIN
-                IF OLD.plan_id IS DISTINCT FROM NEW.plan_id
-                   OR OLD.status IS DISTINCT FROM NEW.status THEN
-                    INSERT INTO subscription_audit (
-                        subscription_id,
-                        old_plan_id,
-                        new_plan_id,
-                        old_status,
-                        new_status
-                    )
-                    VALUES (
-                        OLD.id,
-                        OLD.plan_id,
-                        NEW.plan_id,
-                        OLD.status,
-                        NEW.status
-                    );
-                END IF;
-
-                RETURN NEW;
-            END;
-            $$ LANGUAGE plpgsql;
-
-            DROP TRIGGER IF EXISTS trg_audit_subscription_change ON subscriptions;
-
-            CREATE TRIGGER trg_audit_subscription_change
-            AFTER UPDATE ON subscriptions
-            FOR EACH ROW
-            EXECUTE FUNCTION fn_audit_subscription_change();
-            """
-        )
-
-        cursor.execute("SELECT id FROM plans LIMIT 1;")
-        if cursor.fetchone() is None:
-            cursor.executemany(
-                "INSERT INTO plans (id, name, price_usd, is_active) VALUES (%s, %s, %s, %s);",
-                PLAN_SEED,
-            )
-        
-
-
-def update_plan(plan_id: int, name: str, price_usd: float) -> dict:
-    with get_cursor() as cursor:
+        cursor.execute("SELECT set_config('app.user_id', %s, true);", (actor_user_id or "",))
+        cursor.execute("SELECT set_config('app.user_email', %s, true);", (actor_email or "",))
         cursor.execute(
             """
             UPDATE plans
-            SET name = %s, price_usd = %s
+            SET name = %s, price_usd = %s, updated_at = NOW()
             WHERE id = %s AND is_active = TRUE
             RETURNING id, name, price_usd, is_active;
             """,
@@ -288,3 +175,29 @@ def delete_subscription(subscription_id: int) -> bool:
             (subscription_id,),
         )
         return cursor.fetchone() is not None
+
+
+
+def list_audit_logs(table_name: str = "", actor_user_id: str = "", action: str = "", from_ts: str = "", to_ts: str = "", limit: int = 100, offset: int = 0) -> list[dict]:
+    with get_cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT *
+            FROM fn_subscription_audit_report(
+                %s::text,
+                %s::text,
+                %s::text,
+                NULLIF(%s::text, '')::timestamptz,
+                NULLIF(%s::text, '')::timestamptz,
+                %s::integer,
+                %s::integer
+            );
+            """,
+            (table_name, actor_user_id, action, from_ts, to_ts, limit, offset),
+        )
+        rows = []
+        for row in cursor.fetchall():
+            item = dict(row)
+            item["service"] = "subscription"
+            rows.append(item)
+        return rows

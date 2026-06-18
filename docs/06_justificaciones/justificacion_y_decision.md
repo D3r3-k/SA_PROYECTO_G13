@@ -96,3 +96,71 @@
   - **Buenas prácticas:** Cada servicio incluye un `.env.example` como plantilla documentada con las variables requeridas.
 
 ---
+
+### 2.4. GitHub Actions como Herramienta de CI/CD
+
+- **Decisión:** Implementar el pipeline de Integración y Despliegue Continuo exclusivamente con GitHub Actions, mediante dos workflows declarativos: `deploy-develop.yml` y `deploy-release.yml`.
+- **¿Qué?** GitHub Actions es la plataforma de automatización nativa de GitHub que ejecuta workflows definidos como archivos YAML dentro del repositorio bajo `.github/workflows/`.
+- **¿Por qué?**
+  - **Integración nativa:** Al vivir en el mismo repositorio que el código, los workflows son versionados, revisados en Pull Requests y auditables como cualquier otro cambio. No requiere mantener un servidor CI externo (Jenkins, CircleCI).
+  - **Cortocircuito crítico:** La dependencia explícita entre jobs (`needs:`) garantiza que un fallo en `ci-checks` detenga el pipeline antes de consumir cuota de red o almacenamiento en GCP.
+  - **Environments por rama:** GitHub Environments permiten asociar secrets y variables distintas a `develop` y `release`, aplicando el principio de mínimo privilegio: el entorno de desarrollo no tiene acceso a las credenciales de producción de GKE.
+  - **Estrategia multi-rama:** El mismo flujo de CI (compilación, pruebas, backup) se reutiliza en ambos workflows, pero la etapa de despliegue bifurca: `develop` despliega en Compute Engine mediante Docker Compose, y `release` despliega en GKE mediante manifiestos declarativos YAML.
+- **¿Para qué?** Garantizar que ningún cambio llegue a producción sin haber pasado por compilación, pruebas, respaldo de bases de datos y validación de despliegue, eliminando el error humano del proceso de entrega.
+
+---
+
+### 2.5. Google Cloud Storage (GCS) para Archivos Estáticos
+
+- **Decisión:** Toda la persistencia de archivos multimedia pesados (videos de películas y capítulos, imágenes de portadas) se almacena en buckets de Google Cloud Storage en lugar del sistema de archivos local de los contenedores.
+- **¿Qué?** Google Cloud Storage es un servicio de almacenamiento de objetos distribuido en GCP. Se utilizan tres buckets: `media-bucket` (videos y posters), `audit-bucket` (reportes PDF) y `thumbnail-bucket` (miniaturas).
+- **¿Por qué?**
+  - **Desacoplamiento del sistema de archivos:** Los contenedores son efímeros; almacenar archivos en el sistema de archivos local los perdería ante cualquier reinicio, rollback o escalado horizontal. GCS persiste los archivos independientemente del ciclo de vida de los Pods.
+  - **URLs firmadas:** GCS permite generar URLs firmadas con tiempo de expiración configurable (`GCS_SIGNED_READ_EXPIRES_MINUTES`), de modo que el reproductor del frontend consume los recursos directamente desde GCS sin que el video transite por el backend, reduciendo el ancho de banda y la carga de los microservicios.
+  - **Escalabilidad y disponibilidad:** GCS opera con disponibilidad del 99.9% y escala automáticamente sin necesidad de aprovisionar almacenamiento adicional, a diferencia de un volumen adjunto a una VM que tiene capacidad fija.
+  - **Backup automatizado:** El pipeline CI/CD exporta los dumps SQL de las bases de datos operacionales directamente al bucket (`gs://bucket/backups/{rama}/{run-id}/`), centralizando todos los respaldos en el mismo servicio de almacenamiento.
+- **¿Para qué?** Permitir que el reproductor del frontend consuma video en streaming directamente desde GCS mediante URLs públicas o firmadas, calculando y mostrando la duración real del archivo, sin depender de la disponibilidad ni capacidad de los microservicios de backend.
+
+---
+
+### 2.6. Google Kubernetes Engine (GKE) para el Entorno de Producción
+
+- **Decisión:** El entorno correspondiente a la rama `release` se despliega en un clúster de Google Kubernetes Engine en lugar de máquinas virtuales, aplicando obligatoriamente estrategias de RollingUpdate y Rollback automático.
+- **¿Qué?** Google Kubernetes Engine es el servicio administrado de Kubernetes en GCP. El clúster `qx-gke-release` aloja todos los microservicios bajo el namespace `quetxal-tv-prod`, con un único punto de acceso externo mediante un recurso Ingress.
+- **¿Por qué?**
+  - **Despliegue sin downtime (RollingUpdate):** La estrategia `RollingUpdate` con `maxSurge=1` y `maxUnavailable=0` garantiza que siempre existe al menos una réplica de cada servicio atendiendo tráfico mientras los nuevos Pods se inicializan, evitando interrupciones durante las actualizaciones.
+  - **Rollback automático:** Si un nuevo Pod entra en estado `CrashLoopBackOff` o no supera el `rollout status` en 180 segundos, el pipeline ejecuta `kubectl rollout undo` de forma automática, restaurando la versión estable anterior sin intervención manual.
+  - **Orquestación declarativa:** Los manifiestos YAML en `deploy/release/k8s/` describen el estado deseado del sistema. Kubernetes reconcilia continuamente el estado real con el declarado, reiniciando Pods caídos y redistribuyendo carga sin intervención operativa.
+  - **Aislamiento de recursos:** Cada Pod define `requests` y `limits` de CPU y memoria, evitando que un servicio con pico de demanda degrade al resto del clúster.
+  - **Gestión segura de configuración:** ConfigMaps inyectan variables de entorno genéricas y Secrets gestionan credenciales sensibles (JWT, passwords de BD, Service Account de GCS), sin que ningún valor sensible quede escrito en los archivos YAML del repositorio.
+- **¿Para qué?** Garantizar alta disponibilidad del sistema en producción con despliegues progresivos que no interrumpan las transmisiones de video activas, y con capacidad de recuperación automática ante fallos sin requerir intervención del equipo fuera de horario.
+
+---
+
+### 2.7. PostgreSQL como Motor de Base de Datos Relacional
+
+- **Decisión:** Utilizar PostgreSQL como sistema gestor de base de datos relacional para los cuatro dominios con persistencia estructurada: `identity_db`, `catalog_db`, `subscription_db` y `engagement_db`.
+- **¿Qué?** PostgreSQL es un motor de base de datos objeto-relacional de código abierto. El sistema utiliza PostgreSQL 16 para los servicios de Identity, Catalog y Engagement, y PostgreSQL 15 para Subscription, cada instancia aislada en su propio contenedor siguiendo el patrón Database per Microservice.
+- **¿Por qué?**
+  - **Cumplimiento ACID:** Las operaciones críticas del sistema — registro de usuarios, autorización de pagos, creación de suscripciones — involucran múltiples tablas y deben ser atómicas. PostgreSQL garantiza que una transacción fallida no deje la base de datos en un estado parcialmente modificado.
+  - **Objetos programables nativos:** PostgreSQL soporta stored procedures, triggers, vistas y funciones almacenadas como ciudadanos de primera clase del motor. Esto permite que la lógica de auditoría (`trg_audit_*`), los cálculos de recomendación (`fn_recommendation_percentage`) y los flujos transaccionales (`sp_register_user`, `sp_rate_content`) residan en la base de datos, garantizando su ejecución independientemente del servicio que origine el cambio.
+  - **JSONB para datos semi-estructurados:** El catálogo de contenido almacena géneros, elenco y episodios como columnas JSONB, evitando tablas de relación adicionales para atributos variables sin sacrificar la capacidad de indexación y consulta estructurada.
+  - **Aislamiento por esquema:** Cada microservicio opera sobre su propia instancia de base de datos. Un cambio de esquema en `subscription_db` no requiere coordinación con `catalog_db` ni con `identity_db`, permitiendo migraciones independientes por dominio.
+  - **Ecosistema maduro:** Librerías como `psycopg2` (Python) y `pg` (Node.js) ofrecen integración directa sin capas ORM que oculten la ejecución de stored procedures o limiten el control sobre las transacciones.
+- **¿Para qué?** Garantizar integridad transaccional en los flujos de negocio críticos (registro, pago, suscripción), asegurar que los triggers de auditoría se ejecuten de forma inevitable ante cualquier modificación de datos, y soportar consultas complejas del catálogo con índices y vistas sin duplicar lógica en el código de aplicación.
+
+---
+
+### 2.8. Seguridad de Sesión: JWT con Cookies HttpOnly
+
+- **Decisión:** Autenticar las sesiones de usuario mediante JSON Web Tokens (JWT) firmados con HMAC-SHA256, transportados exclusivamente en cookies HttpOnly gestionadas por el API Gateway.
+- **¿Qué?** El API Gateway emite un JWT al completarse el login exitoso (`Identity Service → gRPC → Gateway → Set-Cookie`). El token se almacena en una cookie con nombre `access_token`, configurada como HttpOnly, con `Secure=true` en producción y `SameSite=lax`. Cada request subsiguiente incluye la cookie automáticamente; el Gateway extrae y verifica el JWT antes de enrutar la petición al microservicio correspondiente.
+- **¿Por qué?**
+  - **HttpOnly neutraliza XSS:** Al marcar la cookie como HttpOnly, el token es completamente inaccesible desde JavaScript del navegador. Un script malicioso inyectado en la página no puede leer ni exfiltrar el token de sesión, eliminando la superficie de ataque más común en aplicaciones SPA.
+  - **Secure en producción:** La variable `COOKIE_SECURE=true` en el entorno cloud garantiza que la cookie únicamente se transmite sobre conexiones HTTPS, impidiendo su captura en tráfico HTTP plano.
+  - **SameSite=lax protege contra CSRF:** La política `lax` bloquea el envío de la cookie en requests cross-site iniciados desde contextos de terceros (iframes, formularios externos), mitigando ataques de Cross-Site Request Forgery sin requerir tokens CSRF adicionales.
+  - **JWT stateless:** El Gateway verifica la firma del token localmente usando `JWT_SECRET` sin necesidad de consultar ninguna base de datos ni session store por cada request. Esto elimina una dependencia de latencia en el camino crítico de autenticación y permite escalar el Gateway horizontalmente sin estado compartido.
+  - **Expiración acotada:** `JWT_EXPIRES_IN=1d` limita la ventana de exposición ante un token comprometido a un máximo de 24 horas, tras las cuales el usuario debe re-autenticarse.
+- **¿Para qué?** Proveer autenticación stateless en el API Gateway que proteja contra XSS y CSRF, permita escalar horizontalmente sin session store centralizado, y limite el impacto de un token comprometido mediante expiración automática.
+
+---

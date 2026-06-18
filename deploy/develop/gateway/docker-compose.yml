@@ -1,0 +1,17 @@
+version: "3.8"
+
+services:
+  api-gateway:
+    image: ghcr.io/d3r3-k/sa_proyecto_g13/api-gateway:latest
+    container_name: api-gateway
+    restart: unless-stopped
+    ports:
+      - "${API_GATEWAY_PORT:-3000}:${API_GATEWAY_PORT:-3000}"
+    env_file:
+      - .env
+    networks:
+      - sa_net
+
+networks:
+  sa_net:
+    driver: bridge

@@ -29,12 +29,19 @@ def get_cursor():
 
 def apply_migrations() -> None:
     if not MIGRATIONS_DIR.exists():
-        raise FileNotFoundError(f"migrations directory not found: {MIGRATIONS_DIR}")
+        raise FileNotFoundError(f"[engagement-service] Error: migrations directory not found: {MIGRATIONS_DIR}")
 
     migration_files = sorted(MIGRATIONS_DIR.glob("*.sql"))
     if not migration_files:
-        raise FileNotFoundError(f"no migration files found in: {MIGRATIONS_DIR}")
+        raise FileNotFoundError(f"[engagement-service] Error: no migration files found in: {MIGRATIONS_DIR}")
 
-    with get_cursor() as cursor:
-        for migration_file in migration_files:
-            cursor.execute(migration_file.read_text(encoding="utf-8"))
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    conn.autocommit = True
+    try:
+        with conn.cursor() as cursor:
+            for migration_file in migration_files:
+                cursor.execute(migration_file.read_text(encoding="utf-8"))
+    except Exception as exc:
+        raise RuntimeError(f"[engagement-service] Error: migration {migration_file} failed: {exc}") from exc
+    finally:
+        conn.close()

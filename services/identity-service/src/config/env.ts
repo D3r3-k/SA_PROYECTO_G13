@@ -14,11 +14,17 @@ export const env = {
   redisUrl: process.env.REDIS_URL || "redis://redis:6379/0",
   notificationQueueName: process.env.NOTIFICATION_QUEUE_NAME || "notification:queue",
 
+  adminEmails: (process.env.ADMIN_EMAILS || "")
+    .split(",")
+    .map((email: string) => email.trim().toLowerCase())
+    .filter(Boolean),
+
   db: {
     host: process.env.DB_HOST || "localhost",
     port: Number(process.env.DB_PORT || 5432),
     database: process.env.DB_NAME || "identity_db",
     user: process.env.DB_USER || "identity_user",
-    password: process.env.DB_PASSWORD || "identity_password"
+    password: process.env.DB_PASSWORD || "identity_password",
+    ssl: process.env.DB_SSL === "true"
   }
 };

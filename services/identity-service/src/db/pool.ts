@@ -7,5 +7,5 @@ export const pool = new Pool({
   database: env.db.database,
   user: env.db.user,
   password: env.db.password,
-  ssl: { rejectUnauthorized: false }
+  ssl: env.db.ssl ? { rejectUnauthorized: false } : false
 });

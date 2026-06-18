@@ -1,3 +1,4 @@
+BEGIN;
 CREATE OR REPLACE FUNCTION sp_delete_profile(
     p_user_id UUID,
     p_profile_id UUID
@@ -31,3 +32,4 @@ BEGIN
         'Profile deleted'::TEXT AS message;
 END;
 $$;
+COMMIT;

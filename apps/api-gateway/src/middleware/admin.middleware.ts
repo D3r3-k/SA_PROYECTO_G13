@@ -1,12 +1,24 @@
-// TEMPORAL: credenciales de admin hardcodeadas. Ver CLAUDE.md sección Admin Panel.
-import { Request, Response, NextFunction } from "express";
+import { Response, NextFunction } from "express";
+import { AuthenticatedRequest, authMiddleware } from "./auth.middleware";
 
-const ADMIN_KEY = process.env.ADMIN_KEY ?? "Admin1234#";
+export function requirePermission(permission: string) {
+  return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    const user = req.user;
+    if (!user) {
+      return res.status(401).json({ success: false, message: "Authentication required" });
+    }
 
-export function adminMiddleware(req: Request, res: Response, next: NextFunction) {
-  const key = req.headers["x-admin-key"];
-  if (key !== ADMIN_KEY) {
-    return res.status(401).json({ success: false, message: "Admin access required" });
-  }
-  next();
+    if (user.is_admin || user.roles.includes("admin") || user.permissions.includes(permission)) {
+      return next();
+    }
+
+    return res.status(403).json({
+      success: false,
+      message: `Permission required: ${permission}`
+    });
+  };
 }
+
+export const adminMiddleware = [authMiddleware, requirePermission("catalog:admin")];
+export const auditMiddleware = [authMiddleware, requirePermission("audit:read")];
+export const reportMiddleware = [authMiddleware, requirePermission("reports:export")];

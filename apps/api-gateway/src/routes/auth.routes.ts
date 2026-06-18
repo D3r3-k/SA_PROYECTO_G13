@@ -13,6 +13,9 @@ type AuthResponse = {
   message: string;
   user_id: string;
   token: string;
+  roles?: string[];
+  permissions?: string[];
+  is_admin?: boolean;
 };
 
 type BasicResponse = {
@@ -89,7 +92,10 @@ authRoutes.post("/register", async (req, res) => {
     return res.status(201).json({
       success: true,
       message: response.message,
-      user_id: response.user_id
+      user_id: response.user_id,
+      roles: response.roles || [],
+      permissions: response.permissions || [],
+      is_admin: Boolean(response.is_admin)
     });
   } catch (error) {
     console.error("Register failed", error);
@@ -123,7 +129,10 @@ authRoutes.post("/login", async (req, res) => {
     return res.json({
       success: true,
       message: response.message,
-      user_id: response.user_id
+      user_id: response.user_id,
+      roles: response.roles || [],
+      permissions: response.permissions || [],
+      is_admin: Boolean(response.is_admin)
     });
   } catch (error) {
     console.error("Login failed", error);
@@ -150,7 +159,10 @@ authRoutes.get("/me", authMiddleware, async (req: AuthenticatedRequest, res) => 
     user: {
       user_id: req.user?.user_id,
       email: req.user?.email,
-      profile_id: req.user?.profile_id || ""
+      profile_id: req.user?.profile_id || "",
+      roles: req.user?.roles || [],
+      permissions: req.user?.permissions || [],
+      is_admin: Boolean(req.user?.is_admin)
     }
   });
 });
