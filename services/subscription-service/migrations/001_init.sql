@@ -57,6 +57,12 @@ CREATE INDEX IF NOT EXISTS ix_subscription_audit_log_table      ON audit_log(tab
 CREATE INDEX IF NOT EXISTS ix_subscription_audit_log_actor      ON audit_log(actor_user_id);
 
 -- ─────────────────────────────────────────
+-- Vistas (Drop previo para evitar bloqueos en ALTER TABLE)
+-- ─────────────────────────────────────────
+
+DROP VIEW IF EXISTS vw_user_active_subscription;
+
+-- ─────────────────────────────────────────
 -- Alter tables (idempotentes)
 -- ─────────────────────────────────────────
 
@@ -66,8 +72,6 @@ ALTER TABLE subscriptions ALTER COLUMN user_id TYPE TEXT USING user_id::text;
 -- ─────────────────────────────────────────
 -- Vistas
 -- ─────────────────────────────────────────
-
-DROP VIEW IF EXISTS vw_user_active_subscription;
 
 CREATE OR REPLACE VIEW vw_user_active_subscription AS
 SELECT
