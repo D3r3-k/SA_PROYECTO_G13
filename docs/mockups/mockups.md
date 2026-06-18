@@ -75,3 +75,100 @@ Lista de contenido en progreso del perfil activo. Cada ítem muestra el título,
 ---
 
 ---
+
+# Mockups — Panel de Administración
+
+Representaciones visuales de las pantallas del panel de administración de Quetxal TV. El administrador accede mediante credenciales separadas y tiene acceso exclusivo a la gestion del catalogo, los planes, los logs de auditoria y la generacion de reportes.
+
+---
+
+## 8. Login Administrador
+
+**Ruta:** `/login/admin`
+
+Pantalla de acceso exclusiva para el rol administrador. Solicita usuario y contrasena de administrador. Las credenciales se validan en el frontend contra las variables de entorno. Acceso denegado redirige al mismo formulario con mensaje de error.
+
+![Login Admin](img/01_admin_login.png)
+
+---
+
+## 9. Dashboard Principal
+
+**Ruta:** `/admin`
+
+Vista principal del panel de administracion. Muestra accesos directos a los modulos disponibles: gestion de catalogo, gestion de planes, log de auditoria y descarga de reportes. Incluye boton de cierre de sesion.
+
+![Dashboard Admin](img/02_admin_dashboard.png)
+
+---
+
+## 10. Gestion de Catalogo — Lista de Contenido
+
+**Ruta:** `/admin/catalog`
+
+Tabla con todos los titulos registrados (peliculas y series). Cada fila muestra titulo, tipo, categoria, estado de visibilidad y fecha de estreno programada. Incluye boton para agregar nuevo contenido y acciones de editar y eliminar por fila.
+
+
+![Catalogo Admin](img/03_admin_catalogo.png)
+
+---
+
+## 11. Agregar Nuevo Contenido
+
+**Ruta:** `/admin/catalog/new`
+
+Formulario para registrar un titulo nuevo. Campos: tipo (pelicula / serie), titulo, overview, poster (upload a GCS), generos (JSONB), cast (JSONB) y episodios (JSONB para series). Incluye selector de fecha de estreno para calendarizar la visibilidad del contenido.
+
+
+![Agregar Contenido](img/04_admin_nuevo_contenido.png)
+
+---
+
+## 12. Editar Contenido Existente
+
+**Ruta:** `/admin/catalog/edit/:id`
+
+Formulario de edicion precargado con los metadatos del titulo seleccionado. Permite modificar cualquier campo incluyendo el poster (reemplaza el archivo en GCS) y reprogramar la fecha de estreno. Cambios se persisten via `gRPC UpdateContent` al Catalog Service.
+
+
+![Editar Contenido](img/05_admin_editar_contenido.png)
+
+---
+
+## 13. Gestion de Planes
+
+**Ruta:** `/admin/plans`
+
+Tabla de planes de suscripcion disponibles con nombre, precio en USD y estado activo/inactivo. Permite editar nombre y precio directamente en la fila. Los cambios se envian via `gRPC UpdatePlan` al Subscription Service.
+
+
+![Planes Admin](img/06_admin_planes.png)
+
+---
+
+## 14. Log de Auditoria
+
+**Ruta:** `/admin/audit`
+
+Tabla paginada con el registro transaccional de la tabla de auditoria. Columnas: timestamp, tabla afectada, operacion (INSERT / UPDATE), usuario responsable, estado anterior y estado nuevo. Incluye filtros por rango de fecha y tipo de operacion.
+
+
+![Log Auditoria](mg/07_admin_auditoria.png)
+
+---
+
+## 15. Descarga de Reportes
+
+**Ruta:** `/admin/audit/report`
+
+Vista de generacion y descarga de reportes estructurados a partir del log de auditoria. Permite seleccionar rango de fechas y formato de exportacion. Los reportes se generan en el API Gateway via `gRPC ListAuditLogs` y se descargan directamente desde el navegador.
+
+| Formato | Descripcion |
+| :------ | :---------- |
+| `.csv` | Exportacion plana de todos los registros del rango seleccionado |
+| `.pdf` | Reporte formateado con encabezado, tabla y totales por tipo de operacion |
+
+
+![Reportes Admin](img/08_admin_reportes.png)
+
+---
