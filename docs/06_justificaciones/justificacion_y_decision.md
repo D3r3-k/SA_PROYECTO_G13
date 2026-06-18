@@ -96,3 +96,43 @@
   - **Buenas prácticas:** Cada servicio incluye un `.env.example` como plantilla documentada con las variables requeridas.
 
 ---
+
+### 2.4. GitHub Actions como Herramienta de CI/CD
+
+- **Decisión:** Implementar el pipeline de Integración y Despliegue Continuo exclusivamente con GitHub Actions, mediante dos workflows declarativos: `deploy-develop.yml` y `deploy-release.yml`.
+- **¿Qué?** GitHub Actions es la plataforma de automatización nativa de GitHub que ejecuta workflows definidos como archivos YAML dentro del repositorio bajo `.github/workflows/`.
+- **¿Por qué?**
+  - **Integración nativa:** Al vivir en el mismo repositorio que el código, los workflows son versionados, revisados en Pull Requests y auditables como cualquier otro cambio. No requiere mantener un servidor CI externo (Jenkins, CircleCI).
+  - **Cortocircuito crítico:** La dependencia explícita entre jobs (`needs:`) garantiza que un fallo en `ci-checks` detenga el pipeline antes de consumir cuota de red o almacenamiento en GCP.
+  - **Environments por rama:** GitHub Environments permiten asociar secrets y variables distintas a `develop` y `release`, aplicando el principio de mínimo privilegio: el entorno de desarrollo no tiene acceso a las credenciales de producción de GKE.
+  - **Estrategia multi-rama:** El mismo flujo de CI (compilación, pruebas, backup) se reutiliza en ambos workflows, pero la etapa de despliegue bifurca: `develop` despliega en Compute Engine mediante Docker Compose, y `release` despliega en GKE mediante manifiestos declarativos YAML.
+- **¿Para qué?** Garantizar que ningún cambio llegue a producción sin haber pasado por compilación, pruebas, respaldo de bases de datos y validación de despliegue, eliminando el error humano del proceso de entrega.
+
+---
+
+### 2.5. Google Cloud Storage (GCS) para Archivos Estáticos
+
+- **Decisión:** Toda la persistencia de archivos multimedia pesados (videos de películas y capítulos, imágenes de portadas) se almacena en buckets de Google Cloud Storage en lugar del sistema de archivos local de los contenedores.
+- **¿Qué?** Google Cloud Storage es un servicio de almacenamiento de objetos distribuido en GCP. Se utilizan tres buckets: `media-bucket` (videos y posters), `audit-bucket` (reportes PDF) y `thumbnail-bucket` (miniaturas).
+- **¿Por qué?**
+  - **Desacoplamiento del sistema de archivos:** Los contenedores son efímeros; almacenar archivos en el sistema de archivos local los perdería ante cualquier reinicio, rollback o escalado horizontal. GCS persiste los archivos independientemente del ciclo de vida de los Pods.
+  - **URLs firmadas:** GCS permite generar URLs firmadas con tiempo de expiración configurable (`GCS_SIGNED_READ_EXPIRES_MINUTES`), de modo que el reproductor del frontend consume los recursos directamente desde GCS sin que el video transite por el backend, reduciendo el ancho de banda y la carga de los microservicios.
+  - **Escalabilidad y disponibilidad:** GCS opera con disponibilidad del 99.9% y escala automáticamente sin necesidad de aprovisionar almacenamiento adicional, a diferencia de un volumen adjunto a una VM que tiene capacidad fija.
+  - **Backup automatizado:** El pipeline CI/CD exporta los dumps SQL de las bases de datos operacionales directamente al bucket (`gs://bucket/backups/{rama}/{run-id}/`), centralizando todos los respaldos en el mismo servicio de almacenamiento.
+- **¿Para qué?** Permitir que el reproductor del frontend consuma video en streaming directamente desde GCS mediante URLs públicas o firmadas, calculando y mostrando la duración real del archivo, sin depender de la disponibilidad ni capacidad de los microservicios de backend.
+
+---
+
+### 2.6. Google Kubernetes Engine (GKE) para el Entorno de Producción
+
+- **Decisión:** El entorno correspondiente a la rama `release` se despliega en un clúster de Google Kubernetes Engine en lugar de máquinas virtuales, aplicando obligatoriamente estrategias de RollingUpdate y Rollback automático.
+- **¿Qué?** Google Kubernetes Engine es el servicio administrado de Kubernetes en GCP. El clúster `qx-gke-release` aloja todos los microservicios bajo el namespace `quetxal-tv-prod`, con un único punto de acceso externo mediante un recurso Ingress.
+- **¿Por qué?**
+  - **Despliegue sin downtime (RollingUpdate):** La estrategia `RollingUpdate` con `maxSurge=1` y `maxUnavailable=0` garantiza que siempre existe al menos una réplica de cada servicio atendiendo tráfico mientras los nuevos Pods se inicializan, evitando interrupciones durante las actualizaciones.
+  - **Rollback automático:** Si un nuevo Pod entra en estado `CrashLoopBackOff` o no supera el `rollout status` en 180 segundos, el pipeline ejecuta `kubectl rollout undo` de forma automática, restaurando la versión estable anterior sin intervención manual.
+  - **Orquestación declarativa:** Los manifiestos YAML en `deploy/release/k8s/` describen el estado deseado del sistema. Kubernetes reconcilia continuamente el estado real con el declarado, reiniciando Pods caídos y redistribuyendo carga sin intervención operativa.
+  - **Aislamiento de recursos:** Cada Pod define `requests` y `limits` de CPU y memoria, evitando que un servicio con pico de demanda degrade al resto del clúster.
+  - **Gestión segura de configuración:** ConfigMaps inyectan variables de entorno genéricas y Secrets gestionan credenciales sensibles (JWT, passwords de BD, Service Account de GCS), sin que ningún valor sensible quede escrito en los archivos YAML del repositorio.
+- **¿Para qué?** Garantizar alta disponibilidad del sistema en producción con despliegues progresivos que no interrumpan las transmisiones de video activas, y con capacidad de recuperación automática ante fallos sin requerir intervención del equipo fuera de horario.
+
+---
