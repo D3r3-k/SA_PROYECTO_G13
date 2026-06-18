@@ -4,23 +4,23 @@ Esta guia deja el ambiente `develop` operativo desde cero hasta el despliegue au
 
 ## Arquitectura del entorno
 
-| Componente     | Recurso GCP                                                                               |
-| -------------- | ----------------------------------------------------------------------------------------- |
-| Bases de datos | Cloud SQL PostgreSQL 16 (`identity_db`, `subscription_db`, `catalog_db`, `engagement_db`) |
-| Cache / Colas  | Memorystore Redis 7                                                                       |
-| VM Frontend    | `qx-vm-frontend` - publica, expone puerto 80                                              |
-| VM Gateway     | `qx-vm-gateway` - privada, expone puerto 3000                                             |
-| VM Servicios   | `qx-vm-services` - privada, expone puertos gRPC 50051-50057                               |
-| Almacenamiento | Cloud Storage bucket `qx-media-sa-derek-proyecto`                                         |
-| CI/CD          | GitHub Actions con GitHub Environment `develop`                                           |
-| Imagenes       | Docker publicadas en GHCR (`ghcr.io/d3r3-k/sa_proyecto_g13`)                              |
+| Componente     | Recurso GCP                                                                                                           |
+| -------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Bases de datos | Cloud SQL PostgreSQL 16 (`identity_db`, `subscription_db`, `catalog_db`, `engagement_db`) -> Instancia `dev-postgres` |
+| Cache / Colas  | Memorystore Redis 7 -> Instancia `dev-redis`                                                                          |
+| VM Frontend    | `dev-vm-frontend` - publica, expone puerto 80                                                                         |
+| VM Gateway     | `dev-vm-gateway` - privada, expone puerto 3000                                                                        |
+| VM Servicios   | `dev-vm-services` - privada, expone puertos gRPC 50051-50057                                                          |
+| Almacenamiento | Cloud Storage bucket `dev-media-sa-derek-proyecto`                                                                    |
+| CI/CD          | GitHub Actions con GitHub Environment `develop`                                                                       |
+| Imagenes       | Docker publicadas en GHCR (`ghcr.io/d3r3-k/sa_proyecto_g13`)                                                          |
 
 > [!NOTE]
 > Todos los comandos de esta guia estan escritos para PowerShell en Windows.
 
 ---
 
-## Paso 0. Instalar y autenticarse en gcloud
+## Paso 0. Definir variables y autenticarse en gcloud
 
 Si es la primera vez, instale el SDK de Google Cloud desde https://cloud.google.com/sdk/docs/install, luego autentiquese y configure el proyecto:
 
@@ -29,20 +29,39 @@ gcloud auth login
 gcloud init
 ```
 
-A continuacion, defina las variables de entorno que se usaran a lo largo de toda esta guia. Ejecute este bloque completo en la misma sesion de PowerShell:
+A continuacion, defina las variables de entorno que se usaran a lo largo de toda esta guia. Ejecute este bloque completo en la misma sesion de PowerShell (asegurese de cambiar los valores indicados con contrasenas seguras):
 
 ```powershell
+# Variables de Proyecto e Infraestructura
 $env:PROJECT_ID="sa-derek-proyecto"
 $env:REGION="us-central1"
 $env:ZONE="us-central1-a"
-$env:VPC_NAME="qx-vpc"
-$env:BUCKET_NAME="qx-media-sa-derek-proyecto"
-$env:CICD_SA_NAME="github-actions-deploy"
+$env:VPC_NAME="dev-vpc"
+$env:BUCKET_NAME="dev-media-sa-derek-proyecto"
+$env:CICD_SA_NAME="github-actions-dev"
 $env:CICD_SA="$env:CICD_SA_NAME@$env:PROJECT_ID.iam.gserviceaccount.com"
+$env:MEDIA_SA_NAME="dev-catalog-media-signer"
+$env:MEDIA_SA="$env:MEDIA_SA_NAME@$env:PROJECT_ID.iam.gserviceaccount.com"
 
+# Variables de Recursos GCP
+$env:SQL_INSTANCE_NAME="dev-postgres"
+$env:REDIS_INSTANCE_NAME="dev-redis"
+
+# Contraseñas de Base de Datos (Definir aquí para su uso en toda la guía)
+$env:POSTGRES_ROOT_PASSWORD="admin1234"
+$env:IDENTITY_DB_PASSWORD="admin1234"
+$env:SUBSCRIPTION_DB_PASSWORD="admin1234"
+$env:CATALOG_DB_PASSWORD="admin1234"
+$env:ENGAGEMENT_DB_PASSWORD="admin1234"
+
+# Configurar gcloud CLI
 gcloud config set project $env:PROJECT_ID
 gcloud config set compute/region $env:REGION
 gcloud config set compute/zone $env:ZONE
+
+# Recomendado: Configurar DNS Zonal y habilitar OS Login para evitar warnings y fallos de metadatos SSH
+gcloud compute project-info add-metadata --metadata default-dns-type=zonal
+gcloud compute project-info add-metadata --metadata enable-oslogin=TRUE
 ```
 
 > [!IMPORTANT]
@@ -59,7 +78,7 @@ gcloud services enable compute.googleapis.com
 gcloud services enable servicenetworking.googleapis.com
 gcloud services enable sqladmin.googleapis.com
 gcloud services enable redis.googleapis.com
-gcloud services enable storage.googleapis.com
+gcloud storage service-agent
 gcloud services enable iam.googleapis.com
 gcloud services enable iap.googleapis.com
 ```
@@ -72,72 +91,60 @@ Cree la VPC personalizada con una subred publica para el frontend y una privada 
 
 ```powershell
 gcloud compute networks create $env:VPC_NAME --subnet-mode=custom --bgp-routing-mode=regional
-gcloud compute networks subnets create qx-subnet-public --network=$env:VPC_NAME --range=10.0.1.0/24 --region=$env:REGION
-gcloud compute networks subnets create qx-subnet-private --network=$env:VPC_NAME --range=10.0.2.0/24 --region=$env:REGION --enable-private-ip-google-access
-gcloud compute routers create qx-router --network=$env:VPC_NAME --region=$env:REGION
-gcloud compute routers nats create qx-nat --router=qx-router --region=$env:REGION --nat-all-subnet-ip-ranges --auto-allocate-nat-external-ips
+gcloud compute networks subnets create dev-subnet-public --network=$env:VPC_NAME --range=10.0.1.0/24 --region=$env:REGION
+gcloud compute networks subnets create dev-subnet-private --network=$env:VPC_NAME --range=10.0.2.0/24 --region=$env:REGION --enable-private-ip-google-access
+gcloud compute routers create dev-router --network=$env:VPC_NAME --region=$env:REGION
+gcloud compute routers nats create dev-nat --router=dev-router --region=$env:REGION --nat-all-subnet-ip-ranges --auto-allocate-nat-external-ips
 ```
 
 ---
 
 ## Paso 3. Crear el acceso privado a servicios (Private Service Access)
 
-Cloud SQL y Memorystore se comunican con las VMs a traves de IP privada dentro de la VPC. El peering de servicios habilita esta conexion:
+Cloud SQL y Memorystore se comunican con las VMs a traves de IP privada dentro de la VPC. El peering de servicios habilita esta conexion reservando rangos de IP dedicados para las bases de datos y Redis:
 
 ```powershell
-gcloud compute addresses create qx-db-range --global --purpose=VPC_PEERING --prefix-length=20 --description="Rango para Cloud SQL y Redis" --network=$env:VPC_NAME
-gcloud services vpc-peerings connect --service=servicenetworking.googleapis.com --ranges=qx-db-range --network=$env:VPC_NAME --project=$env:PROJECT_ID
+gcloud compute addresses create dev-db-range --global --purpose=VPC_PEERING --prefix-length=20 --description="Rango para Cloud SQL" --network=$env:VPC_NAME
+gcloud compute addresses create dev-redis-range --global --purpose=VPC_PEERING --prefix-length=20 --description="Rango para Memorystore Redis" --network=$env:VPC_NAME
+gcloud services vpc-peerings connect --service=servicenetworking.googleapis.com --ranges="dev-db-range,dev-redis-range" --network=$env:VPC_NAME --project=$env:PROJECT_ID
 ```
-
-> [!TIP]
-> Si Memorystore falla posteriormente por espacio de direcciones agotado, ejecute tambien estos comandos para agregar un rango adicional:
-> ```powershell
-> gcloud compute addresses create qx-redis-range --global --purpose=VPC_PEERING --prefix-length=20 --description="Rango adicional para Memorystore Redis" --network=$env:VPC_NAME
-> gcloud services vpc-peerings update --service=servicenetworking.googleapis.com --ranges="qx-db-range,qx-redis-range" --network=$env:VPC_NAME --force
-> ```
 
 ---
 
 ## Paso 4. Crear Cloud SQL PostgreSQL
 
-Primero defina las contrasenas de las bases de datos. Guarde estos valores, ya que los necesitara en el Paso 9 al configurar GitHub Environment:
+Cree la instancia de Cloud SQL usando las contraseñas definidas en el Paso 0:
 
 ```powershell
-$env:POSTGRES_ROOT_PASSWORD="CAMBIAR_ROOT_PASSWORD"
-$env:IDENTITY_DB_PASSWORD="CAMBIAR_IDENTITY_PASSWORD"
-$env:SUBSCRIPTION_DB_PASSWORD="CAMBIAR_SUBSCRIPTION_PASSWORD"
-$env:CATALOG_DB_PASSWORD="CAMBIAR_CATALOG_PASSWORD"
-$env:ENGAGEMENT_DB_PASSWORD="CAMBIAR_ENGAGEMENT_PASSWORD"
+gcloud sql instances create $env:SQL_INSTANCE_NAME --database-version=POSTGRES_16 --edition=ENTERPRISE --cpu=1 --memory=4GB --region=$env:REGION --network=$env:VPC_NAME --no-assign-ip --root-password=$env:POSTGRES_ROOT_PASSWORD --availability-type=ZONAL --storage-size=20GB --storage-type=SSD --backup-start-time=03:00
 ```
 
-Cree la instancia de Cloud SQL:
-
-```powershell
-gcloud sql instances create qx-postgres --database-version=POSTGRES_16 --edition=ENTERPRISE --cpu=1 --memory=4GB --region=$env:REGION --network=$env:VPC_NAME --no-assign-ip --root-password=$env:POSTGRES_ROOT_PASSWORD --availability-type=ZONAL --storage-size=20GB --storage-type=SSD --backup-start-time=03:00
-```
+> [!TIP]
+> Si el comando anterior falla con `[INTERNAL_ERROR]`, es posible que la instancia se este creando en segundo plano debido a un retraso de respuesta de la API de GCP. 
+> Antes de reintentar, valide su estado ejecutando `gcloud sql instances list`. Proceda cuando el estado pase de `PENDING_CREATE` a `RUNNABLE`.
 
 Cree las bases de datos:
 
 ```powershell
-gcloud sql databases create identity_db --instance=qx-postgres
-gcloud sql databases create subscription_db --instance=qx-postgres
-gcloud sql databases create catalog_db --instance=qx-postgres
-gcloud sql databases create engagement_db --instance=qx-postgres
+gcloud sql databases create identity_db --instance=$env:SQL_INSTANCE_NAME
+gcloud sql databases create subscription_db --instance=$env:SQL_INSTANCE_NAME
+gcloud sql databases create catalog_db --instance=$env:SQL_INSTANCE_NAME
+gcloud sql databases create engagement_db --instance=$env:SQL_INSTANCE_NAME
 ```
 
-Cree los usuarios:
+Cree los usuarios utilizando las contraseñas del Paso 0:
 
 ```powershell
-gcloud sql users create identity_user --instance=qx-postgres --password=$env:IDENTITY_DB_PASSWORD
-gcloud sql users create subscription_user --instance=qx-postgres --password=$env:SUBSCRIPTION_DB_PASSWORD
-gcloud sql users create catalog_user --instance=qx-postgres --password=$env:CATALOG_DB_PASSWORD
-gcloud sql users create engagement_user --instance=qx-postgres --password=$env:ENGAGEMENT_DB_PASSWORD
+gcloud sql users create identity_user --instance=$env:SQL_INSTANCE_NAME --password=$env:IDENTITY_DB_PASSWORD
+gcloud sql users create subscription_user --instance=$env:SQL_INSTANCE_NAME --password=$env:SUBSCRIPTION_DB_PASSWORD
+gcloud sql users create catalog_user --instance=$env:SQL_INSTANCE_NAME --password=$env:CATALOG_DB_PASSWORD
+gcloud sql users create engagement_user --instance=$env:SQL_INSTANCE_NAME --password=$env:ENGAGEMENT_DB_PASSWORD
 ```
 
-Obtenga la IP privada (la necesitara como referencia, el workflow la obtiene automaticamente):
+Obtenga la IP privada (referencia, el workflow la obtiene automaticamente):
 
 ```powershell
-gcloud sql instances describe qx-postgres --format="value(ipAddresses[0].ipAddress)"
+gcloud sql instances describe $env:SQL_INSTANCE_NAME --format="value(ipAddresses[0].ipAddress)"
 ```
 
 ---
@@ -145,14 +152,14 @@ gcloud sql instances describe qx-postgres --format="value(ipAddresses[0].ipAddre
 ## Paso 5. Crear Memorystore Redis
 
 ```powershell
-gcloud redis instances create qx-redis --size=1 --region=$env:REGION --network=$env:VPC_NAME --connect-mode=PRIVATE_SERVICE_ACCESS --redis-version=redis_7_0 --tier=basic
+gcloud redis instances create $env:REDIS_INSTANCE_NAME --size=1 --region=$env:REGION --network=$env:VPC_NAME --connect-mode=PRIVATE_SERVICE_ACCESS --redis-version=redis_7_0 --tier=basic
 ```
 
 Obtenga el host y puerto (referencia, el workflow los obtiene automaticamente):
 
 ```powershell
-gcloud redis instances describe qx-redis --region=$env:REGION --format="value(host)"
-gcloud redis instances describe qx-redis --region=$env:REGION --format="value(port)"
+gcloud redis instances describe $env:REDIS_INSTANCE_NAME --region=$env:REGION --format="value(host)"
+gcloud redis instances describe $env:REDIS_INSTANCE_NAME --region=$env:REGION --format="value(port)"
 ```
 
 ---
@@ -176,20 +183,11 @@ gcloud storage buckets add-iam-policy-binding gs://$env:BUCKET_NAME --member="se
 Cree el service account que usara `catalog-service` para firmar las URLs de carga y lectura de medios:
 
 ```powershell
-$env:MEDIA_SA_NAME="catalog-media-signer"
-$env:MEDIA_SA="$env:MEDIA_SA_NAME@$env:PROJECT_ID.iam.gserviceaccount.com"
-
 gcloud iam service-accounts create $env:MEDIA_SA_NAME --display-name="Catalog Media Signer"
 gcloud storage buckets add-iam-policy-binding gs://$env:BUCKET_NAME --member="serviceAccount:$env:MEDIA_SA" --role="roles/storage.objectAdmin"
-gcloud iam service-accounts keys create gcs-backend-service-account.json --iam-account=$env:MEDIA_SA
-Get-Content -Raw .\gcs-backend-service-account.json
-Remove-Item .\gcs-backend-service-account.json
 ```
 
-> [!IMPORTANT]
-> El contenido JSON impreso en consola por `Get-Content` debe guardarse como el secret `GCS_BACKEND_SERVICE_ACCOUNT_KEY` en GitHub Environment `develop` (Paso 9).
-
-Configure las reglas CORS del bucket para que el frontend pueda realizar subidas directas con signed URLs:
+Configure las reglas CORS del bucket para que el frontend pueda realizar subidas directas con signed URLs (reemplace las IPs/URLs según corresponda):
 
 ```powershell
 @'
@@ -198,7 +196,7 @@ Configure las reglas CORS del bucket para que el frontend pueda realizar subidas
     "origin": [
       "http://localhost:5173",
       "https://localhost:5173",
-      "http://34.66.234.222",
+      "http://130.211.216.160",
       "http://localhost:8080"
     ],
     "method": ["GET", "PUT", "HEAD", "OPTIONS"],
@@ -222,25 +220,25 @@ Remove-Item .\cors.json
 VM del frontend (publica):
 
 ```powershell
-gcloud compute instances create qx-vm-frontend --zone=$env:ZONE --machine-type=e2-micro --network=$env:VPC_NAME --subnet=qx-subnet-public --tags="frontend,http-server" --image-family=debian-12 --image-project=debian-cloud
+gcloud compute instances create dev-vm-frontend --zone=$env:ZONE --machine-type=e2-micro --network=$env:VPC_NAME --subnet=dev-subnet-public --tags="frontend,http-server" --image-family=debian-12 --image-project=debian-cloud
 ```
 
 VM del API Gateway (privada):
 
 ```powershell
-gcloud compute instances create qx-vm-gateway --zone=$env:ZONE --machine-type=e2-small --network=$env:VPC_NAME --subnet=qx-subnet-private --tags="gateway" --no-address --image-family=debian-12 --image-project=debian-cloud
+gcloud compute instances create dev-vm-gateway --zone=$env:ZONE --machine-type=e2-small --network=$env:VPC_NAME --subnet=dev-subnet-private --tags="gateway" --no-address --image-family=debian-12 --image-project=debian-cloud
 ```
 
 VM de los microservicios (privada):
 
 ```powershell
-gcloud compute instances create qx-vm-services --zone=$env:ZONE --machine-type=e2-medium --network=$env:VPC_NAME --subnet=qx-subnet-private --tags="services" --no-address --image-family=debian-12 --image-project=debian-cloud
+gcloud compute instances create dev-vm-services --zone=$env:ZONE --machine-type=e2-medium --network=$env:VPC_NAME --subnet=dev-subnet-private --tags="services" --no-address --image-family=debian-12 --image-project=debian-cloud
 ```
 
 Valide las IPs asignadas:
 
 ```powershell
-gcloud compute instances list --filter="name~qx-vm-" --format="table(name,zone,networkInterfaces[0].networkIP,networkInterfaces[0].accessConfigs[0].natIP,status)"
+gcloud compute instances list --filter="name~dev-vm-" --format="table(name,zone,networkInterfaces[0].networkIP,networkInterfaces[0].accessConfigs[0].natIP,status)"
 ```
 
 ---
@@ -248,11 +246,11 @@ gcloud compute instances list --filter="name~qx-vm-" --format="table(name,zone,n
 ## Paso 8. Crear las reglas de firewall
 
 ```powershell
-gcloud compute firewall-rules create qx-allow-internal --network=$env:VPC_NAME --allow="tcp,udp,icmp" --source-ranges="10.0.1.0/24,10.0.2.0/24"
-gcloud compute firewall-rules create qx-allow-iap-ssh --network=$env:VPC_NAME --allow="tcp:22" --source-ranges="35.235.240.0/20"
-gcloud compute firewall-rules create qx-allow-http --network=$env:VPC_NAME --allow=tcp:80 --target-tags=http-server
-gcloud compute firewall-rules create qx-allow-gateway --network=$env:VPC_NAME --allow="tcp:3000" --source-ranges="10.0.1.0/24" --target-tags=gateway
-gcloud compute firewall-rules create qx-allow-grpc-services --network=$env:VPC_NAME --allow="tcp:50051-50057" --source-ranges="10.0.2.0/24" --target-tags=services
+gcloud compute firewall-rules create dev-allow-internal --network=$env:VPC_NAME --allow="tcp,udp,icmp" --source-ranges="10.0.1.0/24,10.0.2.0/24"
+gcloud compute firewall-rules create dev-allow-iap-ssh --network=$env:VPC_NAME --allow="tcp:22" --source-ranges="35.235.240.0/20"
+gcloud compute firewall-rules create dev-allow-http --network=$env:VPC_NAME --allow=tcp:80 --target-tags=http-server
+gcloud compute firewall-rules create dev-allow-gateway --network=$env:VPC_NAME --allow="tcp:3000" --source-ranges="10.0.1.0/24" --target-tags=gateway
+gcloud compute firewall-rules create dev-allow-grpc-services --network=$env:VPC_NAME --allow="tcp:50051-50057" --source-ranges="10.0.2.0/24" --target-tags=services
 ```
 
 ---
@@ -264,22 +262,22 @@ Conectese a cada VM de manera individual mediante IAP (Identity-Aware Proxy) y e
 Conexion a cada VM:
 
 ```powershell
-gcloud compute ssh qx-vm-frontend --tunnel-through-iap --zone=$env:ZONE
+gcloud compute ssh dev-vm-frontend --tunnel-through-iap --zone=$env:ZONE
 ```
 
 ```powershell
-gcloud compute ssh qx-vm-gateway --tunnel-through-iap --zone=$env:ZONE
+gcloud compute ssh dev-vm-gateway --tunnel-through-iap --zone=$env:ZONE
 ```
 
 ```powershell
-gcloud compute ssh qx-vm-services --tunnel-through-iap --zone=$env:ZONE
+gcloud compute ssh dev-vm-services --tunnel-through-iap --zone=$env:ZONE
 ```
 
 Una vez dentro de cada VM, ejecute el siguiente script para instalar Docker:
 
 ```bash
 sudo apt-get update
-sudo apt-get install -y ca-certificates curl gnupg git
+sudo apt-get install -y ca-certificates curl gnupg git postgresql-client
 sudo install -m 0755 -d /etc/apt/keyrings
 curl -fsSL https://download.docker.com/linux/debian/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
 sudo chmod a+r /etc/apt/keyrings/docker.gpg
@@ -308,10 +306,7 @@ El workflow de CI/CD genera y copia los archivos `.env` a las VMs de manera auto
 ### 10.1 Crear el service account para GitHub Actions
 
 ```powershell
-$env:CICD_SA_NAME="github-actions-deploy"
-$env:CICD_SA="$env:CICD_SA_NAME@$env:PROJECT_ID.iam.gserviceaccount.com"
-
-gcloud iam service-accounts create $env:CICD_SA_NAME --display-name="GitHub Actions Deploy"
+gcloud iam service-accounts create $env:CICD_SA_NAME --display-name="GitHub Actions Dev"
 ```
 
 Asigne los permisos necesarios:
@@ -337,78 +332,91 @@ gcloud iam service-accounts add-iam-policy-binding $env:COMPUTE_SA --member="ser
 Permita que el service account de Cloud SQL escriba backups en el bucket:
 
 ```powershell
-$env:CLOUD_SQL_SA=(gcloud sql instances describe qx-postgres --format="value(serviceAccountEmailAddress)")
+$env:CLOUD_SQL_SA=(gcloud sql instances describe $env:SQL_INSTANCE_NAME --format="value(serviceAccountEmailAddress)")
 gcloud storage buckets add-iam-policy-binding gs://$env:BUCKET_NAME --member="serviceAccount:$env:CLOUD_SQL_SA" --role="roles/storage.objectCreator"
 ```
-
-Genere y exporte la llave JSON del service account de CI/CD:
-
-```powershell
-gcloud iam service-accounts keys create gcp-github-actions-key.json --iam-account=$env:CICD_SA
-Get-Content -Raw .\gcp-github-actions-key.json
-```
-
-```powershell
-Remove-Item .\gcp-github-actions-key.json
-```
-
-> [!IMPORTANT]
-> El contenido JSON impreso debe guardarse como el secret `GCP_SERVICE_ACCOUNT_KEY` en el siguiente paso.
 
 ### 10.2 Crear el GitHub Environment
 
 1. Dentro del repositorio en GitHub, ir a **Settings > Environments**.
 2. Crear un nuevo environment llamado `develop`.
-3. Agregar los siguientes secrets y variables.
+3. Agregar los siguientes secrets y variables descritos en las tablas de abajo.
 
 ### 10.3 Secrets requeridos
 
 Agregar en **Settings > Environments > develop > Environment secrets**:
 
-| Secret                            | Descripcion                                              |
-| --------------------------------- | -------------------------------------------------------- |
-| `GCP_SERVICE_ACCOUNT_KEY`         | JSON generado en el paso 10.1                            |
-| `GCS_BACKEND_SERVICE_ACCOUNT_KEY` | JSON del service account `catalog-media-signer` (Paso 6) |
-| `GHCR_USERNAME`                   | Usuario de GitHub                                        |
-| `GHCR_TOKEN`                      | Token de GitHub con permiso `read:packages`              |
-| `JWT_SECRET`                      | Cadena aleatoria segura                                  |
-| `IDENTITY_DB_PASSWORD`            | Password de `identity_user` (Paso 4)                     |
-| `SUBSCRIPTION_DB_PASSWORD`        | Password de `subscription_user` (Paso 4)                 |
-| `CATALOG_DB_PASSWORD`             | Password de `catalog_user` (Paso 4)                      |
-| `ENGAGEMENT_DB_PASSWORD`          | Password de `engagement_user` (Paso 4)                   |
-| `SMTP_HOST`                       | Host del servidor de correo                              |
-| `SMTP_USERNAME`                   | Usuario del servidor de correo                           |
-| `SMTP_PASSWORD`                   | Password del servidor de correo                          |
-| `SMTP_FROM`                       | Direccion de correo remitente                            |
+| Secret | Descripcion |
+| :--- | :--- |
+| `CATALOG_DB_PASSWORD` | Contraseña del usuario `catalog_user` |
+| `ENGAGEMENT_DB_PASSWORD` | Contraseña del usuario `engagement_user` |
+| `GCP_SERVICE_ACCOUNT_KEY` | Llave privada JSON de la SA del CI/CD (`github-actions-dev`) |
+| `GCS_BACKEND_SERVICE_ACCOUNT_KEY` | Llave privada JSON de la SA del Catalog Media Signer (`dev-catalog-media-signer`) |
+| `GHCR_TOKEN` | Personal Access Token (classic) con permiso `write:packages` / `read:packages` |
+| `GHCR_USERNAME` | Usuario de GitHub (e.g., `d3r3-k`) |
+| `IDENTITY_DB_PASSWORD` | Contraseña del usuario `identity_user` |
+| `JWT_SECRET` | Cadena aleatoria segura para firmar tokens JWT |
+| `SMTP_FROM` | Dirección de correo del remitente |
+| `SMTP_HOST` | Host del servidor SMTP de correo |
+| `SMTP_PASSWORD` | Contraseña o App Password de correo |
+| `SMTP_USERNAME` | Usuario del servidor SMTP |
+| `SUBSCRIPTION_DB_PASSWORD` | Contraseña del usuario `subscription_user` |
 
-Para generar el `JWT_SECRET`:
+#### Instrucciones para obtener o generar los valores de los Secrets:
 
-```powershell
-[System.Convert]::ToBase64String((1..48 | ForEach-Object { Get-Random -Maximum 256 }))
-```
+* **Obtener `GCP_SERVICE_ACCOUNT_KEY`:**
+  Ejecute en su PowerShell local para generar e imprimir la llave (copie todo el JSON impreso):
+  ```powershell
+  gcloud iam service-accounts keys create gcp-github-actions-key.json --iam-account=$env:CICD_SA
+  Get-Content -Raw .\gcp-github-actions-key.json
+  Remove-Item .\gcp-github-actions-key.json
+  ```
+
+* **Obtener `GCS_BACKEND_SERVICE_ACCOUNT_KEY`:**
+  Ejecute en su PowerShell local para generar e imprimir la llave (copie todo el JSON impreso):
+  ```powershell
+  gcloud iam service-accounts keys create gcs-backend-service-account.json --iam-account=$env:MEDIA_SA
+  Get-Content -Raw .\gcs-backend-service-account.json
+  Remove-Item .\gcs-backend-service-account.json
+  ```
+
+* **Generar `JWT_SECRET`:**
+  Ejecute en su PowerShell local para generar una clave aleatoria:
+  ```powershell
+  [System.Convert]::ToBase64String((1..48 | ForEach-Object { Get-Random -Maximum 256 }))
+  ```
+
+* **Obtener las contraseñas de las Bases de Datos:**
+  Para consultar los valores asignados en el Paso 0 de su sesión activa, ejecute en PowerShell:
+  ```powershell
+  Write-Output "IDENTITY: $env:IDENTITY_DB_PASSWORD"
+  Write-Output "SUBSCRIPTION: $env:SUBSCRIPTION_DB_PASSWORD"
+  Write-Output "CATALOG: $env:CATALOG_DB_PASSWORD"
+  Write-Output "ENGAGEMENT: $env:ENGAGEMENT_DB_PASSWORD"
+  ```
 
 ### 10.4 Variables requeridas
 
 Agregar en **Settings > Environments > develop > Environment variables**:
 
-```text
-GCP_PROJECT_ID=sa-derek-proyecto
-GCP_REGION=us-central1
-GCP_ZONE=us-central1-a
-VM_FRONTEND_NAME=qx-vm-frontend
-VM_GATEWAY_NAME=qx-vm-gateway
-VM_SERVICES_NAME=qx-vm-services
-GCS_BUCKET_NAME=qx-media-sa-derek-proyecto
-GCS_SIGNED_UPLOAD_EXPIRES_MINUTES=15
-GCS_SIGNED_READ_EXPIRES_MINUTES=60
-GCS_ALLOWED_IMAGE_TYPES=image/jpeg,image/png,image/webp
-GCS_ALLOWED_VIDEO_TYPES=video/mp4,video/webm
-GCS_MAX_IMAGE_MB=10
-GCS_MAX_VIDEO_MB=1024
-SMTP_PORT=587
-SMTP_STARTTLS=true
-ADMIN_EMAILS=[EMAIL_ADDRESS],[EMAIL_ADDRESS],[EMAIL_ADDRESS],[EMAIL_ADDRESS]
-```
+| Variable                            | Valor Recomendado / Comando para obtener el valor                                         |
+| :---------------------------------- | :---------------------------------------------------------------------------------------- |
+| `ADMIN_EMAILS`                      | Correo(s) administrador separados por coma (e.g., `admin@example.com`)                    |
+| `GCP_PROJECT_ID`                    | `sa-derek-proyecto` *(Obtener con `$env:PROJECT_ID` o `gcloud config get-value project`)* |
+| `GCP_REGION`                        | `us-central1` *(Obtener con `$env:REGION`)*                                               |
+| `GCP_ZONE`                          | `us-central1-a` *(Obtener con `$env:ZONE`)*                                               |
+| `GCS_ALLOWED_IMAGE_TYPES`           | `image/jpeg,image/png,image/webp`                                                         |
+| `GCS_ALLOWED_VIDEO_TYPES`           | `video/mp4,video/webm`                                                                    |
+| `GCS_BUCKET_NAME`                   | `dev-media-sa-derek-proyecto` *(Obtener con `$env:BUCKET_NAME`)*                          |
+| `GCS_MAX_IMAGE_MB`                  | `10`                                                                                      |
+| `GCS_MAX_VIDEO_MB`                  | `1024`                                                                                    |
+| `GCS_SIGNED_READ_EXPIRES_MINUTES`   | `60`                                                                                      |
+| `GCS_SIGNED_UPLOAD_EXPIRES_MINUTES` | `15`                                                                                      |
+| `SMTP_PORT`                         | `587`                                                                                     |
+| `SMTP_STARTTLS`                     | `true`                                                                                    |
+| `VM_FRONTEND_NAME`                  | `dev-vm-frontend`                                                                         |
+| `VM_GATEWAY_NAME`                   | `dev-vm-gateway`                                                                          |
+| `VM_SERVICES_NAME`                  | `dev-vm-services` |
 
 > [!NOTE]
 > No agregar manualmente las IPs de Cloud SQL, Redis ni de las VMs. El workflow las obtiene automaticamente con `gcloud` en cada ejecucion.
@@ -424,16 +432,19 @@ Una vez completados todos los pasos anteriores, el proyecto esta listo para desp
 El workflow `.github/workflows/deploy-develop.yml` se ejecuta de manera automatica cada vez que se hace merge a la rama `develop`. El flujo es el siguiente:
 
 ```text
-ci-checks -> backup-cloud-sql -> build-and-push -> deploy -> smoke-test
+ci-checks -> backup-cloud-sql -> build-and-push -> migrate-databases -> deploy -> smoke-test
 ```
 
-| Etapa              | Que hace                                                                                                                      |
-| ------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
-| `ci-checks`        | Compila el frontend, API Gateway e Identity Service. Ejecuta tests de Catalog y valida los servicios Python con `compileall`. |
-| `backup-cloud-sql` | Exporta las cuatro bases de datos al bucket de Cloud Storage.                                                                 |
-| `build-and-push`   | Construye y publica las imagenes Docker en `ghcr.io/d3r3-k/sa_proyecto_g13`.                                                  |
-| `deploy`           | Copia los `docker-compose.yml` y `.env` a las 3 VMs, ejecuta las migraciones de Identity y levanta los contenedores.          |
-| `smoke-test`       | Valida que los contenedores esten en ejecucion, verifica los puertos gRPC y el frontend.                                      |
+*(Nota: el flujo incluye el nuevo paso `migrate-databases` para ejecutar las migraciones SQL externamente).*
+
+| Etapa               | Que hace                                                                                                                   |
+| :------------------ | :------------------------------------------------------------------------------------------------------------------------- |
+| `ci-checks`         | Compila el frontend, API Gateway e Identity Service. Ejecuta tests de Catalog y valida los servicios Python.               |
+| `backup-cloud-sql`  | Exporta las cuatro bases de datos al bucket de Cloud Storage.                                                              |
+| `build-and-push`    | Construye y publica las imagenes Docker en `ghcr.io/d3r3-k/sa_proyecto_g13`.                                               |
+| `migrate-databases` | Ejecuta el script `scripts/migrate-develop.sh` para correr las migraciones en la base de datos de manera externa y limpia. |
+| `deploy`            | Copia los `docker-compose.yml` y `.env` a las 3 VMs y levanta los contenedores con `RUN_MIGRATIONS=false`.                 |
+| `smoke-test`        | Valida que los contenedores esten en ejecucion, verifica los puertos gRPC y el frontend.                                   |
 
 Para disparar el workflow, suba sus cambios y cree un Pull Request hacia `develop`:
 
@@ -456,39 +467,36 @@ Si necesita forzar un redespliegue sin integrar codigo nuevo:
 
 ## Migraciones de bases de datos
 
-Las migraciones se ejecutan automaticamente durante el despliegue. No es necesario crearlas manualmente en Cloud SQL.
+Las migraciones se ejecutan de manera externa antes del despliegue de los contenedores a traves de la etapa `migrate-databases` del workflow de CI/CD.
 
-| Base de datos     | Comportamiento                                                                                            |
-| ----------------- | --------------------------------------------------------------------------------------------------------- |
-| `identity_db`     | El workflow ejecuta los SQL de `services/identity-service/migrations` antes de levantar los contenedores. |
-| `catalog_db`      | El servicio aplica las migraciones de `services/catalog-service/migrations` al iniciar.                   |
-| `subscription_db` | El servicio inicializa su esquema al iniciar.                                                             |
-| `engagement_db`   | El servicio aplica sus migraciones al iniciar.                                                            |
-
-> [!TIP]
-> Si el workflow falla antes de ejecutar `docker compose up`, revise el job **Deploy docker compose files** en la pestaña Actions para identificar el punto de falla.
+| Base de datos     | Ubicacion de los SQL de migracion          |
+| :---------------- | :----------------------------------------- |
+| `identity_db`     | `services/identity-service/migrations`     |
+| `catalog_db`      | `services/catalog-service/migrations`      |
+| `subscription_db` | `services/subscription-service/migrations` |
+| `engagement_db`   | `services/engagement-service/migrations`   |
 
 ---
 
 ## Limpiar datos (Bases de datos y Bucket)
 
 > [!WARNING]
-> Las bases de datos y el bucket de Cloud Storage son **compartidos** entre `develop` y `release`. Si limpia estos datos, afectara a ambos ambientes.
+> Estas operaciones son **destructivas** sobre los datos almacenados en el ambiente de desarrollo (`develop`). No afectaran al ambiente de produccion/release ya que la infraestructura se encuentra separada.
 
-Si desea vaciar todos los registros de las bases de datos y los archivos subidos al bucket sin destruir la infraestructura, ejecute:
+Si desea vaciar todos los registros de las bases de datos y los archivos subidos al bucket de desarrollo sin destruir la infraestructura, ejecute:
 
 Borrar y recrear las bases de datos (los usuarios y contraseñas se mantienen intactos):
 
 ```powershell
-gcloud sql databases delete identity_db --instance=qx-postgres --quiet
-gcloud sql databases delete subscription_db --instance=qx-postgres --quiet
-gcloud sql databases delete catalog_db --instance=qx-postgres --quiet
-gcloud sql databases delete engagement_db --instance=qx-postgres --quiet
+gcloud sql databases delete identity_db --instance=$env:SQL_INSTANCE_NAME --quiet
+gcloud sql databases delete subscription_db --instance=$env:SQL_INSTANCE_NAME --quiet
+gcloud sql databases delete catalog_db --instance=$env:SQL_INSTANCE_NAME --quiet
+gcloud sql databases delete engagement_db --instance=$env:SQL_INSTANCE_NAME --quiet
 
-gcloud sql databases create identity_db --instance=qx-postgres
-gcloud sql databases create subscription_db --instance=qx-postgres
-gcloud sql databases create catalog_db --instance=qx-postgres
-gcloud sql databases create engagement_db --instance=qx-postgres
+gcloud sql databases create identity_db --instance=$env:SQL_INSTANCE_NAME
+gcloud sql databases create subscription_db --instance=$env:SQL_INSTANCE_NAME
+gcloud sql databases create catalog_db --instance=$env:SQL_INSTANCE_NAME
+gcloud sql databases create engagement_db --instance=$env:SQL_INSTANCE_NAME
 ```
 
 Vaciar todos los archivos del bucket (mantiene las configuraciones CORS y permisos):
@@ -497,28 +505,25 @@ Vaciar todos los archivos del bucket (mantiene las configuraciones CORS y permis
 gcloud storage rm gs://$env:BUCKET_NAME/**
 ```
 
-> [!TIP]
-> Despues de limpiar los datos, puede volver a ejecutar el pipeline de CI/CD para que los microservicios corran sus migraciones iniciales sobre las bases de datos vacias.
-
 ---
 
 ## Limpiar toda la infraestructura
 
 > [!CAUTION]
-> Ejecutar esta seccion destruira de manera irreversible todos los recursos del proyecto en GCP, incluyendo bases de datos, VMs, redes y el bucket. Solo debe llevarse a cabo si se desea reiniciar el ambiente completamente desde cero.
+> Ejecutar esta seccion destruira de manera irreversible todos los recursos del proyecto de desarrollo en GCP, incluyendo bases de datos, VMs, redes y el bucket. Solo debe llevarse a cabo si se desea reiniciar el ambiente completamente desde cero.
 
 ```powershell
-gcloud compute instances delete qx-vm-frontend qx-vm-gateway qx-vm-services --zone=$env:ZONE --quiet
-gcloud redis instances delete qx-redis --region=$env:REGION --quiet
-gcloud sql instances delete qx-postgres --quiet
-gcloud compute firewall-rules delete qx-allow-internal qx-allow-iap-ssh qx-allow-http qx-allow-gateway qx-allow-grpc-services --quiet
-gcloud compute routers nats delete qx-nat --router=qx-router --region=$env:REGION --quiet
-gcloud compute routers delete qx-router --region=$env:REGION --quiet
+gcloud compute instances delete dev-vm-frontend dev-vm-gateway dev-vm-services --zone=$env:ZONE --quiet
+gcloud redis instances delete $env:REDIS_INSTANCE_NAME --region=$env:REGION --quiet
+gcloud sql instances delete $env:SQL_INSTANCE_NAME --quiet
+gcloud compute firewall-rules delete dev-allow-internal dev-allow-iap-ssh dev-allow-http dev-allow-gateway dev-allow-grpc-services --quiet
+gcloud compute routers nats delete dev-nat --router=dev-router --region=$env:REGION --quiet
+gcloud compute routers delete dev-router --region=$env:REGION --quiet
 gcloud services vpc-peerings delete --service=servicenetworking.googleapis.com --network=$env:VPC_NAME --quiet
-gcloud compute addresses delete qx-redis-range --global --quiet
-gcloud compute addresses delete qx-db-range --global --quiet
-gcloud compute networks subnets delete qx-subnet-public --region=$env:REGION --quiet
-gcloud compute networks subnets delete qx-subnet-private --region=$env:REGION --quiet
+gcloud compute addresses delete dev-redis-range --global --quiet
+gcloud compute addresses delete dev-db-range --global --quiet
+gcloud compute networks subnets delete dev-subnet-public --region=$env:REGION --quiet
+gcloud compute networks subnets delete dev-subnet-private --region=$env:REGION --quiet
 gcloud compute networks delete $env:VPC_NAME --quiet
 gcloud storage rm -r gs://$env:BUCKET_NAME
 gcloud iam service-accounts delete $env:CICD_SA --quiet
@@ -529,11 +534,11 @@ Si algun recurso no existe, ignore el error y continue con el siguiente comando.
 Valide que la limpieza fue completa:
 
 ```powershell
-gcloud compute instances list --filter="name~qx-"
+gcloud compute instances list --filter="name~dev-"
 gcloud redis instances list --region=$env:REGION
 gcloud sql instances list
-gcloud compute firewall-rules list --filter="name~qx-"
+gcloud compute firewall-rules list --filter="name~dev-"
 gcloud compute networks list --filter="name=$env:VPC_NAME"
-gcloud compute addresses list --global --filter="name~qx-.*-range"
+gcloud compute addresses list --global --filter="name~dev-.*-range"
 gcloud storage buckets list --filter="name:$env:BUCKET_NAME"
 ```

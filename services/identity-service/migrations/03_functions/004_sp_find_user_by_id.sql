@@ -1,3 +1,4 @@
+BEGIN;
 CREATE OR REPLACE FUNCTION sp_find_user_by_id(
     p_user_id UUID
 )
@@ -25,3 +26,4 @@ BEGIN
     LIMIT 1;
 END;
 $$;
+COMMIT;

@@ -1,3 +1,4 @@
+BEGIN;
 CREATE OR REPLACE FUNCTION fn_audit_credential_update()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -9,3 +10,4 @@ BEGIN
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
+COMMIT;

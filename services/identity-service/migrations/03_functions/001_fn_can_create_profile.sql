@@ -1,3 +1,4 @@
+BEGIN;
 CREATE OR REPLACE FUNCTION fn_can_create_profile(p_user_id UUID)
 RETURNS BOOLEAN AS $$
 DECLARE
@@ -11,3 +12,4 @@ BEGIN
     RETURN profile_count < 5;
 END;
 $$ LANGUAGE plpgsql;
+COMMIT;

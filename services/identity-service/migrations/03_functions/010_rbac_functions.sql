@@ -1,3 +1,4 @@
+BEGIN;
 CREATE OR REPLACE FUNCTION fn_list_user_roles(p_user_id UUID)
 RETURNS TABLE (role_name TEXT)
 LANGUAGE plpgsql
@@ -58,3 +59,4 @@ BEGIN
     CALL sp_assign_role_to_user(p_user_id, 'user');
 END;
 $$;
+COMMIT;

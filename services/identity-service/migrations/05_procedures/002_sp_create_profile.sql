@@ -1,3 +1,4 @@
+BEGIN;
 CREATE OR REPLACE PROCEDURE sp_create_profile(
     p_id UUID,
     p_user_id UUID,
@@ -25,3 +26,4 @@ BEGIN
     );
 END;
 $$;
+COMMIT;

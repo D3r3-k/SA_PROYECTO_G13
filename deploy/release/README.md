@@ -5,25 +5,19 @@ Esta guia describe el despliegue de produccion para la rama `release` usando Goo
 El objetivo es dejar documentado el proceso completo desde cero, incluyendo VPC, Cloud SQL, Memorystore Redis, Cloud Storage, GKE, Kubernetes, Ingress, CI/CD, rollout y rollback.
 
 > [!IMPORTANT]
-> Para este proyecto se reutilizaran los recursos ya creados para `develop` con el fin de ahorrar trabajo:
-> - VPC: `qx-vpc`
-> - Cloud SQL: `qx-postgres`
-> - Redis: `qx-redis`
-> - Bucket: `qx-media-sa-derek-proyecto`
->
-> Los pasos se documentan como una construccion desde cero para produccion, pero cuando el recurso ya exista se debe validar y continuar reutilizandolo.
+> El entorno de producción (`release`) es completamente independiente del de desarrollo (`develop`). Ningún recurso o dato es compartido entre ambos ambientes.
 
 ## Arquitectura del entorno
  
 | Componente     | Recurso GCP / Kubernetes                                                                  |
 | -------------- | ----------------------------------------------------------------------------------------- |
-| Orquestacion   | Google Kubernetes Engine (`qx-gke-release`)                                               |
+| Orquestacion   | Google Kubernetes Engine (`prod-gke-release`)                                             |
 | Namespace      | `quetxal-tv-prod`                                                                         |
-| Acceso externo | Ingress con IP estatica (`qx-release-ingress-ip`)                                         |
+| Acceso externo | Ingress con IP estatica (`prod-release-ingress-ip`)                                       |
 | Servicios      | Kubernetes Services tipo `ClusterIP`                                                      |
 | Bases de datos | Cloud SQL PostgreSQL 16 (`identity_db`, `subscription_db`, `catalog_db`, `engagement_db`) |
-| Cache / Colas  | Memorystore Redis 7 (`qx-redis`)                                                          |
-| Almacenamiento | Cloud Storage bucket `qx-media-sa-derek-proyecto`                                         |
+| Cache / Colas  | Memorystore Redis 7 (`prod-redis`)                                                        |
+| Almacenamiento | Cloud Storage bucket `prod-media-sa-derek-proyecto`                                       |
 | Configuracion  | Kubernetes `ConfigMap`                                                                    |
 | Secretos       | Kubernetes `Secret` + GitHub Environment `release`                                        |
 | CI/CD          | GitHub Actions sobre rama `release`                                                       |
@@ -43,32 +37,47 @@ gcloud auth login
 gcloud init
 ```
 
-Defina las variables de entorno que se usaran durante toda la guia:
+A continuacion, defina las variables de entorno que se usaran a lo largo de toda esta guia. Ejecute este bloque completo en la misma sesion de PowerShell (asegurese de cambiar los valores indicados con contrasenas seguras):
 
 ```powershell
+# Variables de Proyecto e Infraestructura
 $env:PROJECT_ID="sa-derek-proyecto"
 $env:REGION="us-central1"
 $env:ZONE="us-central1-a"
-
-$env:VPC_NAME="qx-vpc"
-$env:PUBLIC_SUBNET_NAME="qx-subnet-public"
-$env:PRIVATE_SUBNET_NAME="qx-subnet-private"
-$env:GKE_SUBNET_NAME="qx-subnet-gke-release"
-
-$env:CLOUD_SQL_INSTANCE="qx-postgres"
-$env:REDIS_INSTANCE="qx-redis"
-$env:BUCKET_NAME="qx-media-sa-derek-proyecto"
-
-$env:GKE_CLUSTER_NAME="qx-gke-release"
+$env:VPC_NAME="prod-vpc"
+$env:PUBLIC_SUBNET_NAME="prod-subnet-public"
+$env:PRIVATE_SUBNET_NAME="prod-subnet-private"
+$env:GKE_SUBNET_NAME="prod-subnet-gke-release"
+$env:BUCKET_NAME="prod-media-sa-derek-proyecto"
+$env:GKE_CLUSTER_NAME="prod-gke-release"
 $env:GKE_NAMESPACE="quetxal-tv-prod"
-$env:INGRESS_IP_NAME="qx-release-ingress-ip"
+$env:INGRESS_IP_NAME="prod-release-ingress-ip"
 
-$env:CICD_SA_NAME="github-actions-release-deploy"
+# Service Accounts
+$env:CICD_SA_NAME="github-actions-prod"
 $env:CICD_SA="$env:CICD_SA_NAME@$env:PROJECT_ID.iam.gserviceaccount.com"
+$env:MEDIA_SA_NAME="prod-catalog-media-signer"
+$env:MEDIA_SA="$env:MEDIA_SA_NAME@$env:PROJECT_ID.iam.gserviceaccount.com"
 
+# Variables de Recursos GCP
+$env:CLOUD_SQL_INSTANCE="prod-postgres"
+$env:REDIS_INSTANCE="prod-redis"
+
+# Contraseñas de Base de Datos (Definir aquí para su uso en toda la guía)
+$env:POSTGRES_ROOT_PASSWORD="admin1234"
+$env:IDENTITY_DB_PASSWORD="admin1234"
+$env:SUBSCRIPTION_DB_PASSWORD="admin1234"
+$env:CATALOG_DB_PASSWORD="admin1234"
+$env:ENGAGEMENT_DB_PASSWORD="admin1234"
+
+# Configurar gcloud CLI
 gcloud config set project $env:PROJECT_ID
 gcloud config set compute/region $env:REGION
 gcloud config set compute/zone $env:ZONE
+
+# Recomendado: Configurar DNS Zonal y habilitar OS Login para evitar warnings y fallos de metadatos SSH
+gcloud compute project-info add-metadata --metadata default-dns-type=zonal
+gcloud compute project-info add-metadata --metadata enable-oslogin=TRUE
 ```
 
 > [!IMPORTANT]
@@ -93,10 +102,7 @@ gcloud services enable artifactregistry.googleapis.com
 
 ---
 
-## Paso 2. Crear red, subredes, NAT y acceso privado desde cero
-
-> [!NOTE]
-> En este proyecto la VPC `qx-vpc` ya existe por el despliegue `develop`. Si el comando de creacion indica que el recurso ya existe, valide el recurso y continue con el siguiente paso.
+## Paso 2. Crear red, subredes, NAT, acceso privado e IP estática de Ingress
 
 Cree la VPC personalizada:
 
@@ -104,7 +110,7 @@ Cree la VPC personalizada:
 gcloud compute networks create $env:VPC_NAME --subnet-mode=custom --bgp-routing-mode=regional
 ```
 
-Cree las subredes base usadas por desarrollo:
+Cree las subredes base:
 
 ```powershell
 gcloud compute networks subnets create $env:PUBLIC_SUBNET_NAME --network=$env:VPC_NAME --range=10.0.1.0/24 --region=$env:REGION
@@ -114,43 +120,27 @@ gcloud compute networks subnets create $env:PRIVATE_SUBNET_NAME --network=$env:V
 Cree Cloud Router y Cloud NAT para permitir salida a internet desde recursos privados:
 
 ```powershell
-gcloud compute routers create qx-router --network=$env:VPC_NAME --region=$env:REGION
-gcloud compute routers nats create qx-nat --router=qx-router --region=$env:REGION --nat-all-subnet-ip-ranges --auto-allocate-nat-external-ips
+gcloud compute routers create prod-router --network=$env:VPC_NAME --region=$env:REGION
+gcloud compute routers nats create prod-nat --router=prod-router --region=$env:REGION --nat-all-subnet-ip-ranges --auto-allocate-nat-external-ips
 ```
 
-Configure Private Service Access para Cloud SQL y Redis:
+Configure Private Service Access para Cloud SQL y Redis reservando los rangos correspondientes de antemano:
 
 ```powershell
-gcloud compute addresses create qx-db-range --global --purpose=VPC_PEERING --prefix-length=20 --description="Rango para Cloud SQL y Redis" --network=$env:VPC_NAME
-gcloud services vpc-peerings connect --service=servicenetworking.googleapis.com --ranges=qx-db-range --network=$env:VPC_NAME --project=$env:PROJECT_ID
+gcloud compute addresses create prod-db-range --global --purpose=VPC_PEERING --prefix-length=20 --description="Rango para Cloud SQL" --network=$env:VPC_NAME
+gcloud compute addresses create prod-redis-range --global --purpose=VPC_PEERING --prefix-length=20 --description="Rango para Memorystore Redis" --network=$env:VPC_NAME
+gcloud services vpc-peerings connect --service=servicenetworking.googleapis.com --ranges="prod-db-range,prod-redis-range" --network=$env:VPC_NAME --project=$env:PROJECT_ID
 ```
 
-> [!TIP]
-> Si Redis falla por falta de espacio de direcciones, agregue un segundo rango:
-> ```powershell
-> gcloud compute addresses create qx-redis-range --global --purpose=VPC_PEERING --prefix-length=20 --description="Rango adicional para Memorystore Redis" --network=$env:VPC_NAME
-> gcloud services vpc-peerings update --service=servicenetworking.googleapis.com --ranges="qx-db-range,qx-redis-range" --network=$env:VPC_NAME --force
-> ```
+Reserve de una vez la IP global estática para el Ingress de producción (se utilizará en la configuración de CORS del Paso 5):
+
+```powershell
+gcloud compute addresses create $env:INGRESS_IP_NAME --global
+```
 
 ---
 
 ## Paso 3. Crear Cloud SQL PostgreSQL desde cero
-
-> [!NOTE]
-> En este proyecto la instancia `qx-postgres` ya existe por el despliegue `develop`. Se reutilizara para ahorrar trabajo, manteniendo las mismas bases de datos, usuarios y contraseñas.
-> Si la instancia ya existe, **omita los comandos de creación** y asegurese de que las contraseñas en GitHub Secrets (`admin1234`) coincidan con los usuarios existentes.
-
-Si está creando la infraestructura desde cero absoluto, ejecute los siguientes comandos.
-
-Defina las contraseñas que configurará en la base de datos (estas mismas deberán ir a los Secrets de GitHub):
-
-```powershell
-$env:POSTGRES_ROOT_PASSWORD="CAMBIAR_ROOT_PASSWORD"
-$env:IDENTITY_DB_PASSWORD="CAMBIAR_IDENTITY_PASSWORD"
-$env:SUBSCRIPTION_DB_PASSWORD="CAMBIAR_SUBSCRIPTION_PASSWORD"
-$env:CATALOG_DB_PASSWORD="CAMBIAR_CATALOG_PASSWORD"
-$env:ENGAGEMENT_DB_PASSWORD="CAMBIAR_ENGAGEMENT_PASSWORD"
-```
 
 Cree la instancia:
 
@@ -182,13 +172,11 @@ Obtenga la IP privada, ya que se usara mas adelante para validar la conexion:
 gcloud sql instances describe $env:CLOUD_SQL_INSTANCE --format="value(ipAddresses[0].ipAddress)"
 ```
 
-
 ---
 
 ## Paso 4. Crear Memorystore Redis desde cero
 
-> [!NOTE]
-> En este proyecto la instancia `qx-redis` ya existe por el despliegue `develop`. Se reutilizara como cache y cola compartida.
+Cree la instancia Memorystore Redis:
 
 ```powershell
 gcloud redis instances create $env:REDIS_INSTANCE --size=1 --region=$env:REGION --network=$env:VPC_NAME --connect-mode=PRIVATE_SERVICE_ACCESS --redis-version=redis_7_0 --tier=basic
@@ -203,10 +191,7 @@ gcloud redis instances describe $env:REDIS_INSTANCE --region=$env:REGION --forma
 
 ---
 
-## Paso 5. Crear bucket de Cloud Storage desde cero
-
-> [!NOTE]
-> En este proyecto el bucket `qx-media-sa-derek-proyecto` ya existe por el despliegue `develop`. Se reutilizara para los archivos multimedia.
+## Paso 5. Crear bucket de Cloud Storage y configurar CORS
 
 Cree el bucket privado:
 
@@ -217,36 +202,32 @@ gcloud storage buckets create gs://$env:BUCKET_NAME --location=$env:REGION --uni
 Cree el service account que firma URLs para `catalog-service`:
 
 ```powershell
-$env:MEDIA_SA_NAME="catalog-media-signer"
-$env:MEDIA_SA="$env:MEDIA_SA_NAME@$env:PROJECT_ID.iam.gserviceaccount.com"
-
 gcloud iam service-accounts create $env:MEDIA_SA_NAME --display-name="Catalog Media Signer"
 gcloud storage buckets add-iam-policy-binding gs://$env:BUCKET_NAME --member="serviceAccount:$env:MEDIA_SA" --role="roles/storage.objectAdmin"
-gcloud iam service-accounts keys create gcs-backend-service-account.json --iam-account=$env:MEDIA_SA
-Get-Content -Raw .\gcs-backend-service-account.json
-Remove-Item .\gcs-backend-service-account.json
 ```
 
 > [!IMPORTANT]
-> El JSON impreso debe guardarse como secret `GCS_BACKEND_SERVICE_ACCOUNT_KEY` en GitHub Environment `release`. No debe subirse al repositorio.
+> La llave privada de esta cuenta de servicio se generará en el Paso 10.3 para ser configurada como secret `GCS_BACKEND_SERVICE_ACCOUNT_KEY` en GitHub Environment `release`.
 
-Configure CORS:
+Obtenga la IP de Ingress previamente reservada y configure CORS usando interpolación de variables en PowerShell:
 
 ```powershell
-@'
+$env:INGRESS_IP=(gcloud compute addresses describe $env:INGRESS_IP_NAME --global --format="value(address)")
+
+@"
 [
   {
     "origin": [
       "http://localhost:5173",
       "https://localhost:5173",
-      "http://REEMPLAZAR_IP_INGRESS"
+      "http://$env:INGRESS_IP"
     ],
     "method": ["GET", "PUT", "HEAD", "OPTIONS"],
     "responseHeader": ["Content-Type", "Content-Length", "x-goog-content-length-range"],
     "maxAgeSeconds": 3600
   }
 ]
-'@ | Set-Content -Encoding utf8 .\cors.json
+"@ | Set-Content -Encoding utf8 .\cors.json
 
 gcloud storage buckets update gs://$env:BUCKET_NAME --cors-file=.\cors.json
 Remove-Item .\cors.json
@@ -257,9 +238,9 @@ Remove-Item .\cors.json
 
 ---
 
-## Paso 6. Validar recursos compartidos con develop
+## Paso 6. Validar creación de recursos
 
-Antes de crear GKE, valide que los recursos compartidos existan y esten disponibles:
+Valide que los recursos creados estén disponibles:
 
 ```powershell
 gcloud compute networks describe $env:VPC_NAME
@@ -277,10 +258,8 @@ $env:REDIS_PORT=(gcloud redis instances describe $env:REDIS_INSTANCE --region=$e
 
 Write-Host "Cloud SQL IP: $env:CLOUD_SQL_PRIVATE_IP"
 Write-Host "Redis: $($env:REDIS_HOST):$($env:REDIS_PORT)"
+Write-Host "Ingress IP: $env:INGRESS_IP"
 ```
-
-> [!IMPORTANT]
-> Aunque los recursos sean compartidos con `develop`, las credenciales y variables deben registrarse tambien en GitHub Environment `release`.
 
 ---
 
@@ -289,11 +268,8 @@ Write-Host "Redis: $($env:REDIS_HOST):$($env:REDIS_PORT)"
 GKE necesita una subred con rangos secundarios para Pods y Services:
 
 ```powershell
-gcloud compute networks subnets create $env:GKE_SUBNET_NAME --network=$env:VPC_NAME --region=$env:REGION --range=10.0.3.0/24 --enable-private-ip-google-access --secondary-range="qx-gke-pods=10.10.0.0/16,qx-gke-services=10.20.0.0/20"
+gcloud compute networks subnets create $env:GKE_SUBNET_NAME --network=$env:VPC_NAME --region=$env:REGION --range=10.0.3.0/24 --enable-private-ip-google-access --secondary-range="prod-gke-pods=10.10.0.0/16,prod-gke-services=10.20.0.0/20"
 ```
-
-> [!NOTE]
-> Esta subred es independiente de las subredes usadas por las VMs de `develop`.
 
 ---
 
@@ -307,8 +283,8 @@ gcloud container clusters create $env:GKE_CLUSTER_NAME `
   --network=$env:VPC_NAME `
   --subnetwork=$env:GKE_SUBNET_NAME `
   --enable-ip-alias `
-  --cluster-secondary-range-name=qx-gke-pods `
-  --services-secondary-range-name=qx-gke-services `
+  --cluster-secondary-range-name=prod-gke-pods `
+  --services-secondary-range-name=prod-gke-services `
   --enable-private-nodes `
   --master-ipv4-cidr=172.16.0.0/28 `
   --num-nodes=1 `
@@ -317,9 +293,6 @@ gcloud container clusters create $env:GKE_CLUSTER_NAME `
   --min-nodes=1 `
   --max-nodes=3
 ```
-
-> [!TIP]
-> Si el presupuesto es limitado, use `e2-small` y maximo 3 nodos. Si el cluster queda sin recursos, aumente a `e2-medium`.
 
 ---
 
@@ -333,9 +306,6 @@ $env:USE_GKE_GCLOUD_AUTH_PLUGIN="True"
 [Environment]::SetEnvironmentVariable("USE_GKE_GCLOUD_AUTH_PLUGIN", "True", "User")
 gke-gcloud-auth-plugin --version
 ```
-
-> [!IMPORTANT]
-> Si `gcloud components install` indica que los componentes no se pueden administrar desde `gcloud`, instale o actualice el SDK de Google Cloud desde el instalador oficial de Windows y vuelva a ejecutar este paso.
 
 Obtenga credenciales del cluster:
 
@@ -364,76 +334,11 @@ kubectl get nodes
 
 ---
 
-## Paso 10. Reservar IP estatica del Ingress
-
-Reserve una IP global para el Ingress, ya que el servicio debe anclarse a una IP estatica para propagarse correctamente en la nube:
-
-```powershell
-gcloud compute addresses create $env:INGRESS_IP_NAME --global
-$env:INGRESS_IP=(gcloud compute addresses describe $env:INGRESS_IP_NAME --global --format="value(address)")
-Write-Host "Ingress IP: $env:INGRESS_IP"
-```
-
-> [!NOTE]
-> Si la IP ya existe, el comando de creacion puede indicar que el recurso ya esta creado. En ese caso ejecute solo el comando `describe` para cargar `$env:INGRESS_IP`.
-
----
-
-## Paso 11. Configurar GitHub Environment release
+## Paso 10. Configurar GitHub Environment release
 
 El pipeline automatizado requiere que los secretos y variables maestras vivan en GitHub.
 
-1. Ir al repositorio en GitHub.
-2. Entrar a **Settings > Environments**.
-3. Crear un environment llamado `release`.
-4. Agregar los secrets y variables siguientes.
-
-### Secrets requeridos
-
-| Secret                            | Descripcion                                                          |
-| --------------------------------- | -------------------------------------------------------------------- |
-| `GCP_SERVICE_ACCOUNT_KEY`         | JSON del service account de CI/CD (se creará en el siguiente paso)   |
-| `GCS_BACKEND_SERVICE_ACCOUNT_KEY` | JSON del service account `catalog-media-signer` (generado en Paso 5) |
-| `GHCR_USERNAME`                   | Usuario de GitHub                                                    |
-| `GHCR_TOKEN`                      | Token de GitHub con permiso `read:packages` y `write:packages`       |
-| `JWT_SECRET`                      | Cadena segura para firmar JWT                                        |
-| `IDENTITY_DB_PASSWORD`            | Password de `identity_user` (`admin1234`)                            |
-| `SUBSCRIPTION_DB_PASSWORD`        | Password de `subscription_user` (`admin1234`)                        |
-| `CATALOG_DB_PASSWORD`             | Password de `catalog_user` (`admin1234`)                             |
-| `ENGAGEMENT_DB_PASSWORD`          | Password de `engagement_user` (`admin1234`)                          |
-| `SMTP_HOST`                       | Host del servidor SMTP                                               |
-| `SMTP_USERNAME`                   | Usuario SMTP                                                         |
-| `SMTP_PASSWORD`                   | Password SMTP                                                        |
-| `SMTP_FROM`                       | Correo remitente                                                     |
-
-### Variables requeridas
-
-```text
-GCP_PROJECT_ID=sa-derek-proyecto
-GCP_REGION=us-central1
-GCP_ZONE=us-central1-a
-VPC_NAME=qx-vpc
-GKE_CLUSTER_NAME=qx-gke-release
-GKE_NAMESPACE=quetxal-tv-prod
-GKE_SUBNET_NAME=qx-subnet-gke-release
-CLOUD_SQL_INSTANCE=qx-postgres
-REDIS_INSTANCE=qx-redis
-GCS_BUCKET_NAME=qx-media-sa-derek-proyecto
-INGRESS_IP_NAME=qx-release-ingress-ip
-GCS_SIGNED_UPLOAD_EXPIRES_MINUTES=15
-GCS_SIGNED_READ_EXPIRES_MINUTES=60
-GCS_ALLOWED_IMAGE_TYPES=image/jpeg,image/png,image/webp
-GCS_ALLOWED_VIDEO_TYPES=video/mp4,video/webm
-GCS_MAX_IMAGE_MB=10
-GCS_MAX_VIDEO_MB=1024
-SMTP_PORT=587
-SMTP_STARTTLS=true
-ADMIN_EMAILS=[EMAIL_ADDRESS],[EMAIL_ADDRESS],[EMAIL_ADDRESS],[EMAIL_ADDRESS]
-```
-
----
-
-## Paso 12. Crear service account para GitHub Actions release
+### 10.1 Crear el service account para GitHub Actions release
 
 Este Service Account es el que usará el pipeline de CI/CD de GitHub para conectarse a GCP y desplegar automáticamente.
 
@@ -443,7 +348,7 @@ Cree el service account:
 gcloud iam service-accounts create $env:CICD_SA_NAME --display-name="GitHub Actions Release Deploy"
 ```
 
-Asigne permisos:
+Asigne los permisos necesarios:
 
 ```powershell
 gcloud projects add-iam-policy-binding $env:PROJECT_ID --member="serviceAccount:$env:CICD_SA" --role="roles/container.admin"
@@ -453,34 +358,132 @@ gcloud projects add-iam-policy-binding $env:PROJECT_ID --member="serviceAccount:
 gcloud projects add-iam-policy-binding $env:PROJECT_ID --member="serviceAccount:$env:CICD_SA" --role="roles/compute.networkViewer"
 ```
 
-Permita backups de Cloud SQL al bucket:
+Permita que el service account de Cloud SQL de producción pueda escribir los backups en el bucket:
 
 ```powershell
 $env:CLOUD_SQL_SA=(gcloud sql instances describe $env:CLOUD_SQL_INSTANCE --format="value(serviceAccountEmailAddress)")
 gcloud storage buckets add-iam-policy-binding gs://$env:BUCKET_NAME --member="serviceAccount:$env:CLOUD_SQL_SA" --role="roles/storage.objectCreator"
 ```
 
-Genere la llave para GitHub:
+### 10.2 Crear el GitHub Environment
 
-```powershell
-gcloud iam service-accounts keys create gcp-github-actions-release-key.json --iam-account=$env:CICD_SA
-Get-Content -Raw .\gcp-github-actions-release-key.json
-Remove-Item .\gcp-github-actions-release-key.json
-```
+1. Dentro del repositorio en GitHub, vaya a **Settings > Environments**.
+2. Cree un nuevo environment llamado `release`.
+3. Agregue los secrets y variables siguientes.
 
-> [!IMPORTANT]
-> El contenido JSON impreso debe guardarse en el secret `GCP_SERVICE_ACCOUNT_KEY` que configuró en el Paso 11 en GitHub.
+### 10.3 Secrets requeridos
+
+Agregar en **Settings > Environments > release > Environment secrets**:
+
+| Secret                            | Descripcion                                                          |
+| --------------------------------- | -------------------------------------------------------------------- |
+| `CATALOG_DB_PASSWORD`             | Contraseña del usuario `catalog_user`                                |
+| `ENGAGEMENT_DB_PASSWORD`          | Contraseña del usuario `engagement_user`                             |
+| `GCP_SERVICE_ACCOUNT_KEY`         | Llave privada JSON de la SA del CI/CD (`github-actions-prod`)        |
+| `GCS_BACKEND_SERVICE_ACCOUNT_KEY` | Llave privada JSON de la SA del Catalog Media Signer (`prod-catalog-media-signer`) |
+| `GHCR_TOKEN`                      | Personal Access Token con permiso `read:packages` y `write:packages` |
+| `GHCR_USERNAME`                   | Usuario de GitHub                                                    |
+| `IDENTITY_DB_PASSWORD`            | Contraseña del usuario `identity_user`                               |
+| `JWT_SECRET`                      | Cadena aleatoria segura para firmar tokens JWT                       |
+| `SMTP_FROM`                       | Correo remitente                                                     |
+| `SMTP_HOST`                       | Host del servidor SMTP                                               |
+| `SMTP_PASSWORD`                   | Password SMTP                                                        |
+| `SMTP_USERNAME`                   | Usuario SMTP                                                         |
+| `SUBSCRIPTION_DB_PASSWORD`        | Contraseña del usuario `subscription_user`                           |
+
+#### Instrucciones para obtener o generar los valores de los Secrets:
+
+* **Obtener `GCP_SERVICE_ACCOUNT_KEY`:**
+  Ejecute en su PowerShell local para generar e imprimir la llave (copie todo el JSON impreso):
+  ```powershell
+  gcloud iam service-accounts keys create gcp-github-actions-release-key.json --iam-account=$env:CICD_SA
+  Get-Content -Raw .\gcp-github-actions-release-key.json
+  Remove-Item .\gcp-github-actions-release-key.json
+  ```
+
+* **Obtener `GCS_BACKEND_SERVICE_ACCOUNT_KEY`:**
+  Ejecute en su PowerShell local para generar e imprimir la llave (copie todo el JSON impreso):
+  ```powershell
+  gcloud iam service-accounts keys create gcs-backend-service-account.json --iam-account=$env:MEDIA_SA
+  Get-Content -Raw .\gcs-backend-service-account.json
+  Remove-Item .\gcs-backend-service-account.json
+  ```
+
+* **Generar `JWT_SECRET`:**
+  Ejecute en su PowerShell local para generar una clave aleatoria segura:
+  ```powershell
+  [System.Convert]::ToBase64String((1..48 | ForEach-Object { Get-Random -Maximum 256 }))
+  ```
+
+* **Consultar secretos desde su sesión activa de PowerShell:**
+  ```powershell
+  Write-Output "IDENTITY_DB_PASSWORD: $env:IDENTITY_DB_PASSWORD"
+  Write-Output "SUBSCRIPTION_DB_PASSWORD: $env:SUBSCRIPTION_DB_PASSWORD"
+  Write-Output "CATALOG_DB_PASSWORD: $env:CATALOG_DB_PASSWORD"
+  Write-Output "ENGAGEMENT_DB_PASSWORD: $env:ENGAGEMENT_DB_PASSWORD"
+  ```
+
+### 10.4 Variables requeridas
+
+Agregar en **Settings > Environments > release > Environment variables**:
+
+| Variable                            | Valor Recomendado / Comando para obtener el valor                                         |
+| :---------------------------------- | :---------------------------------------------------------------------------------------- |
+| `ADMIN_EMAILS`                      | Correo(s) administrador separados por coma (e.g., `admin@example.com`)                    |
+| `CLOUD_SQL_INSTANCE`                | `prod-postgres` *(Obtener con `$env:CLOUD_SQL_INSTANCE`)*                                 |
+| `GCP_PROJECT_ID`                    | `sa-derek-proyecto` *(Obtener con `$env:PROJECT_ID` o `gcloud config get-value project`)* |
+| `GCP_REGION`                        | `us-central1` *(Obtener con `$env:REGION`)*                                               |
+| `GCP_ZONE`                          | `us-central1-a` *(Obtener con `$env:ZONE`)*                                               |
+| `GCS_ALLOWED_IMAGE_TYPES`           | `image/jpeg,image/png,image/webp`                                                         |
+| `GCS_ALLOWED_VIDEO_TYPES`           | `video/mp4,video/webm`                                                                    |
+| `GCS_BUCKET_NAME`                   | `prod-media-sa-derek-proyecto` *(Obtener con `$env:BUCKET_NAME`)*                         |
+| `GCS_MAX_IMAGE_MB`                  | `10`                                                                                      |
+| `GCS_MAX_VIDEO_MB`                  | `1024`                                                                                    |
+| `GCS_SIGNED_READ_EXPIRES_MINUTES`   | `60`                                                                                      |
+| `GCS_SIGNED_UPLOAD_EXPIRES_MINUTES` | `15`                                                                                      |
+| `GKE_CLUSTER_NAME`                  | `prod-gke-release` *(Obtener con `$env:GKE_CLUSTER_NAME`)*                                |
+| `GKE_NAMESPACE`                     | `quetxal-tv-prod` *(Obtener con `$env:GKE_NAMESPACE`)*                                    |
+| `GKE_SUBNET_NAME`                   | `prod-subnet-gke-release` *(Obtener con `$env:GKE_SUBNET_NAME`)*                          |
+| `INGRESS_IP_NAME`                   | `prod-release-ingress-ip` *(Obtener con `$env:INGRESS_IP_NAME`)*                          |
+| `REDIS_INSTANCE`                    | `prod-redis` *(Obtener con `$env:REDIS_INSTANCE`)*                                        |
+| `SMTP_PORT`                         | `587`                                                                                     |
+| `SMTP_STARTTLS`                     | `true`                                                                                    |
+| `VPC_NAME`                          | `prod-vpc` *(Obtener con `$env:VPC_NAME`)*                                                |
+
+#### Instrucciones para obtener los valores de las Variables:
+
+* **Consultar variables de Proyecto e Infraestructura del Paso 0:**
+  ```powershell
+  Write-Output "GCP_PROJECT_ID: $env:PROJECT_ID"
+  Write-Output "GCP_REGION: $env:REGION"
+  Write-Output "GCP_ZONE: $env:ZONE"
+  Write-Output "VPC_NAME: $env:VPC_NAME"
+  ```
+
+* **Consultar variables de Kubernetes y GKE del Paso 0:**
+  ```powershell
+  Write-Output "GKE_CLUSTER_NAME: $env:GKE_CLUSTER_NAME"
+  Write-Output "GKE_NAMESPACE: $env:GKE_NAMESPACE"
+  Write-Output "GKE_SUBNET_NAME: $env:GKE_SUBNET_NAME"
+  ```
+
+* **Consultar variables de Recursos de Almacenamiento y BD del Paso 0:**
+  ```powershell
+  Write-Output "CLOUD_SQL_INSTANCE: $env:CLOUD_SQL_INSTANCE"
+  Write-Output "REDIS_INSTANCE: $env:REDIS_INSTANCE"
+  Write-Output "GCS_BUCKET_NAME: $env:BUCKET_NAME"
+  Write-Output "INGRESS_IP_NAME: $env:INGRESS_IP_NAME"
+  ```
 
 ---
 
-## Paso 13. Arquitectura de los Manifiestos de Kubernetes
+## Paso 11. Arquitectura de los Manifiestos de Kubernetes
 
 El repositorio contiene los manifiestos de Kubernetes listos para producción en la ruta `deploy/release/k8s`. 
 La estructura incluye los Deployments, Services (ClusterIP) y el Ingress:
 
 ```text
 k8s/
-  README.md
   namespace.yml
   configmap.yml
   secrets.example.yml
@@ -507,88 +510,34 @@ k8s/
   ingress.yml
 ```
 
-Cada `Deployment` debe incluir:
-
-```yaml
-strategy:
-  type: RollingUpdate
-  rollingUpdate:
-    maxSurge: 1
-    maxUnavailable: 0
-resources:
-  requests:
-    cpu: "100m"
-    memory: "128Mi"
-  limits:
-    cpu: "500m"
-    memory: "512Mi"
-readinessProbe:
-  tcpSocket:
-    port: 50051
-  initialDelaySeconds: 10
-  periodSeconds: 10
-livenessProbe:
-  tcpSocket:
-    port: 50051
-  initialDelaySeconds: 30
-  periodSeconds: 20
-```
-
-> [!NOTE]
-> Para `api-gateway` se puede usar HTTP probe contra `/api/health` en el puerto `3000`. Para `web` se puede usar HTTP probe contra `/` en el puerto `80`. Para los servicios gRPC se puede usar `tcpSocket` mientras no exista un health endpoint HTTP dentro del contenedor.
-
-Todos los Services internos deben ser `ClusterIP`:
-
-```yaml
-apiVersion: v1
-kind: Service
-metadata:
-  name: identity-service
-  namespace: quetxal-tv-prod
-spec:
-  type: ClusterIP
-  selector:
-    app: identity-service
-  ports:
-    - name: grpc
-      port: 50051
-      targetPort: 50051
-```
-
-> [!IMPORTANT]
-> No use Services tipo `LoadBalancer` ni `NodePort` por microservicio. El unico acceso externo permitido para produccion debe ser el Ingress.
+Todos los Services internos son del tipo `ClusterIP`. No se exponen puertos de forma externa excepto mediante el recurso `Ingress`.
 
 ---
 
-## Paso 14. Despliegue automatizado por CI/CD
+## Paso 12. Despliegue automatizado por CI/CD
 
-El despliegue real de produccion se ejecuta **100% de forma automatica** por CI/CD al impactar la rama `test/v1.0.0` o `release/*`.
-
-> [!WARNING]
-> El enunciado prohíbe despliegues manuales para GKE. Los comandos manuales de `kubectl` en esta guia son solo de referencia. El despliegue oficial ocurre estrictamente desde GitHub Actions.
+El despliegue de produccion se ejecuta **100% de forma automatica** por CI/CD al empujar cambios o tags semánticos a la rama `release`.
 
 El workflow configurado en `.github/workflows/deploy-release.yml` ejecuta la siguiente cadena:
 
 ```text
-ci-checks -> backup-cloud-sql -> build-and-push -> deploy-gke -> smoke-test
+ci-checks -> backup-cloud-sql -> build-and-push -> migrate-databases -> deploy-gke -> smoke-test
 ```
 
-| Etapa              | Que hace                                                                                                            |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------- |
-| `ci-checks`        | Compila frontend, gateway y servicios. Ejecuta pruebas y corta el flujo si algo falla.                              |
-| `backup-cloud-sql` | Exporta `identity_db`, `subscription_db`, `catalog_db` y `engagement_db` al bucket.                                 |
-| `build-and-push`   | Construye imagenes Docker y publica en GHCR con `latest`, SHA y tag semantico.                                      |
-| `deploy-gke`       | **Crea dinamicamente ConfigMaps y Secrets**, y aplica manifests con `kubectl apply` en namespace `quetxal-tv-prod`. |
-| `smoke-test`       | Valida Ingress con llamadas HTTP a la IP Publica del Balanceador Global.                                            |
-
-> [!TIP]
-> Todo el cluster se considera *stateless*. Si se elimina el namespace completo, el pipeline es capaz de reconstruir la configuracion, los secretos y todos los deployments en la siguiente ejecucion usando los Secrets almacenados directamente en GitHub.
+| Etapa               | Que hace                                                                                                            |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `ci-checks`         | Compila frontend, gateway y servicios. Ejecuta pruebas unitarias.                                                   |
+| `backup-cloud-sql`  | Exporta las bases de datos de producción al bucket de Cloud Storage.                                                |
+| `build-and-push`    | Construye imagenes Docker y publica en GHCR.                                                                        |
+| `migrate-databases` | Corre un Job efímero de Kubernetes para aplicar las migraciones SQL en cada base de datos usando túnel interno.     |
+| `deploy-gke`        | **Crea dinamicamente ConfigMaps y Secrets**, y aplica manifests con `kubectl apply` en namespace `quetxal-tv-prod`. |
+| `smoke-test`        | Valida Ingress con llamadas HTTP a la IP Publica del Balanceador Global.                                            |
 
 ---
 
-## Paso 15. Verificacion del despliegue
+## Paso 13. Verificacion del despliegue
 
-Valide el cluster:
+Valide el estado del cluster en el namespace de producción:
 
 ```powershell
 kubectl get nodes
@@ -597,35 +546,18 @@ kubectl get services -n $env:GKE_NAMESPACE
 kubectl get ingress -n $env:GKE_NAMESPACE
 ```
 
-Obtenga la IP externa:
-
-```powershell
-gcloud compute addresses describe $env:INGRESS_IP_NAME --global --format="value(address)"
-```
-
-Pruebe el frontend y health del gateway:
+Obtenga la IP externa y valide el acceso HTTP:
 
 ```powershell
 $env:INGRESS_IP=(gcloud compute addresses describe $env:INGRESS_IP_NAME --global --format="value(address)")
 Invoke-WebRequest -Uri "http://$env:INGRESS_IP" -UseBasicParsing
 ```
 
-Revise logs si algun pod falla:
-
-```powershell
-kubectl logs deployment/api-gateway -n $env:GKE_NAMESPACE
-kubectl logs deployment/catalog-service -n $env:GKE_NAMESPACE
-kubectl describe pod -n $env:GKE_NAMESPACE
-```
-
 ---
 
-## Paso 16. Rollback manual de emergencia
+## Paso 14. Rollback manual de emergencia
 
-> [!NOTE]
-> El rollback normal debe ejecutarse automaticamente desde el pipeline. Este paso se deja como referencia operativa.
-
-Para revertir un Deployment a la versión anterior:
+Para revertir un Deployment a la versión anterior en caso de fallas graves en producción:
 
 ```powershell
 kubectl rollout undo deployment/api-gateway -n $env:GKE_NAMESPACE
@@ -634,72 +566,110 @@ kubectl rollout status deployment/api-gateway -n $env:GKE_NAMESPACE
 
 ---
 
-## Paso 17. Limpiar infraestructura release
+## Paso 15. Limpiar infraestructura release
 
 > [!CAUTION]
-> Esta limpieza elimina solo recursos de Kubernetes release. No elimina Cloud SQL, Redis ni el bucket porque tambien son usados por `develop`.
+> Ejecutar esta sección destruirá de manera irreversible toda la infraestructura de producción (`release`) en GCP, incluyendo GKE, base de datos, Redis, bucket, VPC, subredes, peerings y cuentas de servicio. Solo debe realizarse si desea reiniciar el ambiente por completo.
 
-Elimine el cluster:
+Ejecute en su PowerShell local para borrar todos los recursos:
 
+1. Eliminar el cluster GKE:
 ```powershell
 gcloud container clusters delete $env:GKE_CLUSTER_NAME --region=$env:REGION --quiet
 ```
 
-Elimine la IP estatica:
-
+2. Eliminar la IP estática global del Ingress:
 ```powershell
 gcloud compute addresses delete $env:INGRESS_IP_NAME --global --quiet
 ```
 
-Elimine la subred de GKE:
+3. Eliminar la instancia de Memorystore Redis:
+```powershell
+gcloud redis instances delete $env:REDIS_INSTANCE --region=$env:REGION --quiet
+```
 
+4. Eliminar la instancia de Cloud SQL:
+```powershell
+gcloud sql instances delete $env:CLOUD_SQL_INSTANCE --quiet
+```
+
+5. Eliminar el bucket de Cloud Storage:
+```powershell
+gcloud storage rm -r gs://$env:BUCKET_NAME --quiet
+```
+
+6. Eliminar el Peering de VPC:
+```powershell
+gcloud services vpc-peerings delete --service=servicenetworking.googleapis.com --network=$env:VPC_NAME --quiet
+```
+
+7. Eliminar los rangos de IP globales de PSA:
+```powershell
+gcloud compute addresses delete prod-db-range --global --quiet
+gcloud compute addresses delete prod-redis-range --global --quiet
+```
+
+8. Eliminar Cloud NAT y Cloud Router:
+```powershell
+gcloud compute routers nats delete prod-nat --router=prod-router --region=$env:REGION --quiet
+gcloud compute routers delete prod-router --region=$env:REGION --quiet
+```
+
+9. Eliminar las subredes de producción:
 ```powershell
 gcloud compute networks subnets delete $env:GKE_SUBNET_NAME --region=$env:REGION --quiet
+gcloud compute networks subnets delete $env:PUBLIC_SUBNET_NAME --region=$env:REGION --quiet
+gcloud compute networks subnets delete $env:PRIVATE_SUBNET_NAME --region=$env:REGION --quiet
 ```
 
-Elimine el service account de CI/CD release:
+10. Eliminar la VPC:
+```powershell
+gcloud compute networks delete $env:VPC_NAME --quiet
+```
 
+11. Eliminar las cuentas de servicio de producción:
 ```powershell
 gcloud iam service-accounts delete $env:CICD_SA --quiet
+gcloud iam service-accounts delete $env:MEDIA_SA --quiet
 ```
 
-Valide que no queden recursos release:
+Si algún recurso no existe o fue borrado previamente, ignore el error y continúe con el siguiente comando.
+
+Valide que la limpieza fue completa:
 
 ```powershell
 gcloud container clusters list --region=$env:REGION
-gcloud compute addresses list --global --filter="name=$env:INGRESS_IP_NAME"
-gcloud compute networks subnets list --regions=$env:REGION --filter="name=$env:GKE_SUBNET_NAME"
+gcloud compute addresses list --global --filter="name~prod-"
+gcloud redis instances list --region=$env:REGION --filter="name~prod-"
+gcloud sql instances list --filter="name~prod-"
+gcloud storage buckets list --filter="name:$env:BUCKET_NAME"
+gcloud compute networks list --filter="name=$env:VPC_NAME"
+gcloud iam service-accounts list --filter="name~prod-"
 ```
-
-> [!WARNING]
-> No ejecute comandos de borrado contra `qx-postgres`, `qx-redis` ni `qx-media-sa-derek-proyecto` mientras el ambiente `develop` los siga usando.
 
 ---
 
-## Paso 18. Limpiar datos compartidos (Bases de datos y Bucket)
+## Paso 16. Limpiar datos (Bases de datos y Bucket de producción)
 
-> [!WARNING]
-> Las bases de datos y el bucket de Cloud Storage son **compartidos** entre `develop` y `release`. Si limpia estos datos, vaciara la informacion para ambos ambientes.
+Si desea reiniciar la base de datos y el bucket de producción vaciando todo su contenido:
 
-Si desea limpiar todos los datos generados (usuarios, subscripciones, catalogo, etc.) y los archivos subidos, sin destruir la infraestructura compartida, puede recrear las bases de datos y vaciar el bucket:
-
+1. Borrar las bases de datos:
 ```powershell
-gcloud sql databases delete identity_db --instance=qx-postgres --quiet
-gcloud sql databases delete subscription_db --instance=qx-postgres --quiet
-gcloud sql databases delete catalog_db --instance=qx-postgres --quiet
-gcloud sql databases delete engagement_db --instance=qx-postgres --quiet
-
-gcloud sql databases create identity_db --instance=qx-postgres
-gcloud sql databases create subscription_db --instance=qx-postgres
-gcloud sql databases create catalog_db --instance=qx-postgres
-gcloud sql databases create engagement_db --instance=qx-postgres
+gcloud sql databases delete identity_db --instance=$env:CLOUD_SQL_INSTANCE --quiet
+gcloud sql databases delete subscription_db --instance=$env:CLOUD_SQL_INSTANCE --quiet
+gcloud sql databases delete catalog_db --instance=$env:CLOUD_SQL_INSTANCE --quiet
+gcloud sql databases delete engagement_db --instance=$env:CLOUD_SQL_INSTANCE --quiet
 ```
 
-Vaciar todos los archivos del bucket:
+2. Recrear las bases de datos vacías:
+```powershell
+gcloud sql databases create identity_db --instance=$env:CLOUD_SQL_INSTANCE
+gcloud sql databases create subscription_db --instance=$env:CLOUD_SQL_INSTANCE
+gcloud sql databases create catalog_db --instance=$env:CLOUD_SQL_INSTANCE
+gcloud sql databases create engagement_db --instance=$env:CLOUD_SQL_INSTANCE
+```
 
+3. Vaciar todos los archivos del bucket de producción:
 ```powershell
 gcloud storage rm gs://$env:BUCKET_NAME/**
 ```
-
-> [!TIP]
-> Despues de ejecutar estos comandos, los microservicios aplicaran sus migraciones automaticamente la proxima vez que reinicien o cuando se ejecute un nuevo despliegue en GitHub Actions.

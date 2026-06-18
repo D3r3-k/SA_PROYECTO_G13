@@ -1,3 +1,4 @@
+BEGIN;
 CREATE TABLE IF NOT EXISTS roles (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(50) NOT NULL UNIQUE,
@@ -61,3 +62,4 @@ JOIN permissions p ON p.code IN (
 )
 WHERE r.name = 'admin'
 ON CONFLICT DO NOTHING;
+COMMIT;

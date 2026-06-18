@@ -1,3 +1,4 @@
+BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 CREATE TABLE IF NOT EXISTS ratings (
@@ -346,3 +347,4 @@ DROP TRIGGER IF EXISTS trg_standard_audit_watch_progress ON watch_progress;
 CREATE TRIGGER trg_standard_audit_watch_progress
 AFTER INSERT OR UPDATE ON watch_progress
 FOR EACH ROW EXECUTE FUNCTION fn_standard_audit_log();
+COMMIT;
