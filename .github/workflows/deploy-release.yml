@@ -611,8 +611,8 @@ jobs:
             fi
           done
 
-  tests:
-    name: Tests
+  validation:
+    name: Validación
     runs-on: ubuntu-latest
     environment: release
     needs: deploy-gke
@@ -621,21 +621,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Generate and push Git tag
-        shell: bash
-        run: |
-          if [[ "${{ github.ref_name }}" =~ ^release/(v[0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
-            TAG_NAME="${BASH_REMATCH[1]}"
-            git config --global user.name "github-actions[bot]"
-            git config --global user.email "github-actions[bot]@users.noreply.github.com"
-            if ! git rev-parse "$TAG_NAME" >/dev/null 2>&1; then
-              echo "Creating and pushing Git tag: ${TAG_NAME}"
-              git tag "$TAG_NAME"
-              git push origin "$TAG_NAME"
-            else
-              echo "Tag ${TAG_NAME} already exists."
-            fi
-          fi
+
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
@@ -662,3 +648,19 @@ jobs:
           done
           echo "Smoke test failed after 30 attempts."
           exit 1
+
+      - name: Generate and push Git tag
+        shell: bash
+        run: |
+          if [[ "${{ github.ref_name }}" =~ ^release/(v[0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+            TAG_NAME="${BASH_REMATCH[1]}"
+            git config --global user.name "github-actions[bot]"
+            git config --global user.email "github-actions[bot]@users.noreply.github.com"
+            if ! git rev-parse "$TAG_NAME" >/dev/null 2>&1; then
+              echo "Creating and pushing Git tag: ${TAG_NAME}"
+              git tag "$TAG_NAME"
+              git push origin "refs/tags/$TAG_NAME"
+            else
+              echo "Tag ${TAG_NAME} already exists."
+            fi
+          fi
