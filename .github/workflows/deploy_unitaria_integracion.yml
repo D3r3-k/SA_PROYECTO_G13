@@ -3,8 +3,20 @@ name: Pruebas Unitarias e Integración
 on:
   push:
     branches: [pruebas_unitarios_integracion]
+    paths-ignore:
+      - '**.md'
+      - 'LICENSE'
+      - '.gitignore'
+      - '.gitattributes'
+      - 'docs/**'
   pull_request:
     branches: [pruebas_unitarios_integracion]
+    paths-ignore:
+      - '**.md'
+      - 'LICENSE'
+      - '.gitignore'
+      - '.gitattributes'
+      - 'docs/**'
 
 env:
   PYTHON_VERSION: "3.11"

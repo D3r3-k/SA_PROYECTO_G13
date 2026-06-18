@@ -9,6 +9,7 @@ on:
       - 'LICENSE'
       - '.gitignore'
       - '.gitattributes'
+      - 'docs/**'
   workflow_dispatch:
 
 permissions:
