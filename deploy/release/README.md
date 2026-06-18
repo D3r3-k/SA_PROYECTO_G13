@@ -568,30 +568,83 @@ kubectl rollout status deployment/api-gateway -n $env:GKE_NAMESPACE
 
 ## Paso 15. Limpiar infraestructura release
 
-Para destruir por completo el ambiente de producción:
+> [!CAUTION]
+> Ejecutar esta sección destruirá de manera irreversible toda la infraestructura de producción (`release`) en GCP, incluyendo GKE, base de datos, Redis, bucket, VPC, subredes, peerings y cuentas de servicio. Solo debe realizarse si desea reiniciar el ambiente por completo.
 
-Elimine el cluster GKE:
+Ejecute en su PowerShell local para borrar todos los recursos:
 
+1. Eliminar el cluster GKE:
 ```powershell
 gcloud container clusters delete $env:GKE_CLUSTER_NAME --region=$env:REGION --quiet
 ```
 
-Elimine la IP estatica:
-
+2. Eliminar la IP estática global del Ingress:
 ```powershell
 gcloud compute addresses delete $env:INGRESS_IP_NAME --global --quiet
 ```
 
-Elimine la subred de GKE:
-
+3. Eliminar la instancia de Memorystore Redis:
 ```powershell
-gcloud compute networks subnets delete $env:GKE_SUBNET_NAME --region=$env:REGION --quiet
+gcloud redis instances delete $env:REDIS_INSTANCE --region=$env:REGION --quiet
 ```
 
-Elimine el service account de CI/CD release:
+4. Eliminar la instancia de Cloud SQL:
+```powershell
+gcloud sql instances delete $env:CLOUD_SQL_INSTANCE --quiet
+```
 
+5. Eliminar el bucket de Cloud Storage:
+```powershell
+gcloud storage rm -r gs://$env:BUCKET_NAME --quiet
+```
+
+6. Eliminar el Peering de VPC:
+```powershell
+gcloud services vpc-peerings delete --service=servicenetworking.googleapis.com --network=$env:VPC_NAME --quiet
+```
+
+7. Eliminar los rangos de IP globales de PSA:
+```powershell
+gcloud compute addresses delete prod-db-range --global --quiet
+gcloud compute addresses delete prod-redis-range --global --quiet
+```
+
+8. Eliminar Cloud NAT y Cloud Router:
+```powershell
+gcloud compute routers nats delete prod-nat --router=prod-router --region=$env:REGION --quiet
+gcloud compute routers delete prod-router --region=$env:REGION --quiet
+```
+
+9. Eliminar las subredes de producción:
+```powershell
+gcloud compute networks subnets delete $env:GKE_SUBNET_NAME --region=$env:REGION --quiet
+gcloud compute networks subnets delete $env:PUBLIC_SUBNET_NAME --region=$env:REGION --quiet
+gcloud compute networks subnets delete $env:PRIVATE_SUBNET_NAME --region=$env:REGION --quiet
+```
+
+10. Eliminar la VPC:
+```powershell
+gcloud compute networks delete $env:VPC_NAME --quiet
+```
+
+11. Eliminar las cuentas de servicio de producción:
 ```powershell
 gcloud iam service-accounts delete $env:CICD_SA --quiet
+gcloud iam service-accounts delete $env:MEDIA_SA --quiet
+```
+
+Si algún recurso no existe o fue borrado previamente, ignore el error y continúe con el siguiente comando.
+
+Valide que la limpieza fue completa:
+
+```powershell
+gcloud container clusters list --region=$env:REGION
+gcloud compute addresses list --global --filter="name~prod-"
+gcloud redis instances list --region=$env:REGION --filter="name~prod-"
+gcloud sql instances list --filter="name~prod-"
+gcloud storage buckets list --filter="name:$env:BUCKET_NAME"
+gcloud compute networks list --filter="name=$env:VPC_NAME"
+gcloud iam service-accounts list --filter="name~prod-"
 ```
 
 ---
@@ -600,20 +653,23 @@ gcloud iam service-accounts delete $env:CICD_SA --quiet
 
 Si desea reiniciar la base de datos y el bucket de producción vaciando todo su contenido:
 
+1. Borrar las bases de datos:
 ```powershell
 gcloud sql databases delete identity_db --instance=$env:CLOUD_SQL_INSTANCE --quiet
 gcloud sql databases delete subscription_db --instance=$env:CLOUD_SQL_INSTANCE --quiet
 gcloud sql databases delete catalog_db --instance=$env:CLOUD_SQL_INSTANCE --quiet
 gcloud sql databases delete engagement_db --instance=$env:CLOUD_SQL_INSTANCE --quiet
+```
 
+2. Recrear las bases de datos vacías:
+```powershell
 gcloud sql databases create identity_db --instance=$env:CLOUD_SQL_INSTANCE
 gcloud sql databases create subscription_db --instance=$env:CLOUD_SQL_INSTANCE
 gcloud sql databases create catalog_db --instance=$env:CLOUD_SQL_INSTANCE
 gcloud sql databases create engagement_db --instance=$env:CLOUD_SQL_INSTANCE
 ```
 
-Vaciar todos los archivos del bucket de producción:
-
+3. Vaciar todos los archivos del bucket de producción:
 ```powershell
 gcloud storage rm gs://$env:BUCKET_NAME/**
 ```

@@ -4,7 +4,7 @@ metadata:
   name: quetxal-tv-ingress
   namespace: quetxal-tv-prod
   annotations:
-    kubernetes.io/ingress.global-static-ip-name: qx-release-ingress-ip
+    kubernetes.io/ingress.global-static-ip-name: prod-release-ingress-ip
 spec:
   rules:
     - http:
