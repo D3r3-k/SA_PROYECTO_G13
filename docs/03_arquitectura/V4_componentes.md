@@ -1,6 +1,6 @@
 ## V4 — Vista de Componentes
 
-![alt text](../00_assets/diagrams/03_arquitectura/Componentes4+1.jpg)
+![alt text](../00_assets/diagrams/04_diagramas/componentes4+1.jpg)
 
 La vista de componentes describe la organización física estática del sistema
 en unidades autónomas reemplazables. Cada microservicio se modela como un
