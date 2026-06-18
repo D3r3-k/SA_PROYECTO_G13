@@ -2,7 +2,7 @@
 
 ## Diagrama
 
-![Arquitectura general](../diagramas/export/general/Diagrama%20Arquitectura%20General.drawio.png)
+![Arquitectura general](../diagramas/export/general/Diagrama%20Arquitectura%20General.jpg)
 
 ## Fuente
 
