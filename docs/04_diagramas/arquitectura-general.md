@@ -2,8 +2,8 @@
 
 ## Diagrama
 
-![Arquitectura general](../diagramas/export/general/Diagrama%20Arquitectura%20General.jpg)
+![Arquitectura general](../00_assets/diagrams/general/ArquitecturaGeneral.jpg)
 
 ## Fuente
 
-- Draw.io: [arquitectura-general.drawio](../diagramas/src/general/arquitectura-general.drawio)
+- Draw.io: [ArquitecturaGeneral.drawio](../00_assets/raw/Arquitectura/ArquitecturaGeneral.drawio)
