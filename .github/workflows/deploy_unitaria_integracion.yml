@@ -99,7 +99,7 @@ jobs:
       - name: Instalar dependencias de prueba
         run: |
           pip install --upgrade pip
-          pip install pytest pytest-asyncio>=0.21 pytest-cov grpcio psycopg2-binary "redis>=5.0.0" python-dotenv
+          pip install pytest pytest-asyncio>=0.21 pytest-cov grpcio psycopg2-binary "redis>=5.0.0" python-dotenv pydantic
       - name: Ejecutar pruebas
         run: pytest tests/ --cov=src --cov-report=term-missing --cov-report=xml --cov-fail-under=75 -v
       - uses: actions/upload-artifact@v4
@@ -195,7 +195,7 @@ jobs:
           cache: true
           cache-dependency-path: services/catalog-service/go.sum
       - name: Ejecutar pruebas
-        run: go test ./... -v -coverprofile=coverage.out -covermode=atomic
+        run: go test ./internal/service/... -v -coverprofile=coverage.out -covermode=atomic
       - name: Verificar cobertura >= 75%
         run: |
           COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//')

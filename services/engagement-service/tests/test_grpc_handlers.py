@@ -251,3 +251,96 @@ class TestResumeContent:
 
         kw = engagement_pb2.ResumeContentResponse.call_args.kwargs
         assert kw["found"] is False
+
+
+# ─── ListAuditLogs ────────────────────────────────────────────────────────────
+
+class TestListAuditLogs:
+    @pytest.fixture
+    def servicer(self):
+        return EngagementServiceServicer()
+
+    @pytest.fixture
+    def ctx(self):
+        return MagicMock()
+
+    async def test_audit_logs_exitoso(self, servicer, ctx):
+        rows = [
+            {
+                "id": "audit-1",
+                "service": "engagement",
+                "actor_user_id": "u1",
+                "actor_email": "a@b.com",
+                "action": "UPDATE",
+                "table_name": "ratings",
+                "record_id": "r1",
+                "old_state": "{}",
+                "new_state": "{}",
+                "created_at": "2024-01-01",
+            }
+        ]
+        req = MagicMock(table_name="", actor_user_id="", action="", to="", limit=100, offset=0)
+
+        with patch("src.grpc_server.list_audit_logs", return_value=rows):
+            await servicer.ListAuditLogs(req, ctx)
+
+        kw = engagement_pb2.ListAuditLogsResponse.call_args.kwargs
+        assert kw["success"] is True
+        assert "1" in kw["message"]
+
+    async def test_audit_logs_error_db(self, servicer, ctx):
+        req = MagicMock()
+
+        with patch("src.grpc_server.list_audit_logs", side_effect=Exception("DB error")):
+            await servicer.ListAuditLogs(req, ctx)
+
+        kw = engagement_pb2.ListAuditLogsResponse.call_args.kwargs
+        assert kw["success"] is False
+        assert "could not" in kw["message"]
+
+
+# ─── Funciones auxiliares (_timestamp, _to_audit_message) ────────────────────
+
+class TestTimestamp:
+    def test_datetime_con_timezone_retorna_timestamp(self):
+        from src.grpc_server import _timestamp
+        from datetime import datetime, timezone as tz
+        dt = datetime(2024, 6, 15, 12, 0, 0, tzinfo=tz.utc)
+        ts = _timestamp(dt)
+        assert ts is not None
+
+    def test_datetime_naive_asigna_utc(self):
+        from src.grpc_server import _timestamp
+        from datetime import datetime
+        naive = datetime(2024, 6, 15, 12, 0, 0)  # sin tzinfo — cubre línea 30
+        ts = _timestamp(naive)
+        assert ts is not None
+
+    def test_none_retorna_timestamp_vacio(self):
+        from src.grpc_server import _timestamp
+        ts = _timestamp(None)
+        assert ts is not None
+
+
+class TestToAuditMessage:
+    def test_convierte_dict_a_audit_log_item(self):
+        from src.grpc_server import _to_audit_message
+        item = {
+            "service": "engagement",
+            "id": "a1",
+            "actor_user_id": "u1",
+            "actor_email": "e@test.com",
+            "action": "INSERT",
+            "table_name": "progress",
+            "record_id": "r1",
+            "old_state": "{}",
+            "new_state": "{}",
+            "created_at": "2024-01-01",
+        }
+        _to_audit_message(item)
+        engagement_pb2.AuditLogItem.assert_called()
+
+    def test_dict_vacio_no_lanza_excepcion(self):
+        from src.grpc_server import _to_audit_message
+        _to_audit_message({})  # campos faltantes usan get() con default ""
+        engagement_pb2.AuditLogItem.assert_called()

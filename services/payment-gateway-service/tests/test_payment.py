@@ -39,8 +39,8 @@ VALID_CARDS = [
 
 INVALID_CARDS = [
     "1234567890123456",
-    "4532015112830367",  # último dígito modificado
-    "0000000000000000",
+    "4532015112830367",  # último dígito modificado — checksum roto
+    "9999999999999999",  # checksum inválido
 ]
 
 

@@ -90,7 +90,9 @@ class TestUpdatePlan:
         assert "id" in kw["message"]
 
     async def test_nombre_vacio_retorna_error(self, servicer, ctx):
-        req = MagicMock(id=1, name="", price_usd=5.0)
+        # 'name' es keyword especial de MagicMock; hay que asignarlo como atributo
+        req = MagicMock(id=1, price_usd=5.0)
+        req.name = ""
         await servicer.UpdatePlan(req, ctx)
 
         kw = subscription_pb2.UpdatePlanResponse.call_args.kwargs
@@ -281,3 +283,187 @@ class TestCancelSubscription:
 
         kw = subscription_pb2.BasicSubscriptionResponse.call_args.kwargs
         assert kw["success"] is False
+
+    async def test_error_de_db_retorna_failure(self, servicer, ctx):
+        req = MagicMock(subscription_id=5)
+        with patch("src.grpc_server.delete_subscription", side_effect=Exception("DB error")):
+            await servicer.CancelSubscription(req, ctx)
+
+        kw = subscription_pb2.BasicSubscriptionResponse.call_args.kwargs
+        assert kw["success"] is False
+
+
+# ─── CreateSubscription — paths adicionales ───────────────────────────────────
+
+class TestCreateSubscriptionExtra:
+    @pytest.fixture
+    def servicer(self):
+        return SubscriptionServiceServicer()
+
+    @pytest.fixture
+    def ctx(self):
+        return MagicMock()
+
+    async def test_error_general_retorna_failure(self, servicer, ctx):
+        req = MagicMock(user_id="user-1", plan_id=2, email="u@example.com")
+        with patch("src.grpc_server.create_subscription", side_effect=Exception("DB down")):
+            await servicer.CreateSubscription(req, ctx)
+
+        kw = subscription_pb2.SubscriptionResponse.call_args.kwargs
+        assert kw["success"] is False
+
+
+# ─── UpdateSubscription — paths adicionales ───────────────────────────────────
+
+class TestUpdateSubscriptionExtra:
+    @pytest.fixture
+    def servicer(self):
+        return SubscriptionServiceServicer()
+
+    @pytest.fixture
+    def ctx(self):
+        return MagicMock()
+
+    async def test_suscripcion_no_encontrada_retorna_error(self, servicer, ctx):
+        req = MagicMock(subscription_id=1, plan_id=3, user_id="user-1", email="u@example.com")
+        with patch("src.grpc_server.update_subscription_plan",
+                   side_effect=ValueError("active subscription not found")):
+            await servicer.UpdateSubscription(req, ctx)
+
+        kw = subscription_pb2.SubscriptionResponse.call_args.kwargs
+        assert kw["success"] is False
+        assert "not found" in kw["message"]
+
+    async def test_error_general_retorna_failure(self, servicer, ctx):
+        req = MagicMock(subscription_id=1, plan_id=3, user_id="user-1", email="u@example.com")
+        with patch("src.grpc_server.update_subscription_plan", side_effect=Exception("DB down")):
+            await servicer.UpdateSubscription(req, ctx)
+
+        kw = subscription_pb2.SubscriptionResponse.call_args.kwargs
+        assert kw["success"] is False
+
+    async def test_notificacion_falla_pero_suscripcion_se_actualiza(self, servicer, ctx):
+        sub = _fake_subscription(plan_id=3)
+        req = MagicMock(subscription_id=1, plan_id=3, user_id="user-1", email="u@example.com")
+        with (
+            patch("src.grpc_server.update_subscription_plan", return_value=sub),
+            patch("src.grpc_server._publish_subscription_notification",
+                  side_effect=Exception("Redis down")),
+        ):
+            await servicer.UpdateSubscription(req, ctx)
+
+        kw = subscription_pb2.SubscriptionResponse.call_args.kwargs
+        assert kw["success"] is True
+
+
+# ─── ListUserSubscriptions — paths adicionales ───────────────────────────────
+
+class TestListUserSubscriptionsExtra:
+    @pytest.fixture
+    def servicer(self):
+        return SubscriptionServiceServicer()
+
+    @pytest.fixture
+    def ctx(self):
+        return MagicMock()
+
+    async def test_error_de_db_retorna_failure(self, servicer, ctx):
+        req = MagicMock(user_id="user-1")
+        with patch("src.grpc_server.get_subscriptions_by_user", side_effect=Exception("DB error")):
+            await servicer.ListUserSubscriptions(req, ctx)
+
+        kw = subscription_pb2.ListUserSubscriptionsResponse.call_args.kwargs
+        assert kw["success"] is False
+
+
+# ─── Health ───────────────────────────────────────────────────────────────────
+
+class TestHealth:
+    @pytest.fixture
+    def servicer(self):
+        return SubscriptionServiceServicer()
+
+    async def test_health_exitoso(self, servicer):
+        mock_cursor = MagicMock()
+        cursor_cm = MagicMock()
+        cursor_cm.__enter__.return_value = mock_cursor
+
+        conn_cm = MagicMock()
+        conn_cm.__enter__.return_value = conn_cm
+        conn_cm.cursor.return_value = cursor_cm
+
+        with patch("src.grpc_server.get_connection", return_value=conn_cm):
+            await servicer.Health(MagicMock(), MagicMock())
+
+        kw = subscription_pb2.SubscriptionHealthResponse.call_args.kwargs
+        assert kw["success"] is True
+        assert kw["database"] is True
+
+    async def test_health_degradado_si_db_falla(self, servicer):
+        with patch("src.grpc_server.get_connection", side_effect=Exception("DB down")):
+            await servicer.Health(MagicMock(), MagicMock())
+
+        kw = subscription_pb2.SubscriptionHealthResponse.call_args.kwargs
+        assert kw["success"] is False
+        assert kw["status"] == "degraded"
+
+
+# ─── ListAuditLogs ────────────────────────────────────────────────────────────
+
+class TestListAuditLogs:
+    @pytest.fixture
+    def servicer(self):
+        return SubscriptionServiceServicer()
+
+    @pytest.fixture
+    def ctx(self):
+        return MagicMock()
+
+    async def test_audit_logs_exitoso(self, servicer, ctx):
+        rows = [{"id": "1", "service": "subscription", "actor_user_id": "u1",
+                 "actor_email": "a@b.com", "action": "UPDATE", "table_name": "subscriptions",
+                 "record_id": "r1", "old_state": "{}", "new_state": "{}", "created_at": "2024-01-01"}]
+        req = MagicMock(table_name="", actor_user_id="", action="", to="", limit=100, offset=0)
+
+        with patch("src.grpc_server.list_audit_logs", return_value=rows):
+            await servicer.ListAuditLogs(req, ctx)
+
+        kw = subscription_pb2.ListAuditLogsResponse.call_args.kwargs
+        assert kw["success"] is True
+
+    async def test_audit_logs_error_db(self, servicer, ctx):
+        req = MagicMock()
+        with patch("src.grpc_server.list_audit_logs", side_effect=Exception("DB error")):
+            await servicer.ListAuditLogs(req, ctx)
+
+        kw = subscription_pb2.ListAuditLogsResponse.call_args.kwargs
+        assert kw["success"] is False
+
+
+# ─── Helpers ─────────────────────────────────────────────────────────────────
+
+class TestHelpers:
+    def test_to_plan_message(self):
+        from src.grpc_server import _to_plan_message
+        plan = {"id": 1, "name": "Basic", "price_usd": 4.99, "is_active": True}
+        _to_plan_message(plan)
+        subscription_pb2.Plan.assert_called()
+
+    def test_to_subscription_message(self):
+        from src.grpc_server import _to_subscription_message
+        sub = _fake_subscription()
+        _to_subscription_message(sub)
+        subscription_pb2.Subscription.assert_called()
+
+    def test_to_audit_message(self):
+        from src.grpc_server import _to_audit_message
+        item = {"id": "a1", "service": "subscription", "actor_user_id": "u1",
+                "actor_email": "e@test.com", "action": "INSERT", "table_name": "subscriptions",
+                "record_id": "r1", "old_state": "{}", "new_state": "{}", "created_at": "2024"}
+        _to_audit_message(item)
+        subscription_pb2.AuditLogItem.assert_called()
+
+    def test_to_audit_message_dict_vacio(self):
+        from src.grpc_server import _to_audit_message
+        _to_audit_message({})
+        subscription_pb2.AuditLogItem.assert_called()
