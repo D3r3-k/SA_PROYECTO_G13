@@ -2,14 +2,15 @@
 
 # Diagrama de Secuencia
 
-### Diagrama de Secuencia General
+
+### Diagrama de Secuencia — Login y Validacion JWT
 
 ![Diagrama de Secuencia General](../00_assets/diagrams/04_diagramas/diagrama_secuenciafull.png)
 
 
 ### Diagrama de Secuencia Completo
 
-Este diagrama unifica todos los flujos del sistema en una sola vista temporal, mostrando la interaccion entre trece participantes: Browser, API Gateway, Identity Service, Catalog Service, Subscription Service, FX Service, Engagement Service, Redis, Notification Service, Bases de Datos PostgreSQL, Administrador, Panel Admin y Google Cloud Storage. El diagrama cubre once modulos en orden cronologico, los nueve del flujo de usuario final y dos modulos de Fase 2 para administracion y auditoria.
+Este diagrama unifica todos los flujos del sistema en una sola vista temporal, mostrando la interaccion entre diez participantes: Browser, API Gateway, Identity Service, Catalog Service, Subscription Service, FX Service, Engagement Service, Redis, Notification Service y las Bases de Datos PostgreSQL. El diagrama cubre nueve modulos en orden cronologico tal como los experimenta un usuario real.
 
 ---
 
@@ -65,6 +66,7 @@ El Browser solicita la seccion de continuar viendo con `GET /api/engagement/prof
 
 Este modulo corre en paralelo e independiente de todos los anteriores. El Notification Worker ejecuta un loop de `asyncio` que consume eventos de Redis con `BLPOP notification:queue` con timeout de 5 segundos. Cuando llega un mensaje, deserializa el JSON con `json.loads`, detecta el tipo de evento entre los cuatro posibles: `registration`, `purchase_receipt`, `subscription_update` o `content-publication`, y llama a `_build_notification_content` que genera el subject y el body especificos para cada tipo. Si SMTP esta configurado envia el email HTML con el template de Quetxal TV via `aiosmtplib.send`. Si no esta configurado usa console fallback con `logger.info(payload)`. El Gateway y los servicios productores nunca esperan confirmacion del Notification Worker, Redis actua como buffer desacoplado que garantiza que ninguna notificacion se pierda aunque el worker este temporalmente fuera de servicio.
 
+
 ---
 
 #### Modulo 10 — Panel de Administracion [Fase 2]
@@ -77,13 +79,12 @@ El Administrador accede al Panel Admin ingresando la clave `x-admin-key`. El Pan
 
 Los microservicios registran automaticamente los cambios criticos a traves de triggers de base de datos: `trg_audit_subscription_change` en Subscription Service registra cambios en `subscription_audit`, `trg_audit_credential_update` en Identity Service registra actualizaciones de `password_hash` en `credential_audit`, y `trg_audit_rating_changes` en Engagement Service registra cambios de calificacion en `rating_audit`. El administrador accede al log de auditoria desde el Panel Admin, que llama al Gateway con la clave de administrador. El Gateway consulta al servicio correspondiente via `gRPC ListAuditLogs`, que ejecuta la consulta sobre la tabla de auditoria ordenada por fecha descendente y retorna los registros con tabla afectada, tipo de operacion, usuario responsable y timestamp. El administrador puede filtrar los registros por tabla, tipo de operacion y rango de fechas, y puede descargar el reporte filtrado en formato CSV o PDF. La generacion del archivo ocurre directamente en el API Gateway, que recopila los registros de todos los servicios y construye el documento sin delegar esa responsabilidad a los servicios individuales.
 
-
 ---
 ## Diagrama de Secuencia por Modulos
 
 ### Diagrama de Secuencia — Login y JWT
 
-![Diagrama de Secuencia Login y JWT](../00_assets/diagrams/04_diagramas/secuencialoginactualizado.drawio.png)
+![Diagrama de Secuencia Login y JWT](../00_assets/diagrams/04_diagramas/diagrama_secuencia_login.png)
 
 Este diagrama muestra la interaccion temporal entre cinco participantes: Browser, API Gateway, Identity Service, DB Identity y Redis, cubriendo los tres flujos criticos de autenticacion del sistema.
 
@@ -94,16 +95,9 @@ En el flujo de login el Browser envia `POST /api/auth/login`. El Gateway llama a
 En el flujo de validacion JWT, que ocurre en cada request a ruta protegida, el Gateway ejecuta `authMiddleware` que lee la cookie, llama a `gRPC ValidateToken` al Identity Service, que ejecuta `verifyIdentityToken` usando `jwt.verify`. Si el token es valido retorna `{valid:true, user_id, email, profile_id}`, el Gateway adjunta esos datos al request con `req.user` y continua al servicio destino con `next()`. Si el token es invalido o expirado retorna 401. Si la cookie no esta presente el Gateway retorna 401 directamente sin llamar al Identity Service.
 
 ---
-
-### Diagrama de Secuencia — Login y JWT
-
-![Diagrama de Secuencia Login y JWT](../00_assets/diagrams/04_diagramas/secuenciagestionperfil.drawio.png)
-
-----
-
 ### Diagrama de Secuencia — Consumo de video
 
-![Diagrama de Secuencia Login y JWT](../00_assets/diagrams/04_diagramas/secuenciaconsumoactualizado.drawio.png)
+![Diagrama de Secuencia Login y JWT](../00_assets/diagrams/04_diagramas/diagramasecuenciavideo.png)
 
 
 Este diagrama representa el flujo principal de consumo de video dentro de la plataforma, mostrando la interacción entre el navegador, el API Gateway, los microservicios y las bases de datos.
@@ -139,7 +133,7 @@ El sistema consulta el historial reciente de visualización del perfil y retorna
 ---
 ### Diagrama de Secuencia — Suscripciones y Pagos
 
-![Diagrama de Secuencia Suscipciones y Pagos](../00_assets/diagrams/04_diagramas/secuenciapagosactualizado.drawio.png)
+![Diagrama de Secuencia Suscipciones y Pagos](../00_assets/diagrams/04_diagramas/diagramasecuencia_sucripciones2.png)
 
 
 Este diagrama modela la interaccion temporal entre siete participantes: Usuario, API Gateway, Subscription Service, FX Service, Redis, DB Subscription y Notification Service, cubriendo el ciclo de vida completo de una suscripcion.
@@ -158,7 +152,7 @@ En la quinta seccion el usuario cancela su suscripcion. El Gateway llama a `gRPC
 
 ### Diagrama de Secuencia — Notificaciones por correo
 
-![Diagrama de Secuencia Notificaciones](../00_assets/diagrams/04_diagramas/noticorreoactualizado.drawio.png)
+![Diagrama de Secuencia Notificaciones](../00_assets/diagrams/04_diagramas/diagramasecuencia_noti.drawio.png)
 
 Este diagrama muestra la interaccion temporal entre siete participantes: Identity Service, Subscription Service, Catalog Service, Redis, Notification Worker, SMTP y Usuario destinatario, cubriendo los cuatro tipos de notificacion del sistema.
 
@@ -176,7 +170,7 @@ En todos los flujos, si SMTP no esta configurado o `aiosmtplib` no esta instalad
 
 ### Diagrama de Secuencia — Flujo de FX-Service + Redis Cache
 
-![Diagrama de Secuencia FX](../00_assets/diagrams/04_diagramas/secuenciaflujofxactualizado.drawio.png)
+![Diagrama de Secuencia FX](../00_assets/diagrams/04_diagramas/diagramasecuenciafx.png)
 
 
 Este diagrama muestra la interaccion temporal entre cinco participantes: Subscription Service, FX Service, Redis Cache, provider.py y API Frankfurter, cubriendo los tres caminos posibles del flujo de consulta de tipo de cambio.
@@ -197,7 +191,7 @@ En la sexta seccion el FX Service guarda el resultado con `guardarEnCache(fx:rat
 
 ### Diagrama de Secuencia — Publicacion de Contenido y Notificaciones
 
-![Diagrama de Secuencia — Publicacion de Contenido y Notificaciones](../00_assets/diagrams/04_diagramas/secuenciapublicacionactualizado.drawio.png)
+![Diagrama de Secuencia — Publicacion de Contenido y Notificaciones](../00_assets/diagrams/04_diagramas/diagramasecuencia_publicacion.drawio.png)
 
 
 En la primera seccion el administrador crea contenido nuevo desde el panel enviando tipo, titulo, overview, poster, generos como JSONB, cast como JSONB y episodios como JSONB. El Gateway llama a `gRPC CreateContent` al Catalog Service, que persiste el registro con `sp_upsert_content` en DB Catalog. El trigger `trg_catalog_updated_at` actualiza `updated_at=NOW()` automaticamente y el servicio retorna el `content_id` UUID del nuevo contenido.
@@ -242,4 +236,3 @@ En el segundo flujo el administrador solicita ver el log completo de auditoria. 
 En el tercer flujo el administrador aplica filtros por tabla afectada, tipo de operacion y rango de fechas. El panel envia los parametros al Gateway, que los propaga al servicio. El servicio ejecuta la consulta filtrada sobre la tabla de auditoria y retorna unicamente los registros que coinciden con los criterios. La vista del panel se actualiza con el resultado filtrado.
 
 En el cuarto flujo el administrador solicita descargar el reporte en formato CSV o PDF. El panel envia la solicitud con los filtros activos al Gateway, que recopila los registros de todos los servicios via `gRPC ListAuditLogs` y genera el archivo directamente en el Gateway. El archivo resultante es retornado al navegador del administrador, que inicia la descarga automaticamente.
-
