@@ -1,34 +1,32 @@
 # Casos de Uso
 
 ## Core
+Quetxal TV es una plataforma de streaming de video bajo demanda diseñada para usuarios que buscan entretenimiento digital personalizado y para los equipos de QUETZALtv que necesitan gestionar ese contenido de forma eficiente. Resuelve la fragmentación del contenido familiar al permitir múltiples perfiles independientes dentro de una sola cuenta, con historial y preferencias propias para cada uno, mientras que para el equipo de la platraforma ayuda a centralizar la publicación, edición y control del catálogo con trazabilidad automática de cada cambio. Su valor está en conectar ambos mundos de forma transparente: el usuario disfruta contenido de forma continua, retomando exactamente donde lo dejó y viendo precios en su moneda local, mientras el administrador mantiene control total sobre qué se publica, cuándo y con qué historial de modificaciones.
+
 
 ![Diagrama Core](../00_assets/diagrams/02_casos_de_uso/alto_nivel/cud_core.png)
 
 ### Primera Descomposición
 
-![Primera Descomposición](../00_assets/diagrams/02_casos_de_uso/primera_composicion/primeradescomposicion.png)
+![alt text](../00_assets/diagrams/02_casos_de_uso/alto_nivel/CUaltonivel.png)
+
 
 
 ## Stakeholders
 
-| Stakeholder | Descripción | Responsabilidades |
-| :--- | :--- | :--- |
-| Usuario | Usuario final que consume contenido multimedia en la plataforma. | Proveer y validar requerimientos de interacción con el sistema. Validar flujos de registro, login, selección de perfil, búsqueda de contenido y reproducción. |
-| Perfil (Usuario autenticado) | Representación de un usuario dentro de una cuenta con historial y preferencias propias. | Validar que el historial, progreso de reproducción y calificaciones se mantengan aislados por perfil. Confirmar flujos de reanudación de contenido. |
-| Administrador de la Plataforma | Responsable de la gestión operativa del catálogo y los planes de suscripción. | Proporcionar y validar requerimientos relacionados con la administración del catálogo, carga de contenido, gestión de planes y precios base. |
-| Proveedor FX Externo | Servicio externo que provee los tipos de cambio de divisas (Frankfurter API). | Proveer la interfaz de consulta de tasas de cambio. Definir los límites de uso y disponibilidad del servicio para dimensionar la política de caché con Redis. |
-| Servidor SMTP | Servicio externo de correo electrónico utilizado para el envío de notificaciones. | Proveer entorno de pruebas (Mailhog en local). Definir credenciales y configuración SMTP para el entorno de producción en GCP. |
-| Administrador de Base de Datos | Responsable del diseño, acceso y objetos programables de cada base de datos por microservicio. | Diseñar y validar esquemas, procedimientos almacenados, vistas, funciones y triggers de cada servicio con persistencia. |
-| Administrador de Infraestructura | Responsable del entorno de contenedores y despliegue en la nube. | Apoyo en la configuración de Docker, Docker Compose local y cloud, despliegue en Google Cloud Platform y gestión de variables de entorno. |
-| Equipo de Desarrollo | Integrantes del proyecto responsables de implementar los microservicios. | Implementar los servicios en TypeScript, Go y Python respetando los contratos gRPC, las políticas de Git y los estándares de documentación. |
+| # | Stakeholder | Tipo | Rol en el sistema |
+|---|-------------|------|-------------------|
+| 1 | **Usuario** | Actor primario | Consume el servicio: gestiona su cuenta, perfiles, suscripción, explora contenido y consulta precios en su moneda local |
+| 2 | **Administrador** | Actor primario | Opera la plataforma: gestiona el catálogo de contenido y administra la auditoría y reportes del sistema |
+| 3 | **Frankfurter API** | Actor externo | Proveedor externo de tasas de cambio en tiempo real consumido por el FX-Service |
+| 4 | **Google Cloud Storage** | Actor externo | Almacena y sirve los archivos multimedia (videos y portadas) del catálogo de contenido |
+| 5 | **Servicio SMTP** | Actor externo | Infraestructura de correo electrónico que ejecuta el envío físico de las notificaciones generadas por la plataforma |
+| 6 | **Kubernetes** | Actor de infraestructura | Orquesta y monitorea el ciclo de vida de los contenedores en el entorno de producción (rama `release`) |
+| 7 | **GitHub Actions** | Actor de infraestructura | Automatiza el pipeline de CI/CD: ejecuta pruebas, construye imágenes y gestiona el despliegue continuo en GCP |
 
 
 
 
-##  Diagrama de alto nivel
-Este diagrama presenta una vista general del sistema Quetxal TV, mostrando los ocho módulos funcionales que lo componen y los cuatro actores que interactúan con él: el Usuario, el Perfil autenticado, la API Externa FX y el Servidor SMTP. Las relaciones «include» señalan dependencias obligatorias entre casos de uso, mientras que las «extend» representan comportamientos opcionales que se activan bajo ciertas condiciones, como el envío de notificaciones por correo al registrarse o suscribirse a un plan.
-
-![Diagrama de alto nivel](../00_assets/diagrams/02_casos_de_uso/alto_nivel/CUaltonivel.png)
 
 --------
 
@@ -36,7 +34,7 @@ Este diagrama presenta una vista general del sistema Quetxal TV, mostrando los o
 
 ### Módulo 1 — Autenticación y Sesión
 
-![CDU Reservar Boletos](../00_assets/diagrams/02_casos_de_uso/cdu/CDUautenticacion.png)
+![docs/00_assets/diagrams/02_casos_de_uso/cdu/cdu_auth.jpg](../00_assets/diagrams/02_casos_de_uso/cdu/cdu_auth.jpg)
 
 
 | Nombre        | Autenticación y Sesión |
@@ -71,7 +69,7 @@ Este diagrama presenta una vista general del sistema Quetxal TV, mostrando los o
 | **Flujo de Excepción** | Si el Identity Service no está disponible, el API Gateway retorna 503: "Identity Service unavailable". Aplica a todos los flujos del módulo. |
 
 
-### Módulo 2 - Gestión de Perfiles
+### Módulo 2 - Gestión Cuentas y Perfiles
 
 ![CDU Gestión de Perfiles](../00_assets/diagrams/02_casos_de_uso/cdu/modulogestion.png)
 
@@ -103,7 +101,7 @@ Este diagrama presenta una vista general del sistema Quetxal TV, mostrando los o
 | **Flujo de Excepción** | Si el Identity Service no está disponible, el API Gateway retorna 503: "Identity Service unavailable". Aplica a todos los flujos del módulo. | 
 
 
-### Módulo 3 — Catálogo y Búsqueda
+### Módulo 3 — Explorar y Consumir Contenido
 
 ![CDU Catalogo y busqueda](../00_assets/diagrams/02_casos_de_uso/cdu/catalogobusqueda.png)
 
@@ -134,7 +132,7 @@ Este diagrama presenta una vista general del sistema Quetxal TV, mostrando los o
 | **Flujo de Excepción** | Si el Catalog Service no está disponible, el API Gateway retorna 503: Catalog Service unavailable. Aplica a todos los flujos del módulo. |
 
 
-### Modulo 4 Planes y Suscripciones
+### Modulo 4 Suscribirse y Gestionar Planes
 
 ![CDU Planes y Suscripciones](../00_assets/diagrams/02_casos_de_uso/cdu/planesysuscripciones.png)
 
@@ -166,7 +164,7 @@ Este diagrama presenta una vista general del sistema Quetxal TV, mostrando los o
 | **Flujo Alternativo** | Si el Notification Service falla al publicar el evento en Redis, el sistema registra el warning en logs pero no interrumpe el flujo principal. |
 | **Flujo de Excepción** | Si el Subscription Service no está disponible, el API Gateway retorna 503: Service unavailable. Aplica a todos los flujos del módulo. |
 
-### Modulo 5 FX-Service con Redis Cache
+### Modulo 5 Consultar Tipo de Cambio
 
 ![CDU FX-Service](../00_assets/diagrams/02_casos_de_uso/cdu/fxservice.png)
 
@@ -199,7 +197,7 @@ Este diagrama presenta una vista general del sistema Quetxal TV, mostrando los o
 | **Flujo de Excepción** | Si Redis no está disponible al intentar guardar la tasa, el sistema registra un warning en logs pero no interrumpe el flujo y retorna la tasa igualmente. |
 
 
-### Modulo 6 Calificaciones
+### Modulo 6 Calificar Contenido
 
 ![CDU Calificaciones](../00_assets/diagrams/02_casos_de_uso/cdu/calificaciones.png)
 
@@ -229,32 +227,11 @@ Este diagrama presenta una vista general del sistema Quetxal TV, mostrando los o
 | **Flujo de Excepción** | Si el Engagement Service no está disponible, el API Gateway retorna 503: Service unavailable. Aplica a todos los flujos del módulo. |
 
 
-### Modulo 7 Historial de Reproduccion
+### Modulo 7 Consultar Historial de Reproduccion
 
 ![CDU Historial de Reproduccion](../00_assets/diagrams/02_casos_de_uso/cdu/calificaciones.png)
 
-| Nombre        | Historial de Reproduccion |
-| :------------ | :------------------------ |
-| **Actores**   | Perfil (autenticado) |
-| **Propósito** | Permitir al perfil registrar su progreso de visualización por contenido, consultar su historial reciente y reanudar la reproducción desde el último punto guardado, almacenando temporada, episodio y minuto exacto para series. |
-| **Resumen**   | El caso de uso inicia cuando el perfil reproduce contenido. El sistema llama a `SaveProgress` vía gRPC con `profile_id`, `content_id`, `season_number`, `episode_number` y `minute`. Para películas `season_number` y `episode_number` se envían en 0. El procedimiento `save_watch_progress` inserta o actualiza el registro. El perfil puede consultar su historial reciente mediante `GetRecentHistory`, que consulta la vista `vw_recent_profile_history` con un límite configurable. Al seleccionar un contenido para reanudar, `ResumeContent` busca el último progreso y retorna el punto exacto para iniciar la reproducción desde donde se dejó. |
 
-**Curso Normal de Eventos**
-
-| \#  | Acción del Actor | Respuesta del Sistema |
-| :-- | :--------------- | :-------------------- |
-| 1   | El perfil reproduce contenido y el sistema registra el progreso. | El sistema recibe `SaveProgress(profile_id, content_id, season, episode, minute)` vía gRPC y valida que `profile_id` y `content_id` no estén vacíos. |
-| 2   |  | El sistema detecta el tipo de contenido: si `season=0` y `episode=0` es película, si tienen valores reales es serie. Ejecuta `save_watch_progress` para insertar o actualizar el registro. |
-| 3   |  | El sistema retorna `success=True` con mensaje de confirmación. |
-| 4   | El perfil accede a la sección continuar viendo. | El sistema llama a `GetRecentHistory(profile_id, limit)`, consulta `vw_recent_profile_history` y aplica el límite configurado. |
-| 5   |  | El sistema retorna la lista de `HistoryItem` con `content_id`, `season_number`, `episode_number`, `minute` y `updated_at` ordenados por más reciente. |
-| 6   | El perfil selecciona un contenido para reanudar. | El sistema llama a `ResumeContent(profile_id, content_id)` y busca el último progreso registrado. |
-| 7   |  | El s
-
-
-### Modulo 8 Historial de Reproduccion
-
-![CDU Historial de Reproduccion](../00_assets/diagrams/02_casos_de_uso/cdu/historialproduccion.png)
 
 | Nombre        | Historial de Reproduccion |
 | :------------ | :------------------------ |
@@ -284,7 +261,7 @@ Este diagrama presenta una vista general del sistema Quetxal TV, mostrando los o
 | **Flujo de Excepción** | Si el Engagement Service no está disponible, el API Gateway retorna 503: Service unavailable. Aplica a todos los flujos del módulo. |
 
 
-### Modulo 8 Notificaciones por Correo
+###  Notificaciones por Correo
 
 ![CDU Notificaciones](../00_assets/diagrams/02_casos_de_uso/cdu/notificaciones.png)
 
@@ -314,3 +291,136 @@ Este diagrama presenta una vista general del sistema Quetxal TV, mostrando los o
 | **Flujo Alternativo** | Si el envío SMTP falla, el sistema registra la excepción en logs y continúa procesando el siguiente evento de la cola sin reintentar. |
 | **Flujo Alternativo** | Si el worker encuentra un error al procesar un evento, registra la excepción y espera 2 segundos antes de continuar con el siguiente. |
 | **Flujo de Excepción** | Si Redis no está disponible al publicar el evento, el servicio productor (Identity o Subscription) registra un warning en logs pero no interrumpe el flujo principal de su operación. |
+
+### Acceder al Panel de Administración
+
+![alt text](../00_assets/diagrams/02_casos_de_uso/cdu/cdu-panel-admin.jpg)
+
+| Campo | Detalle |
+| :------------ | :------------------------------------------------------------------------------------- |
+| **Nombre** | Acceder al Panel de Administración |
+| **Actores** | Administrador |
+| **Propósito** | Garantizar que únicamente usuarios con rol `admin` puedan acceder al panel de administración de Quetxal TV, validando credenciales y el claim de rol en el JWT antes de exponer cualquier módulo administrativo. |
+| **Resumen** | El caso de uso inicia cuando un usuario intenta acceder a la ruta `/admin`. El sistema verifica si existe una sesión activa con claim `role = admin` en el JWT. Si no existe, redirige a `AdminLoginPage` donde el administrador ingresa sus credenciales. El API Gateway valida el token y el claim de rol mediante el middleware `admin.middleware.ts`. Si la validación es exitosa, el administrador accede al panel y puede navegar hacia el módulo de gestión de catálogo o el módulo de auditoría y reportes. Finaliza cuando el administrador tiene acceso activo al panel o cuando la sesión es rechazada. |
+
+#### Curso Normal de Eventos
+
+| \# | Acción del Actor | Respuesta del Sistema |
+| :-- | :--------------- | :-------------------- |
+| 1 | El administrador intenta acceder a la ruta `/admin`. | El sistema verifica si existe una cookie con JWT válido en la solicitud. |
+| 2 | | Si no existe sesión activa, el sistema redirige al administrador a `AdminLoginPage`. |
+| 3 | El administrador ingresa su correo y contraseña en `AdminLoginPage`. | El sistema valida las credenciales contra el `identity-service` vía gRPC. |
+| 4 | | El sistema verifica que el JWT generado contenga el claim `role = admin`. |
+| 5 | | El `admin.middleware.ts` en el API Gateway intercepta la solicitud y valida el claim `role`. |
+| 6 | | El sistema concede acceso al panel y renderiza la interfaz de administración. |
+| 7 | El administrador selecciona el módulo de gestión de catálogo. | El sistema navega al módulo de gestión de catálogo de contenido. |
+| 8 | El administrador selecciona el módulo de auditoría y reportes. | El sistema navega al módulo de visualización del log transaccional. |
+
+#### Flujos Alternativos y de Excepción
+
+| Tipo | Descripción |
+| :--- | :---------- |
+| **Flujo Alternativo** | Si el administrador ya tiene una sesión activa con `role = admin`, el sistema omite la pantalla de login y concede acceso directamente al panel. |
+| **Flujo Alternativo** | Si las credenciales son incorrectas, el sistema retorna 401 y muestra mensaje de error sin revelar cuál campo es incorrecto. |
+| **Flujo de Excepción** | Si el JWT existe pero el claim `role` no es `admin`, el `admin.middleware.ts` retorna 403: "Forbidden" y bloquea el acceso al panel. |
+| **Flujo de Excepción** | Si el token en la cookie es inválido o expirado, el API Gateway retorna 401: "Invalid or expired token". |
+| **Flujo de Excepción** | Si el `identity-service` no está disponible, el API Gateway retorna 503: "Identity Service unavailable". |
+
+### Gestionar Catálogo de Contenido
+
+![alt text](../00_assets/diagrams/02_casos_de_uso/cdu/cdu-gestion-catalogo.jpg)
+
+| Campo | Detalle |
+| :------------ | :------------------------------------------------------------------------------------- |
+| **Nombre** | Gestionar Catálogo de Contenido |
+| **Actores** | Administrador |
+| **Propósito** | Permitir al administrador crear, editar y eliminar contenido multimedia del catálogo de Quetxal TV, incluyendo la carga de archivos a Google Cloud Storage, la generación de URLs de acceso y el registro automático de cada operación en la tabla de auditoría. |
+| **Resumen** | El caso de uso inicia cuando el administrador accede al módulo de gestión de catálogo dentro del panel de administración. El administrador puede crear nuevo contenido cargando metadatos y archivos multimedia, los cuales se almacenan en GCS y retornan URLs firmadas para consumo del frontend. Puede también editar metadatos existentes o eliminar títulos del catálogo. Cada operación de escritura dispara automáticamente el trigger de auditoría. Opcionalmente, al crear o editar contenido, el administrador puede calendarizar la fecha exacta de estreno. Finaliza cuando la operación sobre el catálogo se completa y los cambios quedan persistidos y auditados. |
+
+#### Curso Normal de Eventos
+
+| \# | Acción del Actor | Respuesta del Sistema |
+| :-- | :--------------- | :-------------------- |
+| 1 | El administrador accede al módulo de gestión de catálogo. | El sistema renderiza el listado actual de contenidos del catálogo. |
+| 2 | El administrador selecciona crear nuevo contenido e ingresa título, categoría, descripción y archivos (video y portada). | El sistema valida los campos obligatorios y el formato de los archivos. |
+| 3 | | El sistema carga los archivos al bucket de Google Cloud Storage (`media_store.go`). |
+| 4 | | El sistema genera URLs públicas o firmadas de GCS para los archivos cargados. |
+| 5 | | El sistema persiste el registro del contenido en la base de datos del `catalog-service` incluyendo las URLs de GCS. |
+| 6 | | El trigger de auditoría registra automáticamente el INSERT con usuario responsable, timestamp y estado nuevo. |
+| 7 | El administrador selecciona un contenido existente y modifica sus metadatos. | El sistema actualiza el registro en base de datos. El trigger registra el UPDATE con estado anterior y nuevo. |
+| 8 | El administrador define una fecha de estreno para el contenido. | El sistema almacena el campo `release_date`. El contenido solo será visible en el catálogo del usuario cuando `release_date <= NOW()`. |
+| 9 | El administrador elimina un título del catálogo. | El sistema elimina el registro de base de datos y los archivos asociados en GCS. El trigger registra la operación en auditoría. |
+
+#### Flujos Alternativos y de Excepción
+
+| Tipo | Descripción |
+| :--- | :---------- |
+| **Flujo Alternativo** | Si el administrador no adjunta archivo de video o portada al crear contenido, el sistema acepta el registro solo con la URL de GCS que ya exista, o lo rechaza si el campo es obligatorio. |
+| **Flujo Alternativo** | Si el administrador define una `release_date` futura, el contenido se crea pero no aparece en el catálogo del usuario hasta que se alcance esa fecha. |
+| **Flujo de Excepción** | Si la carga del archivo a GCS falla, el sistema retorna error, no persiste el registro en base de datos y no dispara el trigger de auditoría. |
+| **Flujo de Excepción** | Si el `catalog-service` no está disponible, el API Gateway retorna 503: "Catalog Service unavailable". |
+| **Flujo de Excepción** | Si el administrador intenta eliminar un contenido que no existe, el sistema retorna 404: "Content not found". |
+
+### Administrar Reportes de Auditoría
+
+![alt text](../00_assets/diagrams/02_casos_de_uso/cdu/cdu_admin_reporte.jpg)
+| Campo | Detalle |
+| :------------ | :------------------------------------------------------------------------------------- |
+| **Nombre** | Administrar Reportes de Auditoría |
+| **Actores** | Administrador |
+| **Propósito** | Permitir al administrador visualizar el log transaccional completo de la tabla de auditoría, aplicar filtros sobre los registros y descargar reportes formateados en `.csv` o `.pdf` para trazabilidad y control del sistema. |
+| **Resumen** | El caso de uso inicia cuando el administrador accede al módulo de auditoría dentro del panel de administración. El sistema consulta la tabla de auditoría y presenta el log transaccional con información de usuario responsable, timestamp, tabla afectada, estado anterior y nuevo. El administrador puede filtrar los registros por rango de fecha, tabla o usuario. Opcionalmente, puede descargar el reporte completo o filtrado en formato `.csv` o `.pdf`. Finaliza cuando el administrador ha consultado o descargado la información requerida. |
+
+#### Curso Normal de Eventos
+
+| \# | Acción del Actor | Respuesta del Sistema |
+| :-- | :--------------- | :-------------------- |
+| 1 | El administrador accede al módulo de auditoría y reportes. | El sistema consulta la tabla de auditoría y renderiza el log transaccional ordenado por timestamp descendente. |
+| 2 | | El sistema muestra para cada registro: usuario responsable, timestamp exacto, tabla afectada, estado anterior (`OLD`) y estado nuevo (`NEW`). |
+| 3 | El administrador aplica filtros por rango de fecha, tabla afectada o usuario responsable. | El sistema filtra los registros según los criterios seleccionados y actualiza la vista del log. |
+| 4 | El administrador selecciona descargar el reporte en `.csv`. | El sistema genera un archivo `.csv` bien ordenado con los registros visibles y lo descarga en el navegador. |
+| 5 | El administrador selecciona descargar el reporte en `.pdf`. | El sistema genera un archivo `.pdf` formateado con los registros visibles y lo descarga en el navegador. |
+
+#### Flujos Alternativos y de Excepción
+
+| Tipo | Descripción |
+| :--- | :---------- |
+| **Flujo Alternativo** | Si no existen registros en la tabla de auditoría, el sistema muestra el log vacío con mensaje informativo y deshabilita los botones de descarga. |
+| **Flujo Alternativo** | Si los filtros aplicados no retornan resultados, el sistema muestra tabla vacía con mensaje "No se encontraron registros con los filtros seleccionados". |
+| **Flujo de Excepción** | Si la generación del archivo `.csv` o `.pdf` falla en el servidor, el sistema retorna 500 y muestra mensaje de error al administrador sin interrumpir la vista del log. |
+| **Flujo de Excepción** | Si la base de datos de auditoría no está disponible, el sistema retorna 503 y muestra mensaje: "No es posible consultar el log de auditoría en este momento". |
+
+### Despliegue y Gestión de Contenedores
+
+| Campo | Detalle |
+| :------------ | :------------------------------------------------------------------------------------- |
+| **Nombre** | Despliegue y Gestión de Contenedores |
+| **Actores** | GitHub Actions, Kubernetes |
+| **Propósito** | Automatizar el ciclo completo de integración, empaquetado y despliegue de los microservicios de Quetxal TV mediante un pipeline CI/CD con cortocircuito crítico, garantizando disponibilidad continua en producción mediante estrategias de RollingUpdate, Rollback automático y monitoreo de salud con Readiness y Liveness Probes. |
+| **Resumen** | El caso de uso inicia cuando se realiza un push o merge a las ramas `develop` o `release`. GitHub Actions ejecuta el pipeline validando pruebas unitarias con cobertura mínima del 75% antes de permitir cualquier empaquetado. Si las pruebas pasan, construye y publica las imágenes Docker en el registro privado. Según la rama impactada, despliega en Google Compute Engine (`develop`) o en Google Kubernetes Engine (`release`). En el despliegue a GKE aplica obligatoriamente la estrategia RollingUpdate y genera el tag semántico de versión. Kubernetes monitorea continuamente la salud de cada contenedor mediante Readiness y Liveness Probes. Si los pods fallan en su inicialización, el pipeline ejecuta Rollback automático. Finaliza cuando todos los pods están en estado `Running` y el tráfico fluye correctamente a través del Ingress. |
+
+#### Curso Normal de Eventos
+
+| \# | Acción del Actor | Respuesta del Sistema |
+| :-- | :--------------- | :-------------------- |
+| 1 | Se realiza push o merge a rama `develop` o `release`. | GitHub Actions detecta el evento y dispara el pipeline `deploy-develop.yml`. |
+| 2 | | El pipeline ejecuta las pruebas unitarias del backend políglota (Go, TypeScript, Python). |
+| 3 | | El pipeline valida que la cobertura de código sea igual o mayor al 75% sobre el total de endpoints. |
+| 4 | | El pipeline ejecuta el backup programado de todas las bases de datos operacionales (excluye Redis). |
+| 5 | | El pipeline construye las imágenes Docker de frontend y backend y las publica en el registro privado de imágenes. |
+| 6 | Si la rama impactada es `develop`. | El pipeline despliega automáticamente la arquitectura en las VMs de Google Compute Engine. |
+| 7 | Si la rama impactada es `release`. | El pipeline genera el tag semántico (`v2.x.0`) y despliega los pods en el clúster de GKE aplicando estrategia RollingUpdate. |
+| 8 | | Kubernetes aplica RollingUpdate sustituyendo gradualmente los pods de la versión anterior por los nuevos sin interrumpir el servicio. |
+| 9 | | Kubernetes evalúa el Readiness Probe de cada pod para determinar cuándo está listo para recibir tráfico del API Gateway. |
+| 10 | | Kubernetes evalúa el Liveness Probe de cada pod de forma continua para detectar procesos congelados o muertos. |
+
+#### Flujos Alternativos y de Excepción
+
+| Tipo | Descripción |
+| :--- | :---------- |
+| **Flujo Alternativo** | Si la cobertura cae por debajo del 75%, el pipeline aplica cortocircuito crítico, detiene la ejecución de inmediato y no progresa a las etapas de empaquetado ni despliegue. |
+| **Flujo Alternativo** | Si el backup de bases de datos falla, el pipeline detiene su ejecución antes del empaquetado para proteger la integridad de los datos. |
+| **Flujo de Excepción** | Si los nuevos pods entran en `CrashLoopBackOff` tras el despliegue en GKE, el pipeline ejecuta automáticamente `kubectl rollout undo` restaurando la última versión estable del release. |
+| **Flujo de Excepción** | Si el Liveness Probe de un pod retorna error de forma persistente, Kubernetes destruye el pod y aprovisiona una nueva instancia automáticamente. |
+| **Flujo de Excepción** | Si el Readiness Probe falla, Kubernetes no enruta tráfico hacia ese pod hasta que el probe retorne éxito, evitando que el API Gateway reciba errores. |
+| **Flujo de Excepción** | Queda estrictamente prohibido cualquier despliegue manual mediante CLI. Todo cambio estructural en el clúster debe realizarse exclusivamente a través del pipeline de CD. |
