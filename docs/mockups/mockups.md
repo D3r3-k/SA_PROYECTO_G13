@@ -153,7 +153,7 @@ Tabla de planes de suscripcion disponibles con nombre, precio en USD y estado ac
 Tabla paginada con el registro transaccional de la tabla de auditoria. Columnas: timestamp, tabla afectada, operacion (INSERT / UPDATE), usuario responsable, estado anterior y estado nuevo. Incluye filtros por rango de fecha y tipo de operacion.
 
 
-![Log Auditoria](mg/07_admin_auditoria.png)
+![Log Auditoria](img/07_admin_auditoria.png)
 
 ---
 
