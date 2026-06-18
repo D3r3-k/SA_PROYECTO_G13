@@ -1,0 +1,160 @@
+<mxfile host="65bd71144e">
+    <diagram id="cicd-pipeline-quetxal" name="Pipeline CI/CD">
+        <mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="1300" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+
+                <!-- TÍTULO -->
+                <mxCell id="title" value="Pipeline CI/CD — Quetxal TV (GitHub Actions)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=18;fontStyle=1;" vertex="1" parent="1">
+                    <mxGeometry x="200" y="15" width="760" height="35" as="geometry"/>
+                </mxCell>
+
+                <!-- TRIGGER DEVELOP -->
+                <mxCell id="trig-dev" value="&lt;b&gt;Evento: push → develop&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=13;" vertex="1" parent="1">
+                    <mxGeometry x="60" y="65" width="220" height="45" as="geometry"/>
+                </mxCell>
+
+                <!-- TRIGGER RELEASE -->
+                <mxCell id="trig-rel" value="&lt;b&gt;Evento: push → release/*&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d6b656;fontSize=13;" vertex="1" parent="1">
+                    <mxGeometry x="880" y="65" width="220" height="45" as="geometry"/>
+                </mxCell>
+
+                <!-- JOB: CI CHECKS -->
+                <mxCell id="ci-job" value="&lt;b&gt;JOB: ci-checks&lt;/b&gt;&lt;hr size=&quot;1&quot; style=&quot;border-style:solid;&quot;&gt;&lt;ul&gt;&lt;li&gt;Build: web · api-gateway · identity-service (Node 20 — npm ci + npm run build)&lt;/li&gt;&lt;li&gt;Test: catalog-service — go test ./... (Go 1.22)&lt;/li&gt;&lt;li&gt;Compile: fx · subscription · notification · engagement · payment-gateway (Python 3.11 — pip install + compileall)&lt;/li&gt;&lt;/ul&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=top;align=left;" vertex="1" parent="1">
+                    <mxGeometry x="230" y="165" width="700" height="115" as="geometry"/>
+                </mxCell>
+
+                <!-- STOP CI FAIL -->
+                <mxCell id="stop-ci" value="&lt;b&gt;✗ PIPELINE DETENIDO&lt;/b&gt;&lt;br&gt;Fallo en CI — ningún cambio avanza&lt;br&gt;a empaquetado ni despliegue" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontColor=#000000;" vertex="1" parent="1">
+                    <mxGeometry x="1010" y="190" width="230" height="70" as="geometry"/>
+                </mxCell>
+
+                <!-- Arrow trig-dev → ci-job -->
+                <mxCell id="e-tdev-ci" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="trig-dev" target="ci-job" parent="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+
+                <!-- Arrow trig-rel → ci-job -->
+                <mxCell id="e-trel-ci" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="trig-rel" target="ci-job" parent="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+
+                <!-- Arrow ci-job → stop (FAIL) -->
+                <mxCell id="e-ci-stop" value="FAIL" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#b85450;fontColor=#b85450;fontStyle=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" edge="1" source="ci-job" target="stop-ci" parent="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+
+                <!-- JOB: BACKUP CLOUD SQL -->
+                <mxCell id="backup-job" value="&lt;b&gt;JOB: backup-cloud-sql&lt;/b&gt; (needs: ci-checks)&lt;hr size=&quot;1&quot; style=&quot;border-style:solid;&quot;&gt;&lt;ul&gt;&lt;li&gt;Autenticar a GCP con Service Account&lt;/li&gt;&lt;li&gt;gcloud sql export → gs://bucket/backups/{run-id}/ (SQL dump)&lt;/li&gt;&lt;li&gt;Bases exportadas: identity_db · subscription_db · catalog_db · engagement_db&lt;/li&gt;&lt;/ul&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;verticalAlign=top;align=left;" vertex="1" parent="1">
+                    <mxGeometry x="280" y="345" width="600" height="105" as="geometry"/>
+                </mxCell>
+
+                <!-- Arrow ci-job → backup (PASS) -->
+                <mxCell id="e-ci-backup" value="PASS" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#82b366;fontColor=#82b366;fontStyle=1;" edge="1" source="ci-job" target="backup-job" parent="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+
+                <!-- JOB: BUILD AND PUSH -->
+                <mxCell id="build-job" value="&lt;b&gt;JOB: build-and-push&lt;/b&gt; (needs: backup-cloud-sql) — matrix strategy × 9 imágenes&lt;hr size=&quot;1&quot; style=&quot;border-style:solid;&quot;&gt;&lt;ul&gt;&lt;li&gt;Docker build: web · api-gateway · identity · catalog · subscription · fx · notification · engagement · payment-gateway&lt;/li&gt;&lt;li&gt;Push → GHCR (ghcr.io/d3r3-k/sa_proyecto_g13)&lt;/li&gt;&lt;li&gt;Tags: :latest + :{git-sha} · fail-fast: true&lt;/li&gt;&lt;/ul&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;verticalAlign=top;align=left;" vertex="1" parent="1">
+                    <mxGeometry x="280" y="510" width="600" height="105" as="geometry"/>
+                </mxCell>
+
+                <!-- Arrow backup → build -->
+                <mxCell id="e-backup-build" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="backup-job" target="build-job" parent="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+
+                <!-- BIFURCACION LABEL -->
+                <mxCell id="bif-label" value="Bifurcación por rama impactada" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontStyle=2;fontSize=11;fontColor=#666666;" vertex="1" parent="1">
+                    <mxGeometry x="330" y="628" width="500" height="20" as="geometry"/>
+                </mxCell>
+
+                <!-- DECISION DIAMOND -->
+                <mxCell id="branch-dec" value="Rama?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+                    <mxGeometry x="520" y="648" width="120" height="80" as="geometry"/>
+                </mxCell>
+
+                <!-- Arrow build → branch -->
+                <mxCell id="e-build-dec" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="build-job" target="branch-dec" parent="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+
+                <!-- ======= RAMA DEVELOP ======= -->
+
+                <!-- JOB: DEPLOY VMs -->
+                <mxCell id="deploy-vms" value="&lt;b&gt;JOB: deploy&lt;/b&gt; (needs: build-and-push)&lt;hr size=&quot;1&quot; style=&quot;border-style:solid;&quot;&gt;&lt;ul&gt;&lt;li&gt;Generar .env runtime (IPs Cloud SQL, Redis, VMs via gcloud)&lt;/li&gt;&lt;li&gt;Ejecutar migraciones DB Identity (01_extensions → 06_triggers)&lt;/li&gt;&lt;li&gt;docker compose pull + up -d → 3 VMs Compute Engine&lt;/li&gt;&lt;li&gt;&lt;i&gt;VM-frontend · VM-gateway · VM-services&lt;/i&gt;&lt;/li&gt;&lt;/ul&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=top;align=left;" vertex="1" parent="1">
+                    <mxGeometry x="30" y="820" width="370" height="130" as="geometry"/>
+                </mxCell>
+
+                <!-- Arrow branch → deploy-vms (develop) -->
+                <mxCell id="e-dec-vms" value="develop" style="edgeStyle=orthogonalEdgeStyle;exitX=0;exitY=0.5;exitDx=0;exitDy=0;strokeColor=#82b366;fontColor=#82b366;fontStyle=1;" edge="1" source="branch-dec" target="deploy-vms" parent="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+
+                <!-- SMOKE TEST DEVELOP -->
+                <mxCell id="smoke-dev" value="&lt;b&gt;JOB: smoke-test&lt;/b&gt; (needs: deploy)&lt;hr size=&quot;1&quot; style=&quot;border-style:solid;&quot;&gt;&lt;ul&gt;&lt;li&gt;TCP check puertos gRPC: 50051-50057&lt;/li&gt;&lt;li&gt;curl http://FRONTEND_PUBLIC_IP → HTTP 200&lt;/li&gt;&lt;/ul&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=top;align=left;" vertex="1" parent="1">
+                    <mxGeometry x="30" y="1020" width="370" height="90" as="geometry"/>
+                </mxCell>
+
+                <!-- Arrow deploy-vms → smoke-dev -->
+                <mxCell id="e-vms-smoke" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="deploy-vms" target="smoke-dev" parent="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+
+                <!-- OK DEVELOP -->
+                <mxCell id="ok-dev" value="✓ Develop desplegado en Compute Engine" style="ellipse;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;" vertex="1" parent="1">
+                    <mxGeometry x="55" y="1180" width="320" height="50" as="geometry"/>
+                </mxCell>
+
+                <!-- Arrow smoke-dev → ok-dev -->
+                <mxCell id="e-smoke-okdev" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="smoke-dev" target="ok-dev" parent="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+
+                <!-- ======= RAMA RELEASE ======= -->
+
+                <!-- JOB: DEPLOY GKE -->
+                <mxCell id="deploy-gke" value="&lt;b&gt;JOB: deploy-gke&lt;/b&gt; (needs: build-and-push)&lt;hr size=&quot;1&quot; style=&quot;border-style:solid;&quot;&gt;&lt;ul&gt;&lt;li&gt;Get GKE credentials (gke-gcloud-auth-plugin)&lt;/li&gt;&lt;li&gt;Generar ConfigMaps + Secrets (app-secrets · connection-secrets · gcs-sa · ghcr-pull)&lt;/li&gt;&lt;li&gt;kubectl apply: services/ · deployments/ · ingress.yml&lt;/li&gt;&lt;li&gt;kubectl rollout status --timeout=180s (9 deployments)&lt;/li&gt;&lt;/ul&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d6b656;verticalAlign=top;align=left;" vertex="1" parent="1">
+                    <mxGeometry x="760" y="820" width="400" height="130" as="geometry"/>
+                </mxCell>
+
+                <!-- Arrow branch → deploy-gke (release) -->
+                <mxCell id="e-dec-gke" value="release/*" style="edgeStyle=orthogonalEdgeStyle;exitX=1;exitY=0.5;exitDx=0;exitDy=0;strokeColor=#d6b656;fontColor=#d6b656;fontStyle=1;" edge="1" source="branch-dec" target="deploy-gke" parent="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+
+                <!-- ROLLBACK -->
+                <mxCell id="rollback" value="&lt;b&gt;ROLLBACK AUTOMÁTICO&lt;/b&gt;&lt;br&gt;kubectl rollout undo deployment/{name}&lt;br&gt;Namespace: quetxal-tv-prod&lt;br&gt;&lt;i&gt;Restaura versión estable anterior — pipeline exit 1&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontColor=#000000;" vertex="1" parent="1">
+                    <mxGeometry x="1220" y="850" width="270" height="80" as="geometry"/>
+                </mxCell>
+
+                <!-- Arrow deploy-gke → rollback (FAIL) -->
+                <mxCell id="e-gke-rollback" value="FAIL / CrashLoopBackOff" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#b85450;fontColor=#b85450;fontStyle=1;" edge="1" source="deploy-gke" target="rollback" parent="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+
+                <!-- SMOKE TEST RELEASE -->
+                <mxCell id="smoke-rel" value="&lt;b&gt;JOB: smoke-test&lt;/b&gt; (needs: deploy-gke)&lt;hr size=&quot;1&quot; style=&quot;border-style:solid;&quot;&gt;&lt;ul&gt;&lt;li&gt;curl http://INGRESS_IP — retry 20 × 15s&lt;/li&gt;&lt;li&gt;Valida acceso externo via Ingress Controller&lt;/li&gt;&lt;/ul&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d6b656;verticalAlign=top;align=left;" vertex="1" parent="1">
+                    <mxGeometry x="760" y="1020" width="400" height="90" as="geometry"/>
+                </mxCell>
+
+                <!-- Arrow deploy-gke → smoke-rel (PASS) -->
+                <mxCell id="e-gke-smoke" value="PASS" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#82b366;fontColor=#82b366;fontStyle=1;" edge="1" source="deploy-gke" target="smoke-rel" parent="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+
+                <!-- OK RELEASE -->
+                <mxCell id="ok-rel" value="✓ Release desplegado en GKE (quetxal-tv-prod)" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d6b656;fontStyle=1;" vertex="1" parent="1">
+                    <mxGeometry x="800" y="1180" width="320" height="50" as="geometry"/>
+                </mxCell>
+
+                <!-- Arrow smoke-rel → ok-rel -->
+                <mxCell id="e-smoke-okrel" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="smoke-rel" target="ok-rel" parent="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>
