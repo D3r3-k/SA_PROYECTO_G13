@@ -1,0 +1,212 @@
+name: Pruebas Unitarias e Integración
+
+on:
+  push:
+    branches: [pruebas_unitarios_integracion]
+  pull_request:
+    branches: [pruebas_unitarios_integracion]
+
+env:
+  PYTHON_VERSION: "3.11"
+  NODE_VERSION: "20"
+  GO_VERSION: "1.22"
+
+jobs:
+  # ─── payment-gateway-service ────────────────────────────────────────────────
+  test-payment-gateway:
+    name: "payment-gateway-service (Python)"
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/payment-gateway-service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Instalar dependencias de prueba
+        run: |
+          pip install --upgrade pip
+          pip install pytest pytest-asyncio>=0.21 pytest-cov grpcio python-dotenv
+      - name: Ejecutar pruebas
+        run: pytest tests/ --cov=src --cov-report=term-missing --cov-report=xml --cov-fail-under=75 -v
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-payment-gateway
+          path: services/payment-gateway-service/coverage.xml
+
+  # ─── fx-service ─────────────────────────────────────────────────────────────
+  test-fx-service:
+    name: "fx-service (Python)"
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/fx-service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Instalar dependencias de prueba
+        run: |
+          pip install --upgrade pip
+          pip install pytest pytest-asyncio>=0.21 pytest-cov grpcio "redis>=4.6.0" httpx python-dotenv
+      - name: Ejecutar pruebas
+        run: pytest tests/ --cov=src --cov-report=term-missing --cov-report=xml --cov-fail-under=75 -v
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-fx-service
+          path: services/fx-service/coverage.xml
+
+  # ─── engagement-service ─────────────────────────────────────────────────────
+  test-engagement-service:
+    name: "engagement-service (Python)"
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/engagement-service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Instalar dependencias de prueba
+        run: |
+          pip install --upgrade pip
+          pip install pytest pytest-asyncio>=0.21 pytest-cov grpcio psycopg2-binary python-dotenv protobuf
+      - name: Ejecutar pruebas
+        run: pytest tests/ --cov=src --cov-report=term-missing --cov-report=xml --cov-fail-under=75 -v
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-engagement-service
+          path: services/engagement-service/coverage.xml
+
+  # ─── subscription-service ───────────────────────────────────────────────────
+  test-subscription-service:
+    name: "subscription-service (Python)"
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/subscription-service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Instalar dependencias de prueba
+        run: |
+          pip install --upgrade pip
+          pip install pytest pytest-asyncio>=0.21 pytest-cov grpcio psycopg2-binary "redis>=5.0.0" python-dotenv
+      - name: Ejecutar pruebas
+        run: pytest tests/ --cov=src --cov-report=term-missing --cov-report=xml --cov-fail-under=75 -v
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-subscription-service
+          path: services/subscription-service/coverage.xml
+
+  # ─── notification-service ───────────────────────────────────────────────────
+  test-notification-service:
+    name: "notification-service (Python)"
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/notification-service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Instalar dependencias de prueba
+        run: |
+          pip install --upgrade pip
+          pip install pytest pytest-asyncio>=0.21 pytest-cov grpcio "redis>=5.0.0" aiosmtplib python-dotenv
+      - name: Ejecutar pruebas
+        run: pytest tests/ --cov=src --cov-report=term-missing --cov-report=xml --cov-fail-under=75 -v
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-notification-service
+          path: services/notification-service/coverage.xml
+
+  # ─── identity-service (TypeScript) ──────────────────────────────────────────
+  test-identity-service:
+    name: "identity-service (TypeScript)"
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/identity-service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: services/identity-service/package-lock.json
+      - name: Instalar dependencias
+        run: npm ci
+      - name: Ejecutar pruebas con cobertura
+        run: npm test -- --coverage --coverageThreshold='{"global":{"lines":75}}' --passWithNoTests
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-identity-service
+          path: services/identity-service/coverage/
+
+  # ─── api-gateway (TypeScript) ───────────────────────────────────────────────
+  test-api-gateway:
+    name: "api-gateway (TypeScript)"
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/api-gateway
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: apps/api-gateway/package-lock.json
+      - name: Instalar dependencias
+        run: npm ci
+      - name: Ejecutar pruebas con cobertura
+        run: npm test -- --coverage --coverageThreshold='{"global":{"lines":75}}' --passWithNoTests
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-api-gateway
+          path: apps/api-gateway/coverage/
+
+  # ─── catalog-service (Go) ───────────────────────────────────────────────────
+  test-catalog-service:
+    name: "catalog-service (Go)"
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/catalog-service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+          cache-dependency-path: services/catalog-service/go.sum
+      - name: Ejecutar pruebas
+        run: go test ./... -v -coverprofile=coverage.out -covermode=atomic
+      - name: Verificar cobertura >= 75%
+        run: |
+          COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//')
+          echo "Cobertura total: ${COVERAGE}%"
+          python3 -c "
+          pct = float('${COVERAGE}')
+          print(f'Cobertura: {pct}%')
+          exit(0 if pct >= 75 else 1)
+          "
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-catalog-service
+          path: services/catalog-service/coverage.out

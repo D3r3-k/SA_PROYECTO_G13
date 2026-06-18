@@ -68,3 +68,4 @@ La solucion utiliza un API Gateway como punto unico de entrada, comunicacion int
 - Redis cumple un rol clave como cache para tasas de cambio y como cola asincrona para notificaciones, evitando bloquear los flujos principales del sistema.
 - El API Gateway centraliza el acceso externo, la validacion de sesion y la traduccion de solicitudes HTTP a llamadas internas gRPC.
 - La documentacion y los diagramas permiten mantener trazabilidad entre requerimientos, arquitectura, despliegue, flujos y modelo de datos.
+
