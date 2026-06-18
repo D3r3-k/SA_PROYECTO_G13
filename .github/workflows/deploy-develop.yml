@@ -610,8 +610,8 @@ jobs:
           deploy_role "${VM_GATEWAY_NAME}" "gateway"
           deploy_role "${VM_FRONTEND_NAME}" "frontend"
 
-  tests:
-    name: Tests
+  validation:
+    name: Validación
     runs-on: ubuntu-latest
     environment: develop
     needs: deploy
