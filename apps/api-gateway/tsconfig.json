@@ -2,7 +2,7 @@
   "compilerOptions": {
     "target": "ES2022",
     "module": "CommonJS",
-    "types": ["node"],
+    "types": ["node", "jest"],
     "rootDir": "src",
     "outDir": "dist",
     "strict": true,
