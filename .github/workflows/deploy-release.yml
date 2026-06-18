@@ -5,6 +5,11 @@ on:
     branches:
       - 'release/*'
       - 'test/*'
+    paths-ignore:
+      - '**.md'
+      - 'LICENSE'
+      - '.gitignore'
+      - '.gitattributes'
   workflow_dispatch:
 
 permissions:
