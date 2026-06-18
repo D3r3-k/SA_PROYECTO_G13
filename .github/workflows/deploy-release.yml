@@ -4,12 +4,12 @@ on:
   push:
     branches:
       - 'release/*'
-    paths-ignore:
-      - '**.md'
-      - 'LICENSE'
-      - '.gitignore'
-      - '.gitattributes'
-      - 'docs/**'
+    # paths-ignore:
+    #   - '**.md'
+    #   - 'LICENSE'
+    #   - '.gitignore'
+    #   - '.gitattributes'
+    #   - 'docs/**'
   workflow_dispatch:
 
 permissions:
