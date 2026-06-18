@@ -13,7 +13,7 @@ Es el canal principal del sistema. El cliente web se comunica con el API Gateway
 | Llamada | Metodos gRPC |
 | :------ | :----------- |
 | Gateway → Identity Service | RegisterUser, Login, ValidateToken, CreateProfile, ListProfiles, SelectProfile, UpdateProfile, DeleteProfile, UpdateCredentials |
-| Gateway → Catalog Service | ListContent, SearchContent, GetContentDetail, SyncMinimumCatalog |
+| Gateway → Catalog Service | ListContent, SearchContent, GetContentDetail, CreateContent, DeleteContent, ListAuditLogs |
 | Gateway → Subscription Service | ListPlans, CreateSubscription, UpdateSubscription, CancelSubscription, ListUserSubscriptions, UpdatePlan |
 | Gateway → FX Service | GetRate |
 | Gateway → Payment Gateway Service | AuthorizePayment, Health |
