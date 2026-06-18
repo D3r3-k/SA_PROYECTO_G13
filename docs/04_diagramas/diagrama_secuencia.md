@@ -5,7 +5,7 @@
 
 ### Diagrama de Secuencia — Login y Validacion JWT
 
-![Diagrama de Secuencia General](../00_assets/diagrams/04_diagramas/diagrama_secuenciafull.png)
+![Diagrama de Secuencia General](../00_assets/diagrams/04_diagramas/secuencia/diagrama_secuenciafull.png)
 
 
 ### Diagrama de Secuencia Completo
@@ -84,7 +84,7 @@ Los microservicios registran automaticamente los cambios criticos a traves de tr
 
 ### Diagrama de Secuencia — Login y JWT
 
-![Diagrama de Secuencia Login y JWT](../00_assets/diagrams/04_diagramas/diagrama_secuencia_login.png)
+![Diagrama de Secuencia Login y JWT](../00_assets/diagrams/04_diagramas/secuencia/secuencialoginactualizado.drawio.png)
 
 Este diagrama muestra la interaccion temporal entre cinco participantes: Browser, API Gateway, Identity Service, DB Identity y Redis, cubriendo los tres flujos criticos de autenticacion del sistema.
 
@@ -97,7 +97,7 @@ En el flujo de validacion JWT, que ocurre en cada request a ruta protegida, el G
 ---
 ### Diagrama de Secuencia — Consumo de video
 
-![Diagrama de Secuencia Login y JWT](../00_assets/diagrams/04_diagramas/diagramasecuenciavideo.png)
+![Diagrama de Secuencia Login y JWT](../00_assets/diagrams/04_diagramas/secuencia/secuenciaconsumoactualizado.drawio.png)
 
 
 Este diagrama representa el flujo principal de consumo de video dentro de la plataforma, mostrando la interacción entre el navegador, el API Gateway, los microservicios y las bases de datos.
@@ -133,7 +133,7 @@ El sistema consulta el historial reciente de visualización del perfil y retorna
 ---
 ### Diagrama de Secuencia — Suscripciones y Pagos
 
-![Diagrama de Secuencia Suscipciones y Pagos](../00_assets/diagrams/04_diagramas/diagramasecuencia_sucripciones2.png)
+![Diagrama de Secuencia Suscipciones y Pagos](../00_assets/diagrams/04_diagramas/secuencia/secuenciapagosactualizado.drawio.png)
 
 
 Este diagrama modela la interaccion temporal entre siete participantes: Usuario, API Gateway, Subscription Service, FX Service, Redis, DB Subscription y Notification Service, cubriendo el ciclo de vida completo de una suscripcion.
@@ -152,7 +152,7 @@ En la quinta seccion el usuario cancela su suscripcion. El Gateway llama a `gRPC
 
 ### Diagrama de Secuencia — Notificaciones por correo
 
-![Diagrama de Secuencia Notificaciones](../00_assets/diagrams/04_diagramas/diagramasecuencia_noti.drawio.png)
+![Diagrama de Secuencia Notificaciones](../00_assets/diagrams/04_diagramas/secuencia/noticorreoactualizado.drawio.png)
 
 Este diagrama muestra la interaccion temporal entre siete participantes: Identity Service, Subscription Service, Catalog Service, Redis, Notification Worker, SMTP y Usuario destinatario, cubriendo los cuatro tipos de notificacion del sistema.
 
@@ -170,7 +170,7 @@ En todos los flujos, si SMTP no esta configurado o `aiosmtplib` no esta instalad
 
 ### Diagrama de Secuencia — Flujo de FX-Service + Redis Cache
 
-![Diagrama de Secuencia FX](../00_assets/diagrams/04_diagramas/diagramasecuenciafx.png)
+![Diagrama de Secuencia FX](../00_assets/diagrams/04_diagramas/secuencia/secuenciaflujofxactualizado.drawio.png)
 
 
 Este diagrama muestra la interaccion temporal entre cinco participantes: Subscription Service, FX Service, Redis Cache, provider.py y API Frankfurter, cubriendo los tres caminos posibles del flujo de consulta de tipo de cambio.
@@ -191,7 +191,7 @@ En la sexta seccion el FX Service guarda el resultado con `guardarEnCache(fx:rat
 
 ### Diagrama de Secuencia — Publicacion de Contenido y Notificaciones
 
-![Diagrama de Secuencia — Publicacion de Contenido y Notificaciones](../00_assets/diagrams/04_diagramas/diagramasecuencia_publicacion.drawio.png)
+![Diagrama de Secuencia — Publicacion de Contenido y Notificaciones](../00_assets/diagrams/04_diagramas/secuencia/secuenciapublicacionactualizado.drawio.png)
 
 
 En la primera seccion el administrador crea contenido nuevo desde el panel enviando tipo, titulo, overview, poster, generos como JSONB, cast como JSONB y episodios como JSONB. El Gateway llama a `gRPC CreateContent` al Catalog Service, que persiste el registro con `sp_upsert_content` en DB Catalog. El trigger `trg_catalog_updated_at` actualiza `updated_at=NOW()` automaticamente y el servicio retorna el `content_id` UUID del nuevo contenido.
@@ -206,7 +206,7 @@ En la cuarta seccion el worker envia el correo con `enviarCorreo(email, subject,
 
 ### Diagrama de Secuencia — Panel de Administracion [Fase 2]
 
-![Diagrama de Secuencia — Panel de Administracion [Fase 2]](../00_assets/diagrams/04_diagramas/paneladminf2.drawio.png)
+![Diagrama de Secuencia — Panel de Administracion [Fase 2]](../00_assets/diagrams/04_diagramas/secuencia/paneladminf2.drawio.png)
 
 
 Este diagrama muestra la interaccion temporal entre ocho participantes: Administrador, Panel Admin, API Gateway, Catalog Service, Subscription Service, GCS, DB Catalog y DB Subscription, cubriendo los cinco flujos del panel de administracion de Fase 2.
@@ -225,7 +225,7 @@ En el quinto flujo el administrador actualiza un plan de suscripcion. El Gateway
 
 ### Diagrama de Secuencia — Auditoria y Reportes [Fase 2]
 
-![Diagrama de Secuencia — Auditoria y Reportes [Fase 2]](../00_assets/diagrams/04_diagramas/auditoriaf2.drawio.png)
+![Diagrama de Secuencia — Auditoria y Reportes [Fase 2]](../00_assets/diagrams/04_diagramas/secuencia/auditoriaf2.drawio.png)
 
 Este diagrama muestra la interaccion temporal entre cinco participantes: Administrador, Panel Admin, API Gateway, Servicio Auditado y DB Auditoria, cubriendo los cuatro flujos de auditoria y reportes de Fase 2. El participante "Servicio Auditado" representa genericamente a todos los microservicios que poseen tablas de auditoria: Subscription Service con `subscription_audit`, Identity Service con `credential_audit`, Engagement Service con `rating_audit` y Catalog Service con `sync_audit`.
 

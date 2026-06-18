@@ -2,12 +2,12 @@
 
 # Diagrama de Actividades
 
-![Diagrama de Actividades General](../00_assets/diagrams/04_diagramas/diagrama_actividades_full.png)
+![Diagrama de Actividades General](../00_assets/diagrams/04_diagramas/actividades/diagrama_actividades_full.png)
 
 
 ### Diagrama de Actividades — Login y Validacion JWT
 
-![Diagrama de Actividades Login y JWT](../00_assets/diagrams/04_diagramas/loginjwt.png)
+![Diagrama de Actividades Login y JWT](../00_assets/diagrams/04_diagramas/actividades/actividadloginactualizado.drawio.png)
 
 
 Este diagrama modela los tres flujos de actividad del modulo de autenticacion distribuidos en cinco carriles: Usuario, API Gateway, Identity Service, DB Identity y Redis.
@@ -21,7 +21,7 @@ El tercer flujo cubre la validacion JWT en cada ruta protegida. El `authMiddlewa
 ----
 ### Diagrama de Actividades — Admin Panel
 
-![Diagrama de Actividades - Admin Panel](../00_assets/diagrams/04_diagramas/diagrama_actividadesadmin.png)
+![Diagrama de Actividades - Admin Panel](../00_assets/diagrams/04_diagramas/actividades/diagrama_actividadesadmin.png)
 
 Este diagrama modela el flujo completo del panel de administracion de Quetxal TV, distribuido en cinco carriles: Admin Browser, API Gateway, Subscription Service, Catalog Service y DB Subscription.
 
@@ -36,7 +36,7 @@ En la cuarta seccion el administrador cierra sesion. El frontend ejecuta `sessio
 ---
 ### Diagrama de Actividades — Consumo de video
 
-![Diagrama de Actividades Login y JWT](../00_assets/diagrams/04_diagramas/consumovideo.png)
+![Diagrama de Actividades Login y JWT](../00_assets/diagrams/04_diagramas/actividades/consumovideo.png)
 
 Este diagrama modela el flujo completo de un perfil autenticado interactuando con el contenido multimedia, distribuido en seis carriles: Perfil, API Gateway, Catalog Service, Engagement Service, DB Catalog y DB Engagement.
 
@@ -58,7 +58,7 @@ El flujo tiene seis secciones. En la primera el perfil navega el catalogo median
 
 ### Diagrama de Actividades — Suscripciones y Pagos
 
-![Diagrama de Actividades Login y JWT](../00_assets/diagrams/04_diagramas/actividades_suscripciones.png)
+![Diagrama de Actividades Login y JWT](../00_assets/diagrams/04_diagramas/actividades/suscripcionespagos.png)
 
 
 Este diagrama modela el flujo completo del ciclo de vida de una suscripcion en Quetxal TV, distribuido en siete carriles: Usuario, API Gateway, Subscription Service, FX Service, Redis, DB Subscription y Notification Service.
@@ -79,7 +79,7 @@ En la sexta seccion el usuario cancela su suscripcion. El Gateway llama a `gRPC 
 
 ### Diagrama de Actividades — Notificaciones por correo
 
-![Diagrama de Actividades Login y JWT](../00_assets/diagrams/04_diagramas/diagrama_actividades_noticorreo.drawio.png)
+![Diagrama de Actividades Login y JWT](../00_assets/diagrams/04_diagramas/actividades/diagrama_actividades_noticorreo.draw.png)
 
 Este diagrama modela el flujo de envio de notificaciones automaticas por correo electronico, distribuido en seis carriles: Servicio Productor, Redis Queue, Notification Worker, _build_notification_content, SMTP/Console Fallback y Usuario destinatario.
 
@@ -100,7 +100,7 @@ En todos los flujos, si ocurre un error al procesar el evento, el worker registr
 
 ### Diagrama de Actividades — Flujo de FX-Service + Redis Cache
 
-![Diagrama de Actividades Login y JWT](../00_assets/diagrams/04_diagramas/diagrama_actividadefx.png)
+![Diagrama de Actividades Login y JWT](../00_assets/diagrams/04_diagramas/actividades/diagrama_actividadefx.png)
 
 
 Este diagrama modela el flujo completo del FX-Service distribuido en cinco carriles: Subscription Service (cliente gRPC), FX Service (grpc_server.py), Redis Cache (RedisCache), provider.py (fetch_rate) y API Frankfurter (externa).
@@ -123,7 +123,7 @@ En la quinta seccion el servicio guarda el resultado en Redis con `set_json(cach
 
 ### Diagrama de Actividades — Publicacion de Contenido y Notificaciones
 
-![Diagrama de Actividades — Publicacion de Contenido y Notificaciones](../00_assets/diagrams/04_diagramas/diagrama_actividades_publicacion.png)
+![Diagrama de Actividades — Publicacion de Contenido y Notificaciones](../00_assets/diagrams/04_diagramas/actividades/diagrama_actividades_publicacion.png)
 
 En la primera seccion el administrador crea contenido nuevo desde el panel de administracion enviando tipo, titulo, overview, poster, generos como JSONB, cast como JSONB y episodios como JSONB. El Gateway llama a `gRPC CreateContent` al Catalog Service, que persiste el registro con `sp_upsert_content` en DB Catalog. El trigger `trg_catalog_updated_at` actualiza automaticamente `updated_at = NOW()` y el servicio retorna el `content_id` UUID del nuevo contenido.
 
@@ -135,4 +135,6 @@ En la cuarta seccion el worker verifica si SMTP esta configurado. Si lo esta, en
 
 En la quinta seccion el worker registra la notificacion con `logger.info(Email sent to {email})` y el nuevo contenido queda disponible en el catalogo para todos los usuarios mediante la vista `vw_catalog_card` que ya incluye el nuevo registro.
 
+### Diagrama de Actividades — Gestion de Usuarios
 
+![Diagrama de Actividades — Publicacion de Contenido y Notificaciones](../00_assets/diagrams/04_diagramas/actividades/actividadgestionusuarios.drawio.png)
