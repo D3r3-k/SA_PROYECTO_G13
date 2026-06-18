@@ -25,7 +25,7 @@ env:
 
 jobs:
   ci-checks:
-    name: CI checks
+    name: Validar CI
     runs-on: ubuntu-latest
     environment: release
 
@@ -122,7 +122,7 @@ jobs:
           done
 
   build-and-push:
-    name: Build and push images
+    name: Build and Push
     runs-on: ubuntu-latest
     environment: release
     needs: backup-cloud-sql
@@ -263,7 +263,7 @@ jobs:
             sh -c 'export PGPASSWORD='"${SUBSCRIPTION_DB_PASSWORD}"'; psql -h '"${CLOUD_SQL_PRIVATE_IP}"' -p 5432 -U subscription_user -d subscription_db -v ON_ERROR_STOP=1 -f /tmp/services/subscription-service/migrations/001_init.sql'
 
   deploy-gke:
-    name: Deploy to GKE
+    name: Deploy
     runs-on: ubuntu-latest
     environment: release
     needs: migrate-databases
@@ -425,7 +425,7 @@ jobs:
           done
 
   smoke-test:
-    name: Smoke test deployment
+    name: Tests
     runs-on: ubuntu-latest
     environment: release
     needs: deploy-gke
@@ -446,13 +446,13 @@ jobs:
           INGRESS_IP="$(gcloud compute addresses describe "${INGRESS_IP_NAME}" --global --format='value(address)')"
           
           echo "Waiting for Ingress to be ready at http://${INGRESS_IP} ..."
-          for i in {1..20}; do
+          for i in {1..30}; do
             if curl -fsS "http://${INGRESS_IP}" >/dev/null; then
               echo "Smoke test passed!"
               exit 0
             fi
-            echo "Attempt $i failed. Retrying in 15s..."
-            sleep 15
+            echo "Attempt $i failed. Retrying in 20s..."
+            sleep 20
           done
-          echo "Smoke test failed after 20 attempts."
+          echo "Smoke test failed after 30 attempts."
           exit 1
