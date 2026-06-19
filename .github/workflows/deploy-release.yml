@@ -649,8 +649,10 @@ jobs:
           echo "Smoke test failed after 30 attempts."
           exit 1
 
-      - name: Generate and push Git tag
+      - name: Generate and push Git tag and Release
         shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if [[ "${{ github.ref_name }}" =~ ^release/(v[0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
             TAG_NAME="${BASH_REMATCH[1]}"
@@ -660,6 +662,9 @@ jobs:
               echo "Creating and pushing Git tag: ${TAG_NAME}"
               git tag "$TAG_NAME"
               git push origin "refs/tags/$TAG_NAME"
+              
+              echo "Creating GitHub Release..."
+              gh release create "$TAG_NAME" --title "Release $TAG_NAME" --generate-notes
             else
               echo "Tag ${TAG_NAME} already exists."
             fi
