@@ -18,6 +18,7 @@ import {
   getUserAuthorization,
   listAuditLogs,
   registerUser,
+  updateLastLogin,
   updatePasswordHash
 } from "../repositories/user.repository";
 
@@ -243,6 +244,8 @@ export const identityService = {
       }
 
       const authz = await getUserAuthorization(user.id);
+
+      await updateLastLogin(user.id);
 
       const token = signIdentityToken({
         user_id: user.id,

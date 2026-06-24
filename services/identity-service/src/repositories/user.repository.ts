@@ -147,6 +147,21 @@ export async function seedConfiguredAdmins(adminEmails: string[]): Promise<void>
   }
 }
 
+export async function updateLastLogin(userId: string): Promise<void> {
+  await pool.query(
+    `CALL sp_update_last_login($1::uuid)`,
+    [userId]
+  );
+}
+
+export async function purgeInactiveUsers(thresholdInterval: string): Promise<number> {
+  const result = await pool.query<{ fn_purge_inactive_users: number }>(
+    `SELECT fn_purge_inactive_users($1::text)`,
+    [thresholdInterval]
+  );
+  return result.rows[0].fn_purge_inactive_users;
+}
+
 export async function listAuditLogs(params: {
   tableName?: string;
   actorUserId?: string;

@@ -1,0 +1,39 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: purge-inactive-users
+  namespace: quetxal-tv-prod
+spec:
+  schedule: "0 2 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          restartPolicy: OnFailure
+          imagePullSecrets:
+            - name: ghcr-pull-secret
+          containers:
+            - name: purge-inactive-users
+              image: ghcr.io/d3r3-k/sa_proyecto_g13/identity-service:latest
+              command: ["node", "dist/jobs/purge-inactive-users.js"]
+              env:
+                - name: INACTIVE_THRESHOLD_DAYS
+                  value: "90"
+              envFrom:
+                - configMapRef:
+                    name: app-config
+                - secretRef:
+                    name: app-secrets
+                - secretRef:
+                    name: connection-secrets
+              resources:
+                requests:
+                  cpu: "50m"
+                  memory: "64Mi"
+                limits:
+                  cpu: "200m"
+                  memory: "128Mi"
