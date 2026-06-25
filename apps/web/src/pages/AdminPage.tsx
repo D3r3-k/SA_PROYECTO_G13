@@ -55,6 +55,7 @@ interface ContentForm {
   overview: string
   releaseDate: string
   availableFrom: string
+  maturityRating: string
   genres: string
   cast: string
 }
@@ -80,6 +81,7 @@ const initialContentForm: ContentForm = {
   overview: '',
   releaseDate: '',
   availableFrom: '',
+  maturityRating: 'ALL',
   genres: '',
   cast: '',
 }
@@ -536,6 +538,7 @@ export default function AdminPage() {
     overview: contentForm.overview.trim(),
     releaseDate: contentForm.releaseDate,
     availableFrom: toApiDateTime(contentForm.availableFrom),
+    maturityRating: contentForm.maturityRating,
     genres: parseCsv(contentForm.genres),
     cast: parseCast(contentForm.cast),
     episodes: contentForm.type === 'series'
@@ -695,6 +698,7 @@ export default function AdminPage() {
         overview: detailContent.overview ?? '',
         releaseDate: asInputDate(detailContent.release_date),
         availableFrom: asInputDateTime(detailContent.available_from),
+        maturityRating: detailContent.maturity_rating || 'ALL',
         genres: detailContent.genres?.map((genre) => genre.name).join(', ') ?? '',
         cast: detail.cast?.map((member) => `${member.actor_name} | ${member.character_name}`).join('\n') ?? '',
       })
@@ -880,6 +884,18 @@ export default function AdminPage() {
                   value={contentForm.availableFrom}
                   onChange={(e) => setContentForm((form) => ({ ...form, availableFrom: e.target.value }))}
                 />
+              </label>
+
+              <label className={styles.field}>
+                Clasificación
+                <select
+                  value={contentForm.maturityRating}
+                  onChange={(e) => setContentForm((form) => ({ ...form, maturityRating: e.target.value }))}
+                >
+                  <option value="ALL">Apta para todo público</option>
+                  <option value="PG_13">PG-13</option>
+                  <option value="R">R</option>
+                </select>
               </label>
 
               <label className={`${styles.field} ${styles.fullWidth}`}>

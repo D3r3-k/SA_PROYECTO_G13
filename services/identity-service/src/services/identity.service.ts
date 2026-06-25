@@ -28,6 +28,7 @@ import {
   createProfile,
   deleteProfileByUserAndProfileId,
   findProfileByUserAndProfileId,
+  findProfilePinByUserAndProfileId,
   findProfilesByUserId,
   ProfileRecord,
   updateProfileByUserAndProfileId
@@ -49,6 +50,10 @@ function isValidPassword(password: string): boolean {
   return password.length >= 8;
 }
 
+function isValidParentalPin(pin: string): boolean {
+  return /^\d{4}$/.test(pin);
+}
+
 function toProfileResponse(profile: ProfileRecord, message = "Profile found") {
   return {
     success: true,
@@ -56,7 +61,9 @@ function toProfileResponse(profile: ProfileRecord, message = "Profile found") {
     profile_id: profile.profile_id,
     user_id: profile.user_id,
     name: profile.name,
-    avatar_url: profile.avatar_url || ""
+    avatar_url: profile.avatar_url || "",
+    is_child: Boolean(profile.is_child),
+    parental_pin_configured: Boolean(profile.parental_pin_configured)
   };
 }
 
@@ -68,7 +75,9 @@ function emptyAuthResponse(message: string) {
     token: "",
     roles: [],
     permissions: [],
-    is_admin: false
+    is_admin: false,
+    profile_is_child: false,
+    parental_pin_configured: false
   };
 }
 
@@ -79,7 +88,9 @@ function emptyProfileResponse(message: string) {
     profile_id: "",
     user_id: "",
     name: "",
-    avatar_url: ""
+    avatar_url: "",
+    is_child: false,
+    parental_pin_configured: false
   };
 }
 
@@ -107,7 +118,9 @@ function emptySelectProfileResponse(message: string) {
     token: "",
     roles: [],
     permissions: [],
-    is_admin: false
+    is_admin: false,
+    profile_is_child: false,
+    parental_pin_configured: false
   };
 }
 
@@ -308,7 +321,9 @@ export const identityService = {
         profile_id: "",
         roles: [],
         permissions: [],
-        is_admin: false
+        is_admin: false,
+        profile_is_child: false,
+        parental_pin_configured: false
       });
     }
 
@@ -322,7 +337,9 @@ export const identityService = {
         profile_id: "",
         roles: [],
         permissions: [],
-        is_admin: false
+        is_admin: false,
+        profile_is_child: false,
+        parental_pin_configured: false
       });
     }
 
@@ -333,7 +350,9 @@ export const identityService = {
       profile_id: payload.profile_id || "",
       roles: payload.roles || [],
       permissions: payload.permissions || [],
-      is_admin: Boolean(payload.is_admin)
+      is_admin: Boolean(payload.is_admin),
+      profile_is_child: Boolean(payload.profile_is_child),
+      parental_pin_configured: Boolean(payload.parental_pin_configured)
     });
   },
 
@@ -342,6 +361,8 @@ export const identityService = {
       const userId = normalizeText(call.request.user_id || "");
       const name = normalizeText(call.request.name || "");
       const avatarUrl = normalizeText(call.request.avatar_url || "");
+      const isChild = Boolean(call.request.is_child);
+      const parentalPin = normalizeText(call.request.parental_pin || "");
 
       if (!userId || !name) {
         return callback(
@@ -356,13 +377,23 @@ export const identityService = {
         return callback(null, emptyProfileResponse("User not found"));
       }
 
+      if (isChild && !isValidParentalPin(parentalPin)) {
+        return callback(
+          null,
+          emptyProfileResponse("Child profiles require a 4 digit parental PIN")
+        );
+      }
+
       const profileId = uuidv4();
+      const parentalPinHash = isChild ? await hashPassword(parentalPin) : null;
 
       await createProfile({
         id: profileId,
         userId,
         name,
-        avatarUrl
+        avatarUrl,
+        isChild,
+        parentalPinHash
       });
 
       return callback(null, {
@@ -371,7 +402,9 @@ export const identityService = {
         profile_id: profileId,
         user_id: userId,
         name,
-        avatar_url: avatarUrl
+        avatar_url: avatarUrl,
+        is_child: isChild,
+        parental_pin_configured: Boolean(parentalPinHash)
       });
     } catch (error: any) {
       if (
@@ -453,6 +486,8 @@ export const identityService = {
         user_id: user.id,
         email: user.email,
         profile_id: profile.profile_id,
+        profile_is_child: Boolean(profile.is_child),
+        parental_pin_configured: Boolean(profile.parental_pin_configured),
         roles: authz.roles,
         permissions: authz.permissions,
         is_admin: authz.isAdmin
@@ -463,7 +498,9 @@ export const identityService = {
         token,
         roles: authz.roles,
         permissions: authz.permissions,
-        is_admin: authz.isAdmin
+        is_admin: authz.isAdmin,
+        profile_is_child: Boolean(profile.is_child),
+        parental_pin_configured: Boolean(profile.parental_pin_configured)
       });
     } catch (error) {
       return handleUnexpectedError(
@@ -480,6 +517,8 @@ export const identityService = {
       const profileId = normalizeText(call.request.profile_id || "");
       const name = normalizeText(call.request.name || "");
       const avatarUrl = normalizeText(call.request.avatar_url || "");
+      const isChild = Boolean(call.request.is_child);
+      const parentalPin = normalizeText(call.request.parental_pin || "");
 
       if (!userId || !profileId || !name) {
         return callback(
@@ -488,11 +527,39 @@ export const identityService = {
         );
       }
 
+      const currentProfile = await findProfileByUserAndProfileId({ userId, profileId });
+
+      if (!currentProfile) {
+        return callback(
+          null,
+          emptyProfileResponse("Profile not found for this user")
+        );
+      }
+
+      if (isChild && parentalPin && !isValidParentalPin(parentalPin)) {
+        return callback(
+          null,
+          emptyProfileResponse("Parental PIN must contain exactly 4 digits")
+        );
+      }
+
+      if (isChild && !parentalPin && !currentProfile.parental_pin_configured) {
+        return callback(
+          null,
+          emptyProfileResponse("Child profiles require a configured 4 digit parental PIN")
+        );
+      }
+
+      const parentalPinHash = isChild && parentalPin ? await hashPassword(parentalPin) : null;
+
       const profile = await updateProfileByUserAndProfileId({
         userId,
         profileId,
         name,
-        avatarUrl
+        avatarUrl,
+        isChild,
+        parentalPinHash,
+        replaceParentalPin: Boolean(parentalPinHash)
       });
 
       if (!profile) {
@@ -535,6 +602,50 @@ export const identityService = {
         callback,
         error,
         "Failed to delete profile"
+      );
+    }
+  },
+
+  VerifyParentalPin: async (call: any, callback: any) => {
+    try {
+      const userId = normalizeText(call.request.user_id || "");
+      const profileId = normalizeText(call.request.profile_id || "");
+      const pin = normalizeText(call.request.pin || "");
+
+      if (!userId || !profileId || !pin) {
+        return callback(null, {
+          success: false,
+          message: "user_id, profile_id and pin are required"
+        });
+      }
+
+      if (!isValidParentalPin(pin)) {
+        return callback(null, {
+          success: false,
+          message: "Parental PIN must contain exactly 4 digits"
+        });
+      }
+
+      const profile = await findProfilePinByUserAndProfileId({ userId, profileId });
+
+      if (!profile || !profile.is_child || !profile.parental_pin_hash) {
+        return callback(null, {
+          success: false,
+          message: "Parental PIN is not configured for this profile"
+        });
+      }
+
+      const valid = await comparePassword(pin, profile.parental_pin_hash);
+
+      return callback(null, {
+        success: valid,
+        message: valid ? "Parental PIN verified" : "Invalid parental PIN"
+      });
+    } catch (error) {
+      return handleUnexpectedError(
+        callback,
+        error,
+        "Failed to verify parental PIN"
       );
     }
   },

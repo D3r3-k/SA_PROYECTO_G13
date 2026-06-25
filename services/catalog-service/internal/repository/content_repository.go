@@ -14,11 +14,11 @@ import (
 type Repository struct{ DB *pgxpool.Pool }
 
 type ContentCard struct {
-	ContentID, ExternalID, Type, Title, Overview, PosterPath, ReleaseDate string
-	MediaURL, MediaMimeType, SourcePageURL                                string
-	AvailableFrom, DeletedAt                                              string
-	Genres                                                                []string
-	SeasonsCount, EpisodesCount                                           int
+	ContentID, ExternalID, Type, MaturityRating, Title, Overview, PosterPath, ReleaseDate string
+	MediaURL, MediaMimeType, SourcePageURL                                                string
+	AvailableFrom, DeletedAt                                                              string
+	Genres                                                                                []string
+	SeasonsCount, EpisodesCount                                                           int
 }
 
 type CastMember struct {
@@ -44,19 +44,20 @@ type DeletedContentMedia struct {
 }
 
 type AdminContentWrite struct {
-	ContentID     string
-	ExternalID    string
-	Type          string
-	Title         string
-	Overview      string
-	PosterPath    string
-	ReleaseDate   string
-	AvailableFrom string
-	Genres        []string
-	Cast          []provider.CastSeed
-	Episodes      []provider.EpisodeSeed
-	ActorUserID   string
-	ActorEmail    string
+	ContentID      string
+	ExternalID     string
+	Type           string
+	Title          string
+	Overview       string
+	PosterPath     string
+	ReleaseDate    string
+	AvailableFrom  string
+	MaturityRating string
+	Genres         []string
+	Cast           []provider.CastSeed
+	Episodes       []provider.EpisodeSeed
+	ActorUserID    string
+	ActorEmail     string
 }
 
 type AuditLog struct {
@@ -120,7 +121,7 @@ func (r Repository) CreateAdminContent(ctx context.Context, input AdminContentWr
 	var contentID string
 	err = r.DB.QueryRow(ctx, `
         CALL sp_create_admin_content(
-            $1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8::jsonb, $9, $10, NULL::uuid
+            $1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8::jsonb, $9, $10, $11, NULL::uuid
         );`,
 		input.Type,
 		input.Title,
@@ -130,6 +131,7 @@ func (r Repository) CreateAdminContent(ctx context.Context, input AdminContentWr
 		string(genresJSON),
 		string(castJSON),
 		string(episodesJSON),
+		nullString(input.MaturityRating),
 		nullString(input.ActorUserID),
 		nullString(input.ActorEmail),
 	).Scan(&contentID)
@@ -150,7 +152,7 @@ func (r Repository) UpdateAdminContent(ctx context.Context, input AdminContentWr
 	}
 	_, err = r.DB.Exec(ctx, `
         CALL sp_update_admin_content(
-            $1::uuid, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8::jsonb, $9, $10
+            $1::uuid, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8::jsonb, $9, $10, $11
         );`,
 		input.ContentID,
 		input.Title,
@@ -160,6 +162,7 @@ func (r Repository) UpdateAdminContent(ctx context.Context, input AdminContentWr
 		string(genresJSON),
 		string(castJSON),
 		string(episodesJSON),
+		nullString(input.MaturityRating),
 		nullString(input.ActorUserID),
 		nullString(input.ActorEmail),
 	)
@@ -247,7 +250,7 @@ func (r Repository) InsertAudit(ctx context.Context, providerName string, succes
 
 func (r Repository) List(ctx context.Context, typ string, genre string, query string, limit int, offset int) ([]ContentCard, error) {
 	rows, err := r.DB.Query(ctx, `
-        SELECT content_id, external_id, type, title, overview, poster_path, release_date, media_url, media_mime_type, source_page_url, genres, seasons_count, episodes_count, available_from, deleted_at
+        SELECT content_id, external_id, type, maturity_rating, title, overview, poster_path, release_date, media_url, media_mime_type, source_page_url, genres, seasons_count, episodes_count, available_from, deleted_at
         FROM fn_catalog_list($1, $2, $3, $4, $5);`, typ, genre, query, limit, offset)
 	if err != nil {
 		return nil, err
@@ -258,7 +261,7 @@ func (r Repository) List(ctx context.Context, typ string, genre string, query st
 
 func (r Repository) ListAdmin(ctx context.Context, typ string, status string, query string, limit int, offset int) ([]ContentCard, error) {
 	rows, err := r.DB.Query(ctx, `
-        SELECT content_id, external_id, type, title, overview, poster_path, release_date, media_url, media_mime_type, source_page_url, genres, seasons_count, episodes_count, available_from, deleted_at
+        SELECT content_id, external_id, type, maturity_rating, title, overview, poster_path, release_date, media_url, media_mime_type, source_page_url, genres, seasons_count, episodes_count, available_from, deleted_at
         FROM fn_catalog_admin_list($1, $2, $3, $4, $5);`, typ, status, query, limit, offset)
 	if err != nil {
 		return nil, err
@@ -271,11 +274,12 @@ func (r Repository) Detail(ctx context.Context, id string) (Detail, bool, error)
 	var card ContentCard
 	var genres string
 	err := r.DB.QueryRow(ctx, `
-        SELECT content_id, external_id, type, title, overview, poster_path, release_date, media_url, media_mime_type, source_page_url, genres, seasons_count, episodes_count, available_from, deleted_at
+        SELECT content_id, external_id, type, maturity_rating, title, overview, poster_path, release_date, media_url, media_mime_type, source_page_url, genres, seasons_count, episodes_count, available_from, deleted_at
         FROM fn_catalog_detail($1::uuid);`, id).Scan(
 		&card.ContentID,
 		&card.ExternalID,
 		&card.Type,
+		&card.MaturityRating,
 		&card.Title,
 		&card.Overview,
 		&card.PosterPath,
@@ -403,6 +407,7 @@ func scanContentRows(rows pgx.Rows) ([]ContentCard, error) {
 			&item.ContentID,
 			&item.ExternalID,
 			&item.Type,
+			&item.MaturityRating,
 			&item.Title,
 			&item.Overview,
 			&item.PosterPath,

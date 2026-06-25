@@ -20,6 +20,8 @@ export default function ProfilesPage() {
   const [loading, setLoading] = useState(true)
   const [adding, setAdding] = useState(false)
   const [newName, setNewName] = useState('')
+  const [newIsChild, setNewIsChild] = useState(false)
+  const [newPin, setNewPin] = useState('')
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState('')
 
@@ -52,9 +54,15 @@ export default function ProfilesPage() {
     if (!newName.trim() || creating) return
     setCreating(true)
     try {
-      await profileService.create({ name: newName.trim() })
+      await profileService.create({
+        name: newName.trim(),
+        is_child: newIsChild,
+        parental_pin: newIsChild ? newPin : undefined,
+      })
       setNewName('')
       setAdding(false)
+      setNewIsChild(false)
+      setNewPin('')
       await loadProfiles()
     } catch {
       setError('No se pudo crear el perfil')
@@ -90,6 +98,7 @@ export default function ProfilesPage() {
               {avatarInitial(p.name)}
             </div>
             <span className={styles.profileName}>{p.name}</span>
+            {p.is_child && <small>Infantil · PIN</small>}
           </button>
         ))}
 
@@ -104,6 +113,26 @@ export default function ProfilesPage() {
                 autoFocus
                 onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
               />
+              <label style={{ display: 'flex', gap: '.5rem', alignItems: 'center', marginTop: '.75rem' }}>
+                <input
+                  type="checkbox"
+                  checked={newIsChild}
+                  onChange={(e) => setNewIsChild(e.target.checked)}
+                />
+                Perfil infantil
+              </label>
+
+              {newIsChild && (
+                <input
+                  className="input"
+                  placeholder="PIN parental de 4 dígitos"
+                  value={newPin}
+                  maxLength={4}
+                  inputMode="numeric"
+                  onChange={(e) => setNewPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                />
+              )}
+
               <div className={styles.addActions}>
                 <button
                   className="btn btn-primary btn-sm"
@@ -114,7 +143,7 @@ export default function ProfilesPage() {
                 </button>
                 <button
                   className="btn btn-ghost btn-sm"
-                  onClick={() => { setAdding(false); setNewName('') }}
+                  onClick={() => { setAdding(false); setNewName(''); setNewIsChild(false); setNewPin('') }}
                   disabled={creating}
                 >
                   Cancelar
