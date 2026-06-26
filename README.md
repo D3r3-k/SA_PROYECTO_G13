@@ -30,36 +30,56 @@ La solucion utiliza un API Gateway como punto unico de entrada, comunicacion int
   - [1.1 Requerimientos Funcionales](docs/01_requerimientos/RF.md)
   - [1.2 Requerimientos No Funcionales](docs/01_requerimientos/RNF.md)
 
-- [2. Casos de Uso](docs/casos-uso.md)
+- [2. Casos de Uso](docs/02_casos_de_uso/)
   - [2.1 Casos de Uso de Alto Nivel](docs/02_casos_de_uso/CU_alto_nivel.md)
 
 - [3. Arquitectura](docs/arquitectura.md)
   - [3.1 Vista de Escenarios](docs/03_arquitectura/V1_escenarios.md)
-  - [3.2 Vista Logica](docs/03_arquitectura/V2_logica.md)
+  - [3.2 Vista Lógica](docs/03_arquitectura/V2_logica.md)
   - [3.3 Vista de Procesos](docs/03_arquitectura/V3_procesos.md)
   - [3.4 Vista de Componentes](docs/03_arquitectura/V4_componentes.md)
-  - [3.5 Vista de Despliegue](docs/03_arquitectura/V5A_Local.md)
+  - [3.5 Vista Física](docs/03_arquitectura/V5_fisica.md)
 
-- [4. Diagramas](docs/04_diagramas)
+- [4. Diagramas](docs/04_diagramas/)
   - [4.1 Arquitectura General](docs/04_diagramas/arquitectura-general.md)
-  - [4.2 Componentes](docs/04_diagramas/componentes.md)
-  - [4.3 Despliegue](docs/04_diagramas/despliegue.md)
-  - [4.4 Actividades y Secuencia](docs/04_diagramas/actividades-y-secuencia.md)
-  - [4.5 Entidad Relacion](docs/04_diagramas/entidad-relacion.md)
+  - [4.2 Componentes](docs/04_diagramas/diagrama_componentes.md)
+  - [4.3 Despliegue](docs/04_diagramas/diagrama_despliegue.md)
+  - [4.4 Actividades](docs/04_diagramas/diagrama_actividades.md)
+  - [4.5 Secuencia](docs/04_diagramas/diagrama_secuencia.md)
+  - [4.6 Ciclo CI/CD](docs/04_diagramas/diagrama_cicd.md)
+  - [4.7 Entidad Relación](docs/04_diagramas/entidad-relacion.md)
 
-- [5. Pruebas](docs/pruebas.md)
+- [5. Principios SOLID](docs/05_principios_solid/)
+  - [5.1 S - Responsabilidad Única](docs/05_principios_solid/S_responsabilidad.md)
+  - [5.2 O - Abierto/Cerrado](docs/05_principios_solid/O_abierto_cerrado.md)
+  - [5.3 L - Sustitución de Liskov](docs/05_principios_solid/L_liskov.md)
+  - [5.4 I - Segregación de Interfaces](docs/05_principios_solid/I_segregacion.md)
+  - [5.5 D - Inversión de Dependencias](docs/05_principios_solid/D_inversion.md)
 
-- [6. Infraestructura](infra/README.md)
+- [6. Decisiones de Diseño y Justificaciones](docs/06_justificaciones/justificacion_y_decision.md)
 
-- [7. Contratos gRPC](proto/README.md)
+- [7. Pruebas](docs/pruebas.md)
 
-- [8. Microservicios](services)
-  - [8.1 Identity Service](services/identity-service/README.md)
-  - [8.2 Catalog Service](services/catalog-service/README.md)
-  - [8.3 Subscription Service](services/subscription-service/README.md)
-  - [8.4 FX Service](services/fx-service/README.md)
-  - [8.5 Engagement Service](services/engagement-service/README.md)
-  - [8.6 Notification Service](services/notification-service/README.md)
+- [8. Infraestructura](docs/07_kubernetes/entorno_kubernetes.md)
+  - [8.1 Configuración de Entorno Local y Cloud](docs/configuraciones.md)
+  - [8.2 Entorno Kubernetes](docs/07_kubernetes/entorno_kubernetes.md)
+
+- [9. Contratos gRPC](proto)
+
+- [10. Microservicios (Backend)](services)
+  - [10.1 Identity Service](services/identity-service/README.md)
+  - [10.2 Catalog Service](services/catalog-service/README.md)
+  - [10.3 Subscription Service](services/subscription-service/README.md)
+  - [10.4 FX Service](services/fx-service/README.md)
+  - [10.5 Engagement Service](services/engagement-service/README.md)
+  - [10.6 Notification Service](services/notification-service/README.md)
+
+- [11. Aplicaciones (Gateway/Frontend)](apps)
+  - [11.1 API Gateway](apps/api-gateway/README.md)
+
+- [12. Guías de Flujo y Desarrollo]()
+  - [12.1 Flujo de Trabajo (Git Flow)](docs/instrucciones_flow_git.md)
+  - [12.2 Integración de Identity](docs/instrucciones_integracion_identity.md)
 
 ## Conclusiones
 
@@ -68,3 +88,4 @@ La solucion utiliza un API Gateway como punto unico de entrada, comunicacion int
 - Redis cumple un rol clave como cache para tasas de cambio y como cola asincrona para notificaciones, evitando bloquear los flujos principales del sistema.
 - El API Gateway centraliza el acceso externo, la validacion de sesion y la traduccion de solicitudes HTTP a llamadas internas gRPC.
 - La documentacion y los diagramas permiten mantener trazabilidad entre requerimientos, arquitectura, despliegue, flujos y modelo de datos.
+

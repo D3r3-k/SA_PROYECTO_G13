@@ -2,12 +2,12 @@
 
 # Diagrama de Actividades
 
-![Diagrama de Actividades General](../00_assets/diagrams/04_diagramas/diagrama_actividades_full.png)
+![Diagrama de Actividades General](../00_assets/diagrams/04_diagramas/actividades/diagrama_actividades_full.png)
 
 
 ### Diagrama de Actividades — Login y Validacion JWT
 
-![Diagrama de Actividades Login y JWT](../00_assets/diagrams/04_diagramas/actividadloginactualizado.drawio.png)
+![Diagrama de Actividades Login y JWT](../00_assets/diagrams/04_diagramas/actividades/actividadloginactualizado.drawio.png)
 
 
 Este diagrama modela los tres flujos de actividad del modulo de autenticacion distribuidos en cinco carriles: Usuario, API Gateway, Identity Service, DB Identity y Redis.
@@ -21,9 +21,9 @@ El tercer flujo cubre la validacion JWT en cada ruta protegida. El `authMiddlewa
 ----
 ### Diagrama de Actividades — Admin Panel
 
-![Diagrama de Actividades - Admin Panel](../00_assets/diagrams/04_diagramas/diagrama_actividadesadmin.png)
+![Diagrama de Actividades - Admin Panel](../00_assets/diagrams/04_diagramas/actividades/diagrama_actividadesadmin.png)
 
-Este diagrama modela el flujo completo del panel de administracion de Quetxal TV, distribuido en seis carriles: Admin Browser, API Gateway, Subscription Service, Catalog Service, DB Subscription y API Externa (archive.org).
+Este diagrama modela el flujo completo del panel de administracion de Quetxal TV, distribuido en cinco carriles: Admin Browser, API Gateway, Subscription Service, Catalog Service y DB Subscription.
 
 En la primera seccion el administrador accede a `/login/admin` e ingresa las credenciales `admin / Admin1234#`. El `AdminLoginPage.tsx` valida las credenciales directamente en el frontend sin llamar al backend. Si son correctas guarda `adminAuthenticated:true` y `adminKey:Admin1234#` en `sessionStorage` y redirige a `/admin`. Si son incorrectas muestra el error en pantalla. Cada request posterior al backend incluye el header `x-admin-key: Admin1234#` que el `adminMiddleware` del Gateway valida contra `process.env.ADMIN_KEY`.
 
@@ -31,22 +31,12 @@ En la segunda seccion el `AdminPage.tsx` ejecuta `fetchPlans()` al cargar. El Ga
 
 En la tercera seccion el administrador selecciona un plan, edita el nombre o el precio y guarda. El Gateway valida que `planId` sea entero positivo, `name` no este vacio y `price_usd` sea mayor o igual a cero. Si pasa las validaciones llama a `gRPC UpdatePlan(id, name.trim(), price_usd)` al Subscription Service que ejecuta `UPDATE plans` en la base de datos. Retorna 200 OK con el plan actualizado y el frontend refresca la lista.
 
-En la cuarta seccion el administrador hace clic en sincronizar catalogo con `force: true` o `false`. El Gateway llama a `gRPC SyncMinimumCatalog(force)` al Catalog Service. El servicio llama a `archive_client.FetchContent()` hacia archive.org. Si no hay contenido disponible registra el fallo con `sp_insert_sync_audit(success:false)`. Si hay contenido ejecuta `sp_upsert_content_from_external` con los datos del contenido en formato JSONB, el trigger `trg_catalog_updated_at` actualiza `updated_at=NOW()` y `sp_insert_sync_audit(success:true, contents_synced, episodes_synced)` registra el resultado. Retorna 201 Created con el conteo de contenidos y episodios sincronizados.
-
-En la quinta seccion el administrador cierra sesion. El frontend ejecuta `sessionStorage.removeItem('adminAuthenticated')` y redirige a `/login/admin`.
+En la cuarta seccion el administrador cierra sesion. El frontend ejecuta `sessionStorage.removeItem('adminAuthenticated')` y redirige a `/login/admin`.
 
 ---
-### Diagrama de Actividades — Publicacion de Contenido y Notificaciones
-
-![Diagrama de Actividades — Publicacion de Contenido y Notificaciones](../00_assets/diagrams/04_diagramas/actividadgestionusuarios.drawio.png)
-
-
-
----
-
 ### Diagrama de Actividades — Consumo de video
 
-![Diagrama de Actividades Login y JWT](../00_assets/diagrams/04_diagramas/consumovideo.png)
+![Diagrama de Actividades Login y JWT](../00_assets/diagrams/04_diagramas/actividades/consumovideo.png)
 
 Este diagrama modela el flujo completo de un perfil autenticado interactuando con el contenido multimedia, distribuido en seis carriles: Perfil, API Gateway, Catalog Service, Engagement Service, DB Catalog y DB Engagement.
 
@@ -68,7 +58,7 @@ El flujo tiene seis secciones. En la primera el perfil navega el catalogo median
 
 ### Diagrama de Actividades — Suscripciones y Pagos
 
-![Diagrama de Actividades Login y JWT](../00_assets/diagrams/04_diagramas/actividades_suscripciones.png)
+![Diagrama de Actividades Login y JWT](../00_assets/diagrams/04_diagramas/actividades/suscripcionespagos.png)
 
 
 Este diagrama modela el flujo completo del ciclo de vida de una suscripcion en Quetxal TV, distribuido en siete carriles: Usuario, API Gateway, Subscription Service, FX Service, Redis, DB Subscription y Notification Service.
@@ -89,7 +79,7 @@ En la sexta seccion el usuario cancela su suscripcion. El Gateway llama a `gRPC 
 
 ### Diagrama de Actividades — Notificaciones por correo
 
-![Diagrama de Actividades Login y JWT](../00_assets/diagrams/04_diagramas/diagrama_actividades_noticorreo.drawio.png)
+![Diagrama de Actividades Login y JWT](../00_assets/diagrams/04_diagramas/actividades/diagrama_actividades_noticorreo.draw.png)
 
 Este diagrama modela el flujo de envio de notificaciones automaticas por correo electronico, distribuido en seis carriles: Servicio Productor, Redis Queue, Notification Worker, _build_notification_content, SMTP/Console Fallback y Usuario destinatario.
 
@@ -110,7 +100,7 @@ En todos los flujos, si ocurre un error al procesar el evento, el worker registr
 
 ### Diagrama de Actividades — Flujo de FX-Service + Redis Cache
 
-![Diagrama de Actividades Login y JWT](../00_assets/diagrams/04_diagramas/diagrama_actividadefx.png)
+![Diagrama de Actividades Login y JWT](../00_assets/diagrams/04_diagramas/actividades/diagrama_actividadefx.png)
 
 
 Este diagrama modela el flujo completo del FX-Service distribuido en cinco carriles: Subscription Service (cliente gRPC), FX Service (grpc_server.py), Redis Cache (RedisCache), provider.py (fetch_rate) y API Frankfurter (externa).
@@ -133,9 +123,9 @@ En la quinta seccion el servicio guarda el resultado en Redis con `set_json(cach
 
 ### Diagrama de Actividades — Publicacion de Contenido y Notificaciones
 
-![Diagrama de Actividades — Publicacion de Contenido y Notificaciones](../00_assets/diagrams/04_diagramas/diagrama_actividades_publicacion.png)
+![Diagrama de Actividades — Publicacion de Contenido y Notificaciones](../00_assets/diagrams/04_diagramas/actividades/diagrama_actividades_publicacion.png)
 
-En la primera seccion el proceso de sincronizacion llama a `SyncMinimumCatalog()`. El Catalog Service consulta la API externa mediante `archive_client.FetchContent()`. Si no hay contenido disponible, llama a `sp_insert_sync_audit(success:false)` y termina el flujo. Si hay contenido, ejecuta `UpsertContent(seed)` que llama al stored procedure `sp_upsert_content_from_external` con todos los datos del contenido: `external_id`, `provider`, `type`, `title`, `overview`, `poster_path`, generos como JSONB, cast como JSONB y episodios como JSONB. El trigger `trg_catalog_updated_at` actualiza automaticamente `updated_at = NOW()`. Finalmente `sp_insert_sync_audit(success:true, contents_synced, episodes_synced)` registra el resultado de la operacion y se retorna el `content_id` UUID del nuevo contenido.
+En la primera seccion el administrador crea contenido nuevo desde el panel de administracion enviando tipo, titulo, overview, poster, generos como JSONB, cast como JSONB y episodios como JSONB. El Gateway llama a `gRPC CreateContent` al Catalog Service, que persiste el registro con `sp_upsert_content` en DB Catalog. El trigger `trg_catalog_updated_at` actualiza automaticamente `updated_at = NOW()` y el servicio retorna el `content_id` UUID del nuevo contenido.
 
 En la segunda seccion el Catalog Service publica un evento `content-publication` en Redis con `RPUSH notification:queue` incluyendo `type`, `email`, `content_title` y `category`. Este paso es completamente asincrono: el Catalog Service no espera respuesta del Notification Worker y continua su flujo normalmente. Redis actua como buffer desacoplado entre productor y consumidor.
 
@@ -145,4 +135,6 @@ En la cuarta seccion el worker verifica si SMTP esta configurado. Si lo esta, en
 
 En la quinta seccion el worker registra la notificacion con `logger.info(Email sent to {email})` y el nuevo contenido queda disponible en el catalogo para todos los usuarios mediante la vista `vw_catalog_card` que ya incluye el nuevo registro.
 
+### Diagrama de Actividades — Gestion de Usuarios
 
+![Diagrama de Actividades — Publicacion de Contenido y Notificaciones](../00_assets/diagrams/04_diagramas/actividades/actividadgestionusuarios.drawio.png)

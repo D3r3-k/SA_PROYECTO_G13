@@ -4,6 +4,12 @@ on:
   push:
     branches:
       - develop
+    # paths-ignore:
+    #   - '**.md'
+    #   - 'LICENSE'
+    #   - '.gitignore'
+    #   - '.gitattributes'
+    #   - 'docs/**'
   workflow_dispatch:
 
 permissions:
@@ -12,6 +18,9 @@ permissions:
 
 env:
   IMAGE_NAMESPACE: ghcr.io/d3r3-k/sa_proyecto_g13
+  PYTHON_VERSION: "3.11"
+  NODE_VERSION: "20"
+  GO_VERSION: "1.22"
   GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
   GCP_REGION: ${{ vars.GCP_REGION }}
   GCP_ZONE: ${{ vars.GCP_ZONE }}
@@ -23,75 +32,235 @@ env:
   REDIS_INSTANCE_NAME: "dev-redis"
 
 jobs:
-  ci-checks:
-    name: Validar CI
+  # ─── Pruebas unitarias e integración ────────────────────────────────────────
+
+  test-payment-gateway:
+    name: "payment-gateway-service (Python)"
     runs-on: ubuntu-latest
-    environment: develop
-
+    defaults:
+      run:
+        working-directory: services/payment-gateway-service
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
-          node-version: "20"
-
-      - name: Build web
-        working-directory: apps/web
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Instalar dependencias de prueba
         run: |
-          npm ci
-          npm run build
+          pip install --upgrade pip
+          pip install pytest pytest-asyncio>=0.21 pytest-cov grpcio python-dotenv
+      - name: Ejecutar pruebas
+        run: pytest tests/ --cov=src --cov-report=term-missing --cov-report=xml --cov-fail-under=75 -v
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-payment-gateway
+          path: services/payment-gateway-service/coverage.xml
 
-      - name: Build api gateway
-        working-directory: apps/api-gateway
+  test-fx-service:
+    name: "fx-service (Python)"
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/fx-service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Instalar dependencias de prueba
         run: |
-          npm ci
-          npm run build
+          pip install --upgrade pip
+          pip install pytest pytest-asyncio>=0.21 pytest-cov grpcio "redis>=4.6.0" httpx python-dotenv
+      - name: Ejecutar pruebas
+        run: pytest tests/ --cov=src --cov-report=term-missing --cov-report=xml --cov-fail-under=75 -v
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-fx-service
+          path: services/fx-service/coverage.xml
 
-      - name: Build identity service
+  test-engagement-service:
+    name: "engagement-service (Python)"
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/engagement-service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Instalar dependencias de prueba
+        run: |
+          pip install --upgrade pip
+          pip install pytest pytest-asyncio>=0.21 pytest-cov grpcio psycopg2-binary python-dotenv protobuf
+      - name: Ejecutar pruebas
+        run: pytest tests/ --cov=src --cov-report=term-missing --cov-report=xml --cov-fail-under=75 -v
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-engagement-service
+          path: services/engagement-service/coverage.xml
+
+  test-subscription-service:
+    name: "subscription-service (Python)"
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/subscription-service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Instalar dependencias de prueba
+        run: |
+          pip install --upgrade pip
+          pip install pytest pytest-asyncio>=0.21 pytest-cov grpcio psycopg2-binary "redis>=5.0.0" python-dotenv pydantic
+      - name: Ejecutar pruebas
+        run: pytest tests/ --cov=src --cov-report=term-missing --cov-report=xml --cov-fail-under=75 -v
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-subscription-service
+          path: services/subscription-service/coverage.xml
+
+  test-notification-service:
+    name: "notification-service (Python)"
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/notification-service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Instalar dependencias de prueba
+        run: |
+          pip install --upgrade pip
+          pip install pytest pytest-asyncio>=0.21 pytest-cov grpcio "redis>=5.0.0" aiosmtplib python-dotenv
+      - name: Ejecutar pruebas
+        run: pytest tests/ --cov=src --cov-report=term-missing --cov-report=xml --cov-fail-under=75 -v
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-notification-service
+          path: services/notification-service/coverage.xml
+
+  test-identity-service:
+    name: "identity-service (TypeScript)"
+    runs-on: ubuntu-latest
+    defaults:
+      run:
         working-directory: services/identity-service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: services/identity-service/package-lock.json
+      - name: Instalar dependencias
+        run: npm ci
+      - name: Ejecutar pruebas con cobertura
+        run: npm test -- --coverage --coverageThreshold='{"global":{"lines":75}}' --passWithNoTests
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-identity-service
+          path: services/identity-service/coverage/
+
+  test-api-gateway:
+    name: "api-gateway (TypeScript)"
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/api-gateway
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: apps/api-gateway/package-lock.json
+      - name: Instalar dependencias
+        run: npm ci
+      - name: Ejecutar pruebas con cobertura
+        run: npm test -- --coverage --coverageThreshold='{"global":{"lines":75}}' --passWithNoTests
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-api-gateway
+          path: apps/api-gateway/coverage/
+
+  test-catalog-service:
+    name: "catalog-service (Go)"
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/catalog-service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+          cache-dependency-path: services/catalog-service/go.sum
+      - name: Ejecutar pruebas
+        run: go test ./internal/service/... -v -coverprofile=coverage.out -covermode=atomic
+      - name: Verificar cobertura >= 75%
+        run: |
+          COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//')
+          echo "Cobertura total: ${COVERAGE}%"
+          python3 -c "
+          pct = float('${COVERAGE}')
+          print(f'Cobertura: {pct}%')
+          exit(0 if pct >= 75 else 1)
+          "
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-catalog-service
+          path: services/catalog-service/coverage.out
+
+  build-web:
+    name: "web (build)"
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Instalar dependencias y compilar
         run: |
           npm ci
           npm run build
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: "1.22"
-          cache-dependency-path: services/catalog-service/go.sum
+  # ─── FIN: Pruebas unitarias e integración ──────────────────────────────────
+  # Los jobs anteriores (test-* + build-web) son el gate de calidad.
+  # Si cualquiera falla, backup-cloud-sql no arranca y el pipeline se detiene.
 
-      - name: Test catalog service
-        working-directory: services/catalog-service
-        run: go test ./...
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Compile Python services
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          for service in \
-            services/fx-service \
-            services/subscription-service \
-            services/notification-service \
-            services/engagement-service \
-            services/payment-gateway-service
-          do
-            python -m pip install --upgrade pip
-            python -m pip install -r "${service}/requirements.txt"
-            python -m compileall "${service}/src"
-          done
+  # ─── INICIO: Deploy ─────────────────────────────────────────────────────────
 
   backup-cloud-sql:
     name: Backup Cloud SQL
     runs-on: ubuntu-latest
     environment: develop
-    needs: ci-checks
+    needs:
+      - test-payment-gateway
+      - test-fx-service
+      - test-engagement-service
+      - test-subscription-service
+      - test-notification-service
+      - test-identity-service
+      - test-api-gateway
+      - test-catalog-service
+      - build-web
 
     steps:
       - name: Authenticate to Google Cloud
@@ -214,10 +383,19 @@ jobs:
           # 1. Obtener la IP privada de Cloud SQL
           CLOUD_SQL_PRIVATE_IP=$(gcloud sql instances describe ${{ env.SQL_INSTANCE_NAME }} --format='value(ipAddresses[0].ipAddress)')
           
-          # 2. Iniciar tunel SSH en segundo plano
+          # 2. Sincronizar llaves SSH con la VM de forma síncrona
+          echo "Sincronizando llaves SSH con la VM..."
+          gcloud compute ssh ${{ env.VM_SERVICES_NAME }} \
+            --zone=${{ env.GCP_ZONE }} \
+            --quiet \
+            --tunnel-through-iap \
+            --command="echo 'SSH ready'"
+
+          # 3. Iniciar tunel SSH en segundo plano
           echo "Iniciando tunel SSH a Cloud SQL IP: ${CLOUD_SQL_PRIVATE_IP}..."
           gcloud compute ssh ${{ env.VM_SERVICES_NAME }} \
             --zone=${{ env.GCP_ZONE }} \
+            --quiet \
             --tunnel-through-iap \
             -- -N -L 5432:${CLOUD_SQL_PRIVATE_IP}:5432 &
           TUNNEL_PID=$!
@@ -236,24 +414,24 @@ jobs:
           for dir in 01_extensions 02_tables 03_functions 04_views 05_procedures 06_triggers; do
             for f in $(ls services/identity-service/migrations/$dir/*.sql | sort); do
               echo "  -> Aplicando $f"
-              psql -h localhost -p 5432 -U identity_user -d identity_db -v ON_ERROR_STOP=1 -f "$f"
+              psql -h 127.0.0.1 -p 5432 -U identity_user -d identity_db -v ON_ERROR_STOP=1 -f "$f"
             done
           done
 
           # 3. catalog_db
           export PGPASSWORD="${{ secrets.CATALOG_DB_PASSWORD }}"
           echo "Migrando catalog_db..."
-          psql -h localhost -p 5432 -U catalog_user -d catalog_db -v ON_ERROR_STOP=1 -f services/catalog-service/migrations/001_init.sql
+          psql -h 127.0.0.1 -p 5432 -U catalog_user -d catalog_db -v ON_ERROR_STOP=1 -f services/catalog-service/migrations/001_init.sql
 
           # 4. engagement_db
           export PGPASSWORD="${{ secrets.ENGAGEMENT_DB_PASSWORD }}"
           echo "Migrando engagement_db..."
-          psql -h localhost -p 5432 -U engagement_user -d engagement_db -v ON_ERROR_STOP=1 -f services/engagement-service/migrations/001_init.sql
+          psql -h 127.0.0.1 -p 5432 -U engagement_user -d engagement_db -v ON_ERROR_STOP=1 -f services/engagement-service/migrations/001_init.sql
 
           # 5. subscription_db
           export PGPASSWORD="${{ secrets.SUBSCRIPTION_DB_PASSWORD }}"
           echo "Migrando subscription_db..."
-          psql -h localhost -p 5432 -U subscription_user -d subscription_db -v ON_ERROR_STOP=1 -f services/subscription-service/migrations/001_init.sql
+          psql -h 127.0.0.1 -p 5432 -U subscription_user -d subscription_db -v ON_ERROR_STOP=1 -f services/subscription-service/migrations/001_init.sql
 
   deploy:
     name: Deploy
@@ -432,8 +610,8 @@ jobs:
           deploy_role "${VM_GATEWAY_NAME}" "gateway"
           deploy_role "${VM_FRONTEND_NAME}" "frontend"
 
-  smoke-test:
-    name: Tests
+  validation:
+    name: Validación
     runs-on: ubuntu-latest
     environment: develop
     needs: deploy
