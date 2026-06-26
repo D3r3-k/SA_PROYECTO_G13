@@ -19,3 +19,10 @@ resource "google_storage_bucket_iam_member" "media_object_admin" {
   role   = "roles/storage.objectAdmin"
   member = "serviceAccount:${var.media_service_account_email}"
 }
+
+resource "google_storage_bucket_iam_member" "sql_object_admin" {
+  count  = var.cloud_sql_service_account_email != "" ? 1 : 0
+  bucket = google_storage_bucket.this.name
+  role   = "roles/storage.objectAdmin"
+  member = "serviceAccount:${var.cloud_sql_service_account_email}"
+}

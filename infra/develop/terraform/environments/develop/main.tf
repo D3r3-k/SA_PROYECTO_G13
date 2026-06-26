@@ -144,6 +144,7 @@ module "storage" {
   region                      = var.region
   bucket_name                 = "dev-media-sa-proyecto-derek"
   media_service_account_email = module.service_accounts.media_service_account_email
+  cloud_sql_service_account_email = module.cloud_sql.service_account_email
   cors_origins = [
     "http://localhost:5173",
     "https://localhost:5173",

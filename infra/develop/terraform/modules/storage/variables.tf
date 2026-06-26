@@ -18,6 +18,12 @@ variable "media_service_account_email" {
   type        = string
 }
 
+variable "cloud_sql_service_account_email" {
+  description = "Email del Service Account de Cloud SQL (opcional)."
+  type        = string
+  default     = ""
+}
+
 variable "cors_origins" {
   description = "Origenes permitidos por CORS."
   type        = list(string)
