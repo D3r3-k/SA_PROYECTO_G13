@@ -1,0 +1,51 @@
+---
+- name: Validar acceso local al release
+  hosts: local
+  gather_facts: false
+
+  tasks:
+    - name: Validar gcloud
+      ansible.builtin.command: gcloud --version
+      changed_when: false
+
+    - name: Validar kubectl
+      ansible.builtin.command: kubectl version --client
+      changed_when: false
+
+    - name: Configurar proyecto activo
+      ansible.builtin.command: gcloud config set project {{ gcp_project_id }}
+      changed_when: false
+
+    - name: Obtener credenciales del cluster GKE
+      ansible.builtin.command: >
+        gcloud container clusters get-credentials {{ gke_cluster_name }}
+        --region={{ gcp_region }}
+        --project={{ gcp_project_id }}
+      changed_when: false
+
+    - name: Validar nodos del cluster
+      ansible.builtin.command: kubectl get nodes
+      changed_when: false
+
+    - name: Crear namespace si no existe
+      ansible.builtin.command: kubectl create namespace {{ gke_namespace }} --dry-run=client -o yaml
+      register: namespace_yaml
+      changed_when: false
+
+    - name: Aplicar namespace
+      ansible.builtin.command: kubectl apply -f -
+      args:
+        stdin: "{{ namespace_yaml.stdout }}"
+      changed_when: false
+
+    - name: Validar IP estatica global del Ingress
+      ansible.builtin.command: gcloud compute addresses describe {{ ingress_ip_name }} --global --format=value(address)
+      register: ingress_ip
+      changed_when: false
+
+    - name: Mostrar resumen release
+      ansible.builtin.debug:
+        msg:
+          - "Cluster: {{ gke_cluster_name }}"
+          - "Namespace: {{ gke_namespace }}"
+          - "Ingress IP: {{ ingress_ip.stdout }}"

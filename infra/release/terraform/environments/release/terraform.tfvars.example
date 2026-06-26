@@ -1,0 +1,16 @@
+project_id = "sa-proyecto-derek"
+region     = "us-central1"
+zone       = "us-central1-a"
+
+postgres_root_password   = "CAMBIAR_PASSWORD_ROOT"
+identity_db_password     = "CAMBIAR_PASSWORD_IDENTITY"
+subscription_db_password = "CAMBIAR_PASSWORD_SUBSCRIPTION"
+catalog_db_password      = "CAMBIAR_PASSWORD_CATALOG"
+engagement_db_password   = "CAMBIAR_PASSWORD_ENGAGEMENT"
+
+gke_master_authorized_cidr_blocks = [
+  {
+    cidr_block   = "0.0.0.0/0"
+    display_name = "ci-cd-and-admin"
+  }
+]
