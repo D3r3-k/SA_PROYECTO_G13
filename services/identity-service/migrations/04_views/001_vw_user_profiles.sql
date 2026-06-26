@@ -1,4 +1,7 @@
 BEGIN;
+
+DROP VIEW IF EXISTS vw_user_profiles;
+
 CREATE OR REPLACE VIEW vw_user_profiles AS
 SELECT
     p.id AS profile_id,
