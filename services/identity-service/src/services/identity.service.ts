@@ -639,7 +639,7 @@ export const identityService = {
 
       return callback(null, {
         success: valid,
-        message: valid ? "Parental PIN verified" : "Invalid parental PIN"
+        message: valid ? "PIN parental verificado" : "PIN parental no válido"
       });
     } catch (error) {
       return handleUnexpectedError(

@@ -38,6 +38,8 @@ function reject(socket: Socket, statusCode: number, reason: string) {
 }
 
 function writeFrame(socket: Socket, payload: unknown) {
+  if (socket.destroyed || !socket.writable) return;
+
   const data = Buffer.from(JSON.stringify(payload));
   const header: number[] = [0x81];
 
@@ -82,11 +84,12 @@ function readTextFrame(buffer: Buffer): string | null {
   return payload.toString("utf8");
 }
 
-function broadcast(roomCode: string, payload: unknown) {
+function broadcast(roomCode: string, payload: unknown, excludeClientId?: string) {
   const clients = clientsByRoom.get(roomCode);
   if (!clients) return;
 
   for (const client of clients) {
+    if (excludeClientId && client.id === excludeClientId) continue;
     writeFrame(client.socket, payload);
   }
 }
@@ -94,7 +97,12 @@ function broadcast(roomCode: string, payload: unknown) {
 function removeClient(client: Client) {
   const clients = clientsByRoom.get(client.roomCode);
   if (!clients) return;
+
   clients.delete(client);
+  if (clients.size === 0) {
+    clientsByRoom.delete(client.roomCode);
+  }
+
   const room = getWatchPartyRoom(client.roomCode);
   room?.participants.delete(client.id);
   broadcast(client.roomCode, {
@@ -111,6 +119,11 @@ export function attachWatchPartyUpgrade(server: HttpServer) {
 
       if (!match) {
         return reject(socket, 404, "Not Found");
+      }
+
+      const websocketKey = req.headers["sec-websocket-key"];
+      if (!websocketKey || Array.isArray(websocketKey)) {
+        return reject(socket, 400, "Bad Request");
       }
 
       const code = match[1].toUpperCase();
@@ -141,7 +154,7 @@ export function attachWatchPartyUpgrade(server: HttpServer) {
 
       const acceptKey = crypto
         .createHash("sha1")
-        .update(`${req.headers["sec-websocket-key"]}258EAFA5-E914-47DA-95CA-C5AB0DC85B11`)
+        .update(`${websocketKey}258EAFA5-E914-47DA-95CA-C5AB0DC85B11`)
         .digest("base64");
 
       socket.write(
@@ -172,6 +185,7 @@ export function attachWatchPartyUpgrade(server: HttpServer) {
       writeFrame(socket, {
         type: "snapshot",
         room: serializeRoom(room),
+        playback: room.playback,
         is_host: room.host_user_id === identity.user_id
       });
 
@@ -206,9 +220,10 @@ export function attachWatchPartyUpgrade(server: HttpServer) {
             return;
           }
 
+          const position = Number(message.position || 0);
           room.playback = {
             action: message.action,
-            position: Number(message.position || 0),
+            position: Number.isFinite(position) && position >= 0 ? position : 0,
             updated_at: new Date().toISOString()
           };
 
@@ -216,7 +231,7 @@ export function attachWatchPartyUpgrade(server: HttpServer) {
             type: "sync",
             room: serializeRoom(room),
             playback: room.playback
-          });
+          }, client.id);
         } catch {
           writeFrame(socket, { type: "error", message: "Invalid websocket message" });
         }

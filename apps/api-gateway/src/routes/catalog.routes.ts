@@ -126,7 +126,7 @@ async function canUnlockParentalContent(
   if (!response.success) {
     return {
       blocked: true,
-      reason: response.message || "Invalid parental PIN",
+      reason: response.message || "PIN parental no válido",
       pinRequired: true
     };
   }
