@@ -1,4 +1,7 @@
 BEGIN;
+
+DROP FUNCTION IF EXISTS sp_list_profiles_by_user(UUID);
+
 CREATE OR REPLACE FUNCTION sp_list_profiles_by_user(
     p_user_id UUID
 )
@@ -30,4 +33,5 @@ BEGIN
     ORDER BY v.created_at ASC;
 END;
 $$;
+
 COMMIT;

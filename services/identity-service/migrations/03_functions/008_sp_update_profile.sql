@@ -1,4 +1,8 @@
 BEGIN;
+
+
+DROP FUNCTION IF EXISTS sp_update_profile(UUID, UUID, VARCHAR, TEXT, BOOLEAN, TEXT, BOOLEAN);
+
 CREATE OR REPLACE FUNCTION sp_update_profile(
     p_user_id UUID,
     p_profile_id UUID,
