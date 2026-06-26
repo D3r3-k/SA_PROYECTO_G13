@@ -1,0 +1,57 @@
+---
+- name: Instalar dependencias base para Docker
+  ansible.builtin.apt:
+    name:
+      - ca-certificates
+      - curl
+      - gnupg
+      - git
+      - python3-apt
+      - postgresql-client
+    state: present
+    update_cache: true
+
+- name: Crear directorio de llaves APT
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Instalar llave GPG de Docker
+  ansible.builtin.shell: |
+    set -e
+    curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+  args:
+    creates: /etc/apt/keyrings/docker.gpg
+
+- name: Ajustar permisos de llave GPG de Docker
+  ansible.builtin.file:
+    path: /etc/apt/keyrings/docker.gpg
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Configurar repositorio APT de Docker
+  ansible.builtin.apt_repository:
+    repo: "deb [arch={{ 'amd64' if ansible_architecture == 'x86_64' else ansible_architecture }} signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian {{ ansible_distribution_release }} stable"
+    filename: docker
+    state: present
+    update_cache: true
+
+- name: Instalar Docker Engine y Compose plugin
+  ansible.builtin.apt:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-buildx-plugin
+      - docker-compose-plugin
+    state: present
+
+- name: Habilitar servicio Docker
+  ansible.builtin.service:
+    name: docker
+    state: started
+    enabled: true

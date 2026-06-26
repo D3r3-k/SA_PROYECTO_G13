@@ -1,0 +1,22 @@
+---
+- name: Validar version de Docker
+  ansible.builtin.command: docker --version
+  register: docker_version
+  changed_when: false
+
+- name: Validar version de Docker Compose
+  ansible.builtin.command: docker compose version
+  register: docker_compose_version
+  changed_when: false
+
+- name: Validar estado del servicio Docker
+  ansible.builtin.command: systemctl is-active docker
+  register: docker_service_status
+  changed_when: false
+
+- name: Mostrar resultado de validaciones
+  ansible.builtin.debug:
+    msg:
+      - "{{ docker_version.stdout }}"
+      - "{{ docker_compose_version.stdout }}"
+      - "docker service: {{ docker_service_status.stdout }}"
