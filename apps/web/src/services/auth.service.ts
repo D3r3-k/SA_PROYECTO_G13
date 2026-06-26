@@ -18,6 +18,8 @@ export interface AuthUser {
   roles: string[]
   permissions: string[]
   is_admin: boolean
+  profile_is_child: boolean
+  parental_pin_configured: boolean
 }
 
 export interface MeResponse {

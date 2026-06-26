@@ -60,19 +60,20 @@ type SyncResult struct {
 }
 
 type AdminContentInput struct {
-	ContentID     string
-	ExternalID    string
-	Type          string
-	Title         string
-	Overview      string
-	PosterPath    string
-	ReleaseDate   string
-	AvailableFrom string
-	Genres        []string
-	Cast          []AdminCastInput
-	Episodes      []AdminEpisodeInput
-	ActorUserID   string
-	ActorEmail    string
+	ContentID      string
+	ExternalID     string
+	Type           string
+	Title          string
+	Overview       string
+	PosterPath     string
+	ReleaseDate    string
+	AvailableFrom  string
+	MaturityRating string
+	Genres         []string
+	Cast           []AdminCastInput
+	Episodes       []AdminEpisodeInput
+	ActorUserID    string
+	ActorEmail     string
 }
 
 type AdminCastInput struct {
@@ -506,6 +507,20 @@ func sanitizeExternalID(value string) string {
 	return value
 }
 
+func normalizeMaturityRating(value string) string {
+	normalized := strings.ToUpper(strings.ReplaceAll(strings.TrimSpace(value), "-", "_"))
+	switch normalized {
+	case "", "ALL", "G", "ATP", "APTA_PARA_TODO_PUBLICO":
+		return "ALL"
+	case "PG13", "PG_13":
+		return "PG_13"
+	case "R":
+		return "R"
+	default:
+		return "ALL"
+	}
+}
+
 func adminInputToWrite(input AdminContentInput, requireContentID bool) (repository.AdminContentWrite, error) {
 	typ := strings.TrimSpace(input.Type)
 	if typ != "movie" && typ != "series" {
@@ -521,17 +536,18 @@ func adminInputToWrite(input AdminContentInput, requireContentID bool) (reposito
 	}
 
 	write := repository.AdminContentWrite{
-		ContentID:     strings.TrimSpace(input.ContentID),
-		ExternalID:    strings.TrimSpace(input.ExternalID),
-		Type:          typ,
-		Title:         title,
-		Overview:      strings.TrimSpace(input.Overview),
-		PosterPath:    strings.TrimSpace(input.PosterPath),
-		ReleaseDate:   strings.TrimSpace(input.ReleaseDate),
-		AvailableFrom: strings.TrimSpace(input.AvailableFrom),
-		Genres:        input.Genres,
-		ActorUserID:   strings.TrimSpace(input.ActorUserID),
-		ActorEmail:    strings.TrimSpace(input.ActorEmail),
+		ContentID:      strings.TrimSpace(input.ContentID),
+		ExternalID:     strings.TrimSpace(input.ExternalID),
+		Type:           typ,
+		Title:          title,
+		Overview:       strings.TrimSpace(input.Overview),
+		PosterPath:     strings.TrimSpace(input.PosterPath),
+		ReleaseDate:    strings.TrimSpace(input.ReleaseDate),
+		AvailableFrom:  strings.TrimSpace(input.AvailableFrom),
+		MaturityRating: normalizeMaturityRating(input.MaturityRating),
+		Genres:         input.Genres,
+		ActorUserID:    strings.TrimSpace(input.ActorUserID),
+		ActorEmail:     strings.TrimSpace(input.ActorEmail),
 	}
 	for _, item := range input.Cast {
 		if strings.TrimSpace(item.ActorName) == "" {

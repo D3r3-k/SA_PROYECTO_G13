@@ -5,19 +5,21 @@ export interface Profile {
   user_id: string
   name: string
   avatar_url: string
+  is_child: boolean
+  parental_pin_configured: boolean
 }
 
 export const profileService = {
   list: () =>
     api.get<{ profiles: Profile[] }>('/profiles'),
 
-  create: (payload: { name: string; avatar_url?: string }) =>
+  create: (payload: { name: string; avatar_url?: string; is_child?: boolean; parental_pin?: string }) =>
     api.post<Profile>('/profiles', payload),
 
   select: (profileId: string) =>
     api.post(`/profiles/${profileId}/select`),
 
-  update: (profileId: string, payload: { name: string; avatar_url?: string }) =>
+  update: (profileId: string, payload: { name: string; avatar_url?: string; is_child?: boolean; parental_pin?: string }) =>
     api.put(`/profiles/${profileId}`, payload),
 
   remove: (profileId: string) =>

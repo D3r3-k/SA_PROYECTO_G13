@@ -5,8 +5,15 @@ export type ProfileRecord = {
   user_id: string;
   name: string;
   avatar_url: string | null;
+  is_child: boolean;
+  parental_pin_configured: boolean;
   created_at?: Date;
   updated_at?: Date;
+};
+
+export type ProfilePinRecord = {
+  is_child: boolean;
+  parental_pin_hash: string | null;
 };
 
 export type BasicDbResponse = {
@@ -19,6 +26,8 @@ export async function createProfile(params: {
   userId: string;
   name: string;
   avatarUrl: string;
+  isChild: boolean;
+  parentalPinHash: string | null;
 }): Promise<void> {
   await pool.query(
     `
@@ -26,10 +35,19 @@ export async function createProfile(params: {
       $1::uuid,
       $2::uuid,
       $3::varchar,
-      $4::text
+      $4::text,
+      $5::boolean,
+      $6::text
     )
     `,
-    [params.id, params.userId, params.name, params.avatarUrl]
+    [
+      params.id,
+      params.userId,
+      params.name,
+      params.avatarUrl,
+      params.isChild,
+      params.parentalPinHash
+    ]
   );
 }
 
@@ -65,11 +83,32 @@ export async function findProfileByUserAndProfileId(params: {
   return result.rows[0] ?? null;
 }
 
+export async function findProfilePinByUserAndProfileId(params: {
+  userId: string;
+  profileId: string;
+}): Promise<ProfilePinRecord | null> {
+  const result = await pool.query<ProfilePinRecord>(
+    `
+    SELECT is_child, parental_pin_hash
+    FROM profiles
+    WHERE user_id = $1::uuid
+      AND id = $2::uuid
+    LIMIT 1
+    `,
+    [params.userId, params.profileId]
+  );
+
+  return result.rows[0] ?? null;
+}
+
 export async function updateProfileByUserAndProfileId(params: {
   userId: string;
   profileId: string;
   name: string;
   avatarUrl: string;
+  isChild: boolean;
+  parentalPinHash: string | null;
+  replaceParentalPin: boolean;
 }): Promise<ProfileRecord | null> {
   const result = await pool.query<ProfileRecord>(
     `
@@ -78,10 +117,21 @@ export async function updateProfileByUserAndProfileId(params: {
       $1::uuid,
       $2::uuid,
       $3::varchar,
-      $4::text
+      $4::text,
+      $5::boolean,
+      $6::text,
+      $7::boolean
     )
     `,
-    [params.userId, params.profileId, params.name, params.avatarUrl]
+    [
+      params.userId,
+      params.profileId,
+      params.name,
+      params.avatarUrl,
+      params.isChild,
+      params.parentalPinHash,
+      params.replaceParentalPin
+    ]
   );
 
   return result.rows[0] ?? null;

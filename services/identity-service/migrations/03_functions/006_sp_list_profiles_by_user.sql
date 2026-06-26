@@ -7,6 +7,8 @@ RETURNS TABLE (
     user_id UUID,
     name VARCHAR,
     avatar_url TEXT,
+    is_child BOOLEAN,
+    parental_pin_configured BOOLEAN,
     created_at TIMESTAMP,
     updated_at TIMESTAMP
 )
@@ -19,6 +21,8 @@ BEGIN
         v.user_id,
         v.name,
         v.avatar_url,
+        v.is_child,
+        v.parental_pin_configured,
         v.created_at,
         v.updated_at
     FROM vw_user_profiles v

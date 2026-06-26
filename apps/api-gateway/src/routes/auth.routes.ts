@@ -162,7 +162,9 @@ authRoutes.get("/me", authMiddleware, async (req: AuthenticatedRequest, res) => 
       profile_id: req.user?.profile_id || "",
       roles: req.user?.roles || [],
       permissions: req.user?.permissions || [],
-      is_admin: Boolean(req.user?.is_admin)
+      is_admin: Boolean(req.user?.is_admin),
+      profile_is_child: Boolean(req.user?.profile_is_child),
+      parental_pin_configured: Boolean(req.user?.parental_pin_configured)
     }
   });
 });

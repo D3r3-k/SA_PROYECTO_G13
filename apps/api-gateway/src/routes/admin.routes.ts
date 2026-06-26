@@ -111,6 +111,7 @@ function contentWritePayload(req: AuthenticatedRequest, contentId?: string) {
     overview: String(body.overview ?? "").trim(),
     release_date: String(body.releaseDate ?? body.release_date ?? "").trim(),
     available_from: String(body.availableFrom ?? body.available_from ?? "").trim(),
+    maturity_rating: String(body.maturityRating ?? body.maturity_rating ?? "ALL").trim(),
     genres: Array.isArray(body.genres) ? body.genres.map(String) : [],
     cast: Array.isArray(body.cast)
       ? body.cast.map((item: Record<string, unknown>, index: number) => ({

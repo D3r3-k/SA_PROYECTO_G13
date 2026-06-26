@@ -26,7 +26,12 @@ export default function CatalogPage() {
     catalogService
       .list()
       .then((res) => setItems(res.data.items ?? []))
-      .catch(() => setError('El servicio de catálogo no está disponible.'))
+      .catch((err) => {
+        const code = err?.response?.data?.code
+        setError(code === 'ACTIVE_SUBSCRIPTION_REQUIRED'
+          ? 'Necesitas una suscripción activa para ver el catálogo.'
+          : 'El servicio de catálogo no está disponible.')
+      })
       .finally(() => setLoading(false))
   }, [])
 
@@ -112,21 +117,27 @@ export default function CatalogPage() {
         {!loading && error && (
           <div className={styles.empty}>
             <p>{error}</p>
-            <button
-              className="btn btn-primary btn-sm"
-              style={{ marginTop: '1rem' }}
-              onClick={() => {
-                setLoading(true)
-                setError('')
-                catalogService
-                  .list()
-                  .then((res) => setItems(res.data.items ?? []))
-                  .catch(() => setError('El servicio de catálogo no está disponible.'))
-                  .finally(() => setLoading(false))
-              }}
-            >
-              Reintentar
-            </button>
+            {error.includes('suscripción') ? (
+              <button className="btn btn-primary btn-sm" style={{ marginTop: '1rem' }} onClick={() => navigate('/subscriptions')}>
+                Ver planes
+              </button>
+            ) : (
+              <button
+                className="btn btn-primary btn-sm"
+                style={{ marginTop: '1rem' }}
+                onClick={() => {
+                  setLoading(true)
+                  setError('')
+                  catalogService
+                    .list()
+                    .then((res) => setItems(res.data.items ?? []))
+                    .catch(() => setError('El servicio de catálogo no está disponible.'))
+                    .finally(() => setLoading(false))
+                }}
+              >
+                Reintentar
+              </button>
+            )}
           </div>
         )}
 
@@ -176,6 +187,9 @@ export default function CatalogPage() {
                     </div>
                     <span className={`badge badge-info ${styles.typeBadge}`}>
                       {item.type === 'movie' ? 'Película' : 'Serie'}
+                    </span>
+                    <span className="badge badge-info" style={{ position: 'absolute', right: 12, bottom: 12 }}>
+                      {item.maturity_rating || 'ALL'}
                     </span>
                   </div>
                   <div className={styles.info}>
