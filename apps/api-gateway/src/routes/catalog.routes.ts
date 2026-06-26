@@ -109,7 +109,7 @@ async function canUnlockParentalContent(
   if (!pin) {
     return {
       blocked: true,
-      reason: `Content rated ${rating} requires the parental PIN for child profiles`,
+      reason: `El contenido con clasificación ${rating} requiere el PIN parental para los perfiles infantiles`,
       pinRequired: true
     };
   }
