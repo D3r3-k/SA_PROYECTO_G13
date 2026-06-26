@@ -1,0 +1,16 @@
+---
+- name: Validar usuario remoto
+  ansible.builtin.command: whoami
+  register: remote_whoami
+  changed_when: false
+
+- name: Agregar usuario remoto al grupo docker
+  ansible.builtin.user:
+    name: "{{ item }}"
+    groups: docker
+    append: true
+  loop: "{{ docker_users }}"
+
+- name: Mostrar usuario remoto configurado
+  ansible.builtin.debug:
+    msg: "Usuario remoto {{ remote_whoami.stdout }} configurado para usar Docker."
