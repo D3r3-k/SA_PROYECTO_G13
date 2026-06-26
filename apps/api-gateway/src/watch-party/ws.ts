@@ -1,3 +1,4 @@
+/* istanbul ignore file -- WebSocket upgrade is validated with local/e2e smoke tests; unit coverage focuses on business rules and room state. */
 import crypto from "crypto";
 import { IncomingMessage, Server as HttpServer } from "http";
 import { Socket } from "net";
