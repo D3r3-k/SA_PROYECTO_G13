@@ -148,7 +148,8 @@ module "storage" {
   cors_origins = [
     "http://localhost:5173",
     "https://localhost:5173",
-    "http://localhost:8080"
+    "http://localhost:8080",
+    "http://${module.compute_vms.frontend_public_ip}"
   ]
   labels = var.labels
 }
