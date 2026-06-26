@@ -244,7 +244,7 @@ Los archivos Terraform de `develop` ya estan creados.
 Estructura creada:
 
 ```text
-infra/terraform/
+infra/develop/terraform/
   environments/
     develop/
       backend.tf
@@ -297,8 +297,8 @@ bucket_name
 Ejecutar en PowerShell desde la raiz del proyecto:
 
 ```powershell
-Copy-Item infra/terraform/environments/develop/terraform.tfvars.example infra/terraform/environments/develop/terraform.tfvars
-notepad infra/terraform/environments/develop/terraform.tfvars
+Copy-Item infra/develop/terraform/environments/develop/terraform.tfvars.example infra/develop/terraform/environments/develop/terraform.tfvars
+notepad infra/develop/terraform/environments/develop/terraform.tfvars
 ```
 
 Editar `terraform.tfvars` y cambiar todas las contrasenas:
@@ -319,7 +319,7 @@ engagement_db_password
 Ejecutar en PowerShell:
 
 ```powershell
-cd infra/terraform/environments/develop
+cd infra/develop/terraform/environments/develop
 terraform init
 ```
 
@@ -545,7 +545,7 @@ Los archivos de Ansible para `develop` ya estan creados.
 Estructura creada:
 
 ```text
-infra/ansible/
+infra/develop/ansible/
   ansible.cfg
   inventories/
     develop/
@@ -627,14 +627,14 @@ sa-proyecto-derek
 Ejecutar dentro de Ubuntu/WSL:
 
 ```bash
-cp infra/ansible/inventories/develop/hosts.ini.example infra/ansible/inventories/develop/hosts.ini
-cp infra/ansible/inventories/develop/group_vars/all.yml.example infra/ansible/inventories/develop/group_vars/all.yml
+cp infra/develop/ansible/inventories/develop/hosts.ini.example infra/develop/ansible/inventories/develop/hosts.ini
+cp infra/develop/ansible/inventories/develop/group_vars/all.yml.example infra/develop/ansible/inventories/develop/group_vars/all.yml
 ```
 
 Editar el inventario:
 
 ```bash
-nano infra/ansible/inventories/develop/hosts.ini
+nano infra/develop/ansible/inventories/develop/hosts.ini
 ```
 
 Cambiar:
@@ -738,13 +738,207 @@ Luego intentar Ansible otra vez.
 Ejecutar dentro de Ubuntu/WSL:
 
 ```bash
-cd infra/ansible
+cd infra/develop/ansible
 ansible-inventory -i inventories/develop/hosts.ini --list
 ```
 
 ### 6.6 Ejecutar playbook
 
-Ejecutar dentro de Ubuntu/WSL, desde `infra/ansible`:
+Ejecutar dentro de Ubuntu/WSL, desde `infra/develop/ansible`:
+
+```bash
+ANSIBLE_CONFIG=$PWD/ansible.cfg ansible-playbook -i inventories/develop/hosts.ini playbooks/prepare-develop-vms.yml
+```
+
+Si aparece este warning:
+
+```text
+Ansible is being run in a world writable directory ... ignoring it as an ansible.cfg source
+```
+
+No es un error del playbook. Sucede porque el proyecto esta en `/mnt/d`, que es un disco de Windows montado en WSL. El comando anterior usa `ANSIBLE_CONFIG=$PWD/ansible.cfg` para indicar el archivo de configuracion de forma explicita.
+
+Si aparece este error:
+
+```text
+'docker_users' is undefined
+```
+
+Actualizar el codigo del repositorio y volver a ejecutar el mismo comando. El playbook ya incluye valores por defecto para `docker_users` y `app_directories`.
+
+El playbook debe:
+
+```text
+instalar Docker
+instalar Docker Compose plugin
+crear carpetas remotas
+validar versiones de Docker
+```
+
+### 6.7 Validar Docker en una VM
+
+Ejecutar dentro de Ubuntu/WSL:
+
+```bash
+gcloud compute ssh dev-vm-services --tunnel-through-iap --zone=us-central1-a
+```
+
+Dentro de la VM:
+
+```bash
+docker --version
+docker compose version
+ls -la ~/quetxal-tv
+exit
+```
+
+## Paso 7. Configurar Secrets y Variables de `develop` en GitHub
+
+Para que los flujos de integración y despliegue continuo (CI/CD) de GitHub Actions puedan interactuar con la infraestructura que has creado, es necesario configurar el entorno `develop` en tu repositorio.
+
+### 7.1 Crear entorno en GitHub
+
+1. Ir a tu repositorio en GitHub.
+2. Navegar a **Settings** > **Environments**.
+3. Crear el entorno: `develop`
+
+### 7.2 Configurar Secrets de CI/CD y variables locales
+
+Agrega estos *Secrets* en **Settings** > **Environments** > **develop** > **Environment secrets**:
+
+| Secret                            | Descripción                                                                       |
+| :-------------------------------- | :-------------------------------------------------------------------------------- |
+| `CATALOG_DB_PASSWORD`             | Contraseña del usuario `catalog_user`                                             |
+| `ENGAGEMENT_DB_PASSWORD`          | Contraseña del usuario `engagement_user`                                          |
+| `GCP_SERVICE_ACCOUNT_KEY`         | Llave privada JSON de la SA del CI/CD (`github-actions-dev`)                      |
+| `GCS_BACKEND_SERVICE_ACCOUNT_KEY` | Llave privada JSON de la SA del Catalog Media Signer (`dev-catalog-media-signer`) |
+| `GHCR_TOKEN`                      | Personal Access Token (classic) con permiso `write:packages` / `read:packages`    |
+| `GHCR_USERNAME`                   | Usuario de GitHub (e.g., `d3r3-k`)                                                |
+| `IDENTITY_DB_PASSWORD`            | Contraseña del usuario `identity_user`                                            |
+| `JWT_SECRET`                      | Cadena aleatoria segura para firmar tokens JWT                                    |
+| `SMTP_FROM`                       | Dirección de correo del remitente                                                 |
+| `SMTP_HOST`                       | Host del servidor SMTP de correo                                                  |
+| `SMTP_PASSWORD`                   | Contraseña o App Password de correo                                               |
+| `SMTP_USERNAME`                   | Usuario del servidor SMTP                                                         |
+| `SUBSCRIPTION_DB_PASSWORD`        | Contraseña del usuario `subscription_user`                                        |
+
+> [!NOTE]
+> Además de GitHub, estos valores son los que necesitarás en tus archivos `.env` locales para desarrollar.
+
+**Instrucciones para obtener los Secrets de GCP y SSH:**
+
+1. Obtener la llave para `GCP_SERVICE_ACCOUNT_KEY`:
+
+```powershell
+gcloud iam service-accounts keys create gcp-github-actions-key.json --iam-account=github-actions-dev@sa-proyecto-derek.iam.gserviceaccount.com
+cat gcp-github-actions-key.json
+rm gcp-github-actions-key.json
+```
+
+2. Obtener la llave para `GCS_BACKEND_SERVICE_ACCOUNT_KEY`:
+
+```powershell
+gcloud iam service-accounts keys create gcs-backend-service-account.json --iam-account=dev-catalog-media-signer@sa-proyecto-derek.iam.gserviceaccount.com
+cat gcs-backend-service-account.json
+rm gcs-backend-service-account.json
+```
+
+3. Generar un `JWT_SECRET` seguro aleatorio (puedes usar openssl):
+
+```bash
+openssl rand -base64 32
+```
+
+> [!NOTE]
+> Las contraseñas de las bases de datos (`POSTGRES_ROOT_PASSWORD`, etc.) son las que configuraste en tu archivo `terraform.tfvars`.
+
+### 7.3 Configurar Variables de CI/CD y Local
+
+En GitHub (**Environment variables**), agrega las siguientes variables. Varias de estas también irán a tu `.env` de desarrollo local.
+
+| Variable                            | Valor Recomendado / Comando para obtener el valor                      |
+| :---------------------------------- | :--------------------------------------------------------------------- |
+| `ADMIN_EMAILS`                      | Correo(s) administrador separados por coma (e.g., `admin@example.com`) |
+| `GCP_PROJECT_ID`                    | `sa-proyecto-derek` *(Obtener con `gcloud config get-value project`)*  |
+| `GCP_REGION`                        | `us-central1`                                                          |
+| `GCP_ZONE`                          | `us-central1-a`                                                        |
+| `GCS_ALLOWED_IMAGE_TYPES`           | `image/jpeg,image/png,image/webp`                                      |
+| `GCS_ALLOWED_VIDEO_TYPES`           | `video/mp4,video/webm`                                                 |
+| `GCS_BUCKET_NAME`                   | Nombre del bucket *(Obtener con Terraform)*                            |
+| `GCS_MAX_IMAGE_MB`                  | `10`                                                                   |
+| `GCS_MAX_VIDEO_MB`                  | `1024`                                                                 |
+| `GCS_SIGNED_READ_EXPIRES_MINUTES`   | `60`                                                                   |
+| `GCS_SIGNED_UPLOAD_EXPIRES_MINUTES` | `15`                                                                   |
+| `SMTP_PORT`                         | `587`                                                                  |
+| `SMTP_STARTTLS`                     | `true`                                                                 |
+| `VM_FRONTEND_NAME`                  | `dev-vm-frontend`                                                      |
+| `VM_GATEWAY_NAME`                   | `dev-vm-gateway`                                                       |
+| `VM_SERVICES_NAME`                  | `dev-vm-services`                                                      |
+
+
+**Instrucciones para extraer las variables dinámicas:**
+
+1. Obtener el ID del proyecto (`GCP_PROJECT_ID`):
+
+```powershell
+gcloud config get-value project
+```bash
+gcloud compute ssh dev-vm-gateway --tunnel-through-iap --zone=us-central1-a
+exit
+gcloud compute ssh dev-vm-services --tunnel-through-iap --zone=us-central1-a
+exit
+```
+
+Estas conexiones son importantes porque `gcloud` crea o registra la llave SSH de WSL:
+
+```text
+~/.ssh/google_compute_engine
+~/.ssh/google_compute_engine.pub
+```
+
+Validar que la llave exista dentro de Ubuntu/WSL:
+
+```bash
+ls -la ~/.ssh/google_compute_engine ~/.ssh/google_compute_engine.pub
+```
+
+El inventario debe tener esta linea:
+
+```text
+ansible_ssh_private_key_file=~/.ssh/google_compute_engine
+```
+
+Si Ansible falla con:
+
+```text
+Permission denied (publickey)
+```
+
+volver a ejecutar desde WSL:
+
+```bash
+gcloud compute ssh dev-vm-frontend --tunnel-through-iap --zone=us-central1-a
+exit
+gcloud compute ssh dev-vm-gateway --tunnel-through-iap --zone=us-central1-a
+exit
+gcloud compute ssh dev-vm-services --tunnel-through-iap --zone=us-central1-a
+exit
+```
+
+Luego intentar Ansible otra vez.
+
+### 6.5 Validar inventario de Ansible
+
+Ejecutar dentro de Ubuntu/WSL:
+
+```bash
+cd infra/develop/ansible
+ansible-inventory -i inventories/develop/hosts.ini --list
+```
+
+### 6.6 Ejecutar playbook
+
+Ejecutar dentro de Ubuntu/WSL, desde `infra/develop/ansible`:
 
 ```bash
 ANSIBLE_CONFIG=$PWD/ansible.cfg ansible-playbook -i inventories/develop/hosts.ini playbooks/prepare-develop-vms.yml
@@ -887,6 +1081,6 @@ gcloud config get-value project
 2. Extraer el nombre del bucket de Storage (`GCS_BUCKET_NAME`) creado por Terraform:
 
 ```powershell
-cd infra/terraform/environments/develop
+cd infra/develop/terraform/environments/develop
 terraform output -raw bucket_name
 ```
