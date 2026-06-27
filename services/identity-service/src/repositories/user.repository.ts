@@ -147,6 +147,50 @@ export async function seedConfiguredAdmins(adminEmails: string[]): Promise<void>
   }
 }
 
+export async function updateLastLogin(userId: string): Promise<void> {
+  await pool.query(
+    `CALL sp_update_last_login($1::uuid)`,
+    [userId]
+  );
+}
+
+export type InactiveUserRecord = {
+  id: string;
+  email: string;
+  last_login_at: Date | null;
+};
+
+export async function listInactiveUsers(thresholdInterval: string): Promise<InactiveUserRecord[]> {
+  const result = await pool.query<InactiveUserRecord>(
+    `
+    SELECT u.id::text, u.email, u.last_login_at
+    FROM users u
+    WHERE u.deleted_at IS NULL
+      AND u.id NOT IN (
+          SELECT ur.user_id
+          FROM user_roles ur
+          JOIN roles r ON r.id = ur.role_id
+          WHERE r.name = 'admin'
+      )
+      AND (
+          (u.last_login_at IS NULL     AND u.created_at    < NOW() - $1::INTERVAL)
+          OR
+          (u.last_login_at IS NOT NULL AND u.last_login_at < NOW() - $1::INTERVAL)
+      )
+    `,
+    [thresholdInterval]
+  );
+  return result.rows;
+}
+
+export async function purgeInactiveUsers(thresholdInterval: string): Promise<number> {
+  const result = await pool.query<{ fn_purge_inactive_users: number }>(
+    `SELECT fn_purge_inactive_users($1::text)`,
+    [thresholdInterval]
+  );
+  return result.rows[0].fn_purge_inactive_users;
+}
+
 export async function listAuditLogs(params: {
   tableName?: string;
   actorUserId?: string;
