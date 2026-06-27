@@ -8,6 +8,10 @@ interface Plan {
   id: number | string
   name: string
   price_usd: number
+  display_price?: number
+  display_currency?: string
+  fx_rate?: number
+  fx_cached?: boolean
 }
 
 interface PlanDisplay extends Plan {
@@ -93,7 +97,8 @@ export default function SubscriptionsPage() {
   const cardInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    api.get<{ plans: Plan[] }>('/plans')
+    setLoading(true)
+    api.get<{ plans: Plan[] }>('/plans', { params: { currency } })
       .then((res) => {
         const merged = res.data.plans.map((p): PlanDisplay => {
           const key = p.name.toLowerCase()
@@ -104,7 +109,9 @@ export default function SubscriptionsPage() {
       })
       .catch(() => {})
       .finally(() => setLoading(false))
+  }, [currency])
 
+  useEffect(() => {
     api.get<{ subscriptions: Subscription[] }>('/subscriptions')
       .then((res) => {
         const active = res.data.subscriptions.find((s) => s.status === 'active') ?? null
@@ -217,6 +224,15 @@ export default function SubscriptionsPage() {
         <div className={styles.header}>
           <h1 className={styles.title}>Elige tu plan</h1>
           <p className={styles.subtitle}>Sin contratos. Cancela cuando quieras.</p>
+          <label style={{ display: 'inline-flex', gap: '.5rem', alignItems: 'center', marginTop: '1rem' }}>
+            Moneda
+            <select value={currency} onChange={(e) => setCurrency(e.target.value)}>
+              <option value="GTQ">GTQ — Quetzal</option>
+              <option value="USD">USD — Dólar</option>
+              <option value="MXN">MXN — Peso Mexicano</option>
+              <option value="EUR">EUR — Euro</option>
+            </select>
+          </label>
         </div>
 
         {/* Banner suscripción activa */}
@@ -288,8 +304,10 @@ export default function SubscriptionsPage() {
 
                 <h2 className={styles.planName}>{plan.name}</h2>
                 <div className={styles.priceRow}>
-                  <span className={styles.price}>${plan.price_usd.toFixed(2)}</span>
-                  <span className={styles.period}>USD / mes</span>
+                  <span className={styles.price}>
+                    {(plan.display_price ?? plan.price_usd).toFixed(2)}
+                  </span>
+                  <span className={styles.period}>{plan.display_currency ?? 'USD'} / mes</span>
                 </div>
 
                 <ul className={styles.features}>
@@ -325,7 +343,7 @@ export default function SubscriptionsPage() {
               <div>
                 <h2 className={styles.modalTitle}>Confirmar suscripción</h2>
                 <p className={styles.modalSub}>
-                  Plan <strong>{selectedPlan.name}</strong> · ${selectedPlan.price_usd.toFixed(2)} USD/mes
+                  Plan <strong>{selectedPlan.name}</strong> · {(selectedPlan.display_price ?? selectedPlan.price_usd).toFixed(2)} {selectedPlan.display_currency ?? 'USD'}/mes
                 </p>
               </div>
               <button className={styles.modalClose} onClick={closeModal} aria-label="Cerrar">×</button>
@@ -449,7 +467,7 @@ export default function SubscriptionsPage() {
               <button className="btn btn-primary" onClick={subscribe} disabled={subscribing}>
                 {subscribing
                   ? <span className="spinner" />
-                  : `Pagar $${selectedPlan.price_usd.toFixed(2)} USD`}
+                  : `Pagar ${(selectedPlan.display_price ?? selectedPlan.price_usd).toFixed(2)} ${selectedPlan.display_currency ?? currency}`}
               </button>
             </div>
 

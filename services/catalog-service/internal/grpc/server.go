@@ -199,16 +199,17 @@ func (s *Server) createContentHandler(_ interface{}, ctx context.Context, dec fu
 		return nil, err
 	}
 	result := s.svc.CreateAdminContent(ctx, catalogsvc.AdminContentInput{
-		Type:          str(req, "type"),
-		Title:         str(req, "title"),
-		Overview:      str(req, "overview"),
-		ReleaseDate:   str(req, "release_date"),
-		AvailableFrom: str(req, "available_from"),
-		ActorUserID:   str(req, "actor_user_id"),
-		ActorEmail:    str(req, "actor_email"),
-		Genres:        strList(req, "genres"),
-		Cast:          s.adminCastInputs(req),
-		Episodes:      s.adminEpisodeInputs(req),
+		Type:           str(req, "type"),
+		Title:          str(req, "title"),
+		Overview:       str(req, "overview"),
+		ReleaseDate:    str(req, "release_date"),
+		AvailableFrom:  str(req, "available_from"),
+		MaturityRating: str(req, "maturity_rating"),
+		ActorUserID:    str(req, "actor_user_id"),
+		ActorEmail:     str(req, "actor_email"),
+		Genres:         strList(req, "genres"),
+		Cast:           s.adminCastInputs(req),
+		Episodes:       s.adminEpisodeInputs(req),
 	})
 	res := s.newMsg("CreateContentResponse")
 	setBool(res, "success", result.Success)
@@ -231,17 +232,18 @@ func (s *Server) updateContentHandler(_ interface{}, ctx context.Context, dec fu
 		return nil, err
 	}
 	result := s.svc.UpdateAdminContent(ctx, catalogsvc.AdminContentInput{
-		ContentID:     str(req, "content_id"),
-		Type:          str(req, "type"),
-		Title:         str(req, "title"),
-		Overview:      str(req, "overview"),
-		ReleaseDate:   str(req, "release_date"),
-		AvailableFrom: str(req, "available_from"),
-		ActorUserID:   str(req, "actor_user_id"),
-		ActorEmail:    str(req, "actor_email"),
-		Genres:        strList(req, "genres"),
-		Cast:          s.adminCastInputs(req),
-		Episodes:      s.adminEpisodeInputs(req),
+		ContentID:      str(req, "content_id"),
+		Type:           str(req, "type"),
+		Title:          str(req, "title"),
+		Overview:       str(req, "overview"),
+		ReleaseDate:    str(req, "release_date"),
+		AvailableFrom:  str(req, "available_from"),
+		MaturityRating: str(req, "maturity_rating"),
+		ActorUserID:    str(req, "actor_user_id"),
+		ActorEmail:     str(req, "actor_email"),
+		Genres:         strList(req, "genres"),
+		Cast:           s.adminCastInputs(req),
+		Episodes:       s.adminEpisodeInputs(req),
 	})
 	res := s.newMsg("BasicCatalogResponse")
 	setBool(res, "success", result.Success)
@@ -363,6 +365,7 @@ func (s *Server) cardMessage(item repository.ContentCard) protoreflect.Message {
 	setString(m, "content_id", item.ContentID)
 	setString(m, "external_id", item.ExternalID)
 	setString(m, "type", item.Type)
+	setString(m, "maturity_rating", item.MaturityRating)
 	setString(m, "title", item.Title)
 	setString(m, "overview", item.Overview)
 	setString(m, "poster_path", s.svc.ResolveReadURL(item.PosterPath))
@@ -482,15 +485,15 @@ func buildDescriptors() (map[string]protoreflect.MessageDescriptor, error) {
 		msg("ListEpisodesRequest", field("content_id", 1, tStr, opt, ""), field("season_number", 2, tI32, opt, "")),
 		msg("Genre", field("name", 1, tStr, opt, "")),
 		msg("CastMember", field("actor_name", 1, tStr, opt, ""), field("character_name", 2, tStr, opt, ""), field("order_index", 3, tI32, opt, "")),
-		msg("ContentCard", field("content_id", 1, tStr, opt, ""), field("external_id", 2, tStr, opt, ""), field("type", 3, tStr, opt, ""), field("title", 4, tStr, opt, ""), field("overview", 5, tStr, opt, ""), field("poster_path", 6, tStr, opt, ""), field("release_date", 7, tStr, opt, ""), field("genres", 8, tMsg, rep, ".catalog.Genre"), field("media_url", 9, tStr, opt, ""), field("media_mime_type", 10, tStr, opt, ""), field("source_page_url", 11, tStr, opt, ""), field("seasons_count", 12, tI32, opt, ""), field("episodes_count", 13, tI32, opt, ""), field("available_from", 14, tStr, opt, ""), field("deleted_at", 15, tStr, opt, "")),
+		msg("ContentCard", field("content_id", 1, tStr, opt, ""), field("external_id", 2, tStr, opt, ""), field("type", 3, tStr, opt, ""), field("title", 4, tStr, opt, ""), field("overview", 5, tStr, opt, ""), field("poster_path", 6, tStr, opt, ""), field("release_date", 7, tStr, opt, ""), field("genres", 8, tMsg, rep, ".catalog.Genre"), field("media_url", 9, tStr, opt, ""), field("media_mime_type", 10, tStr, opt, ""), field("source_page_url", 11, tStr, opt, ""), field("seasons_count", 12, tI32, opt, ""), field("episodes_count", 13, tI32, opt, ""), field("available_from", 14, tStr, opt, ""), field("deleted_at", 15, tStr, opt, ""), field("maturity_rating", 16, tStr, opt, "")),
 		msg("ContentDetailResponse", field("success", 1, tBool, opt, ""), field("message", 2, tStr, opt, ""), field("content", 3, tMsg, opt, ".catalog.ContentCard"), field("cast", 4, tMsg, rep, ".catalog.CastMember"), field("seasons_count", 5, tI32, opt, ""), field("episodes_count", 6, tI32, opt, "")),
 		msg("ListContentResponse", field("success", 1, tBool, opt, ""), field("message", 2, tStr, opt, ""), field("items", 3, tMsg, rep, ".catalog.ContentCard")),
 		msg("Episode", field("episode_id", 1, tStr, opt, ""), field("content_id", 2, tStr, opt, ""), field("season_number", 3, tI32, opt, ""), field("episode_number", 4, tI32, opt, ""), field("title", 5, tStr, opt, ""), field("overview", 6, tStr, opt, ""), field("runtime_minutes", 7, tI32, opt, ""), field("media_url", 8, tStr, opt, ""), field("media_mime_type", 9, tStr, opt, "")),
 		msg("ListEpisodesResponse", field("success", 1, tBool, opt, ""), field("message", 2, tStr, opt, ""), field("episodes", 3, tMsg, rep, ".catalog.Episode")),
 		msg("AdminCastInput", field("actor_name", 1, tStr, opt, ""), field("character_name", 2, tStr, opt, ""), field("order_index", 3, tI32, opt, "")),
 		msg("AdminEpisodeInput", field("season_number", 1, tI32, opt, ""), field("episode_number", 2, tI32, opt, ""), field("title", 3, tStr, opt, ""), field("overview", 4, tStr, opt, ""), field("runtime_minutes", 5, tI32, opt, "")),
-		msg("CreateContentRequest", field("type", 1, tStr, opt, ""), field("title", 2, tStr, opt, ""), field("overview", 3, tStr, opt, ""), field("release_date", 4, tStr, opt, ""), field("genres", 5, tStr, rep, ""), field("cast", 6, tMsg, rep, ".catalog.AdminCastInput"), field("episodes", 7, tMsg, rep, ".catalog.AdminEpisodeInput"), field("available_from", 8, tStr, opt, ""), field("actor_user_id", 9, tStr, opt, ""), field("actor_email", 10, tStr, opt, "")),
-		msg("UpdateContentRequest", field("content_id", 1, tStr, opt, ""), field("title", 2, tStr, opt, ""), field("overview", 3, tStr, opt, ""), field("release_date", 4, tStr, opt, ""), field("genres", 5, tStr, rep, ""), field("cast", 6, tMsg, rep, ".catalog.AdminCastInput"), field("episodes", 7, tMsg, rep, ".catalog.AdminEpisodeInput"), field("available_from", 8, tStr, opt, ""), field("actor_user_id", 9, tStr, opt, ""), field("actor_email", 10, tStr, opt, ""), field("type", 11, tStr, opt, "")),
+		msg("CreateContentRequest", field("type", 1, tStr, opt, ""), field("title", 2, tStr, opt, ""), field("overview", 3, tStr, opt, ""), field("release_date", 4, tStr, opt, ""), field("genres", 5, tStr, rep, ""), field("cast", 6, tMsg, rep, ".catalog.AdminCastInput"), field("episodes", 7, tMsg, rep, ".catalog.AdminEpisodeInput"), field("available_from", 8, tStr, opt, ""), field("actor_user_id", 9, tStr, opt, ""), field("actor_email", 10, tStr, opt, ""), field("maturity_rating", 11, tStr, opt, "")),
+		msg("UpdateContentRequest", field("content_id", 1, tStr, opt, ""), field("title", 2, tStr, opt, ""), field("overview", 3, tStr, opt, ""), field("release_date", 4, tStr, opt, ""), field("genres", 5, tStr, rep, ""), field("cast", 6, tMsg, rep, ".catalog.AdminCastInput"), field("episodes", 7, tMsg, rep, ".catalog.AdminEpisodeInput"), field("available_from", 8, tStr, opt, ""), field("actor_user_id", 9, tStr, opt, ""), field("actor_email", 10, tStr, opt, ""), field("type", 11, tStr, opt, ""), field("maturity_rating", 12, tStr, opt, "")),
 		msg("DeleteContentRequest", field("content_id", 1, tStr, opt, ""), field("actor_user_id", 2, tStr, opt, ""), field("actor_email", 3, tStr, opt, "")),
 		msg("SchedulePremiereRequest", field("content_id", 1, tStr, opt, ""), field("available_from", 2, tStr, opt, ""), field("actor_user_id", 3, tStr, opt, ""), field("actor_email", 4, tStr, opt, "")),
 		msg("CreatedEpisode", field("episode_id", 1, tStr, opt, ""), field("season_number", 2, tI32, opt, ""), field("episode_number", 3, tI32, opt, ""), field("title", 4, tStr, opt, "")),

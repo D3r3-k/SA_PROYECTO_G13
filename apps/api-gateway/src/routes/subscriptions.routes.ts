@@ -207,12 +207,32 @@ async function getPlanById(planId: number): Promise<Plan | null> {
   return response.plans.find((plan) => Number(plan.id) === planId) || null;
 }
 
-async function convertAmountFromUsd(amountUsd: number, currency: string): Promise<number> {
+type MoneyConversion = {
+  amount: number;
+  currency: string;
+  rate: number;
+  base: string;
+  target: string;
+  cached: boolean;
+  timestamp: number;
+};
+
+async function convertAmountFromUsd(
+  amountUsd: number,
+  currency: string
+): Promise<MoneyConversion> {
   if (currency === "USD") {
-    return roundMoney(amountUsd);
+    return {
+      amount: roundMoney(amountUsd),
+      currency: "USD",
+      rate: 1,
+      base: "USD",
+      target: "USD",
+      cached: true,
+      timestamp: Math.floor(Date.now() / 1000)
+    };
   }
 
-  // OBTENER VALORES DE FX
   const response = await callFxMethod<{ base: string; target: string }, RateResponse>(
     "GetRate",
     {
@@ -225,10 +245,23 @@ async function convertAmountFromUsd(amountUsd: number, currency: string): Promis
     throw new Error(response.message || "could not convert amount");
   }
 
-  return roundMoney(amountUsd * response.rate);
+  return {
+    amount: roundMoney(amountUsd * response.rate),
+    currency,
+    rate: response.rate,
+    base: response.base || "USD",
+    target: response.target || currency,
+    cached: Boolean(response.cached),
+    timestamp: Number(response.timestamp || 0)
+  };
 }
 
-subscriptionRoutes.get("/plans", authMiddleware, async (_req, res) => {
+function getCurrencyFromQuery(value: unknown): string {
+  const rawValue = Array.isArray(value) ? value[0] : value;
+  return getString(rawValue).toUpperCase() || "USD";
+}
+
+subscriptionRoutes.get("/plans", authMiddleware, async (req: AuthenticatedRequest, res) => {
   try {
     const response = await callSubscriptionMethod<
       Record<string, never>,
@@ -239,7 +272,26 @@ subscriptionRoutes.get("/plans", authMiddleware, async (_req, res) => {
       return res.status(getBusinessStatus(response.message)).json(response);
     }
 
-    return res.json(response);
+    const currency = getCurrencyFromQuery(req.query.currency);
+    const convertedPlans = await Promise.all(
+      response.plans.map(async (plan) => {
+        const conversion = await convertAmountFromUsd(Number(plan.price_usd), currency);
+        return {
+          ...plan,
+          display_price: conversion.amount,
+          display_currency: conversion.currency,
+          fx_rate: conversion.rate,
+          fx_cached: conversion.cached,
+          fx_timestamp: conversion.timestamp
+        };
+      })
+    );
+
+    return res.json({
+      ...response,
+      currency,
+      plans: convertedPlans
+    });
   } catch (error) {
     console.error("List plans gRPC failed", error);
 
@@ -297,7 +349,8 @@ subscriptionRoutes.post(
         });
       }
 
-      const amount = await convertAmountFromUsd(Number(plan.price_usd), currency);
+      const conversion = await convertAmountFromUsd(Number(plan.price_usd), currency);
+      const amount = conversion.amount;
 
       const payment = await callPaymentMethod<AuthorizePaymentRequest, PaymentResponse>(
         "AuthorizePayment",
@@ -337,7 +390,8 @@ subscriptionRoutes.post(
 
       return res.status(201).json({
         ...response,
-        payment
+        payment,
+        fx: conversion
       });
     } catch (error) {
       console.error("Create subscription with payment failed", error);

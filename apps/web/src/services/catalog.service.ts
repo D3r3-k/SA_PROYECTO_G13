@@ -8,6 +8,7 @@ export interface ContentCard {
   content_id: string
   external_id: string
   type: string
+  maturity_rating: string
   title: string
   overview: string
   poster_path: string
@@ -28,6 +29,12 @@ export interface CastMember {
   order_index: number
 }
 
+export interface ParentalControlState {
+  blocked: boolean
+  pin_required: boolean
+  reason: string
+}
+
 export interface ContentDetail {
   success: boolean
   message: string
@@ -35,6 +42,7 @@ export interface ContentDetail {
   cast: CastMember[]
   seasons_count: number
   episodes_count: number
+  parental_control?: ParentalControlState
 }
 
 export interface Episode {
@@ -59,6 +67,11 @@ export interface ListEpisodesResponse {
   success: boolean
   message: string
   episodes: Episode[]
+  parental_control?: ParentalControlState
+}
+
+function parentalPinHeaders(parentalPin?: string) {
+  return parentalPin ? { 'X-Parental-Pin': parentalPin } : undefined
 }
 
 export const catalogService = {
@@ -81,11 +94,14 @@ export const catalogService = {
       },
     }),
 
-  detail: (contentId: string) =>
-    api.get<ContentDetail>(`/catalog/${contentId}`),
+  detail: (contentId: string, parentalPin?: string) =>
+    api.get<ContentDetail>(`/catalog/${contentId}`, {
+      headers: parentalPinHeaders(parentalPin),
+    }),
 
-  episodes: (contentId: string, seasonNumber = 1) =>
+  episodes: (contentId: string, seasonNumber = 1, parentalPin?: string) =>
     api.get<ListEpisodesResponse>(`/catalog/${contentId}/episodes`, {
       params: { season_number: seasonNumber },
+      headers: parentalPinHeaders(parentalPin),
     }),
 }

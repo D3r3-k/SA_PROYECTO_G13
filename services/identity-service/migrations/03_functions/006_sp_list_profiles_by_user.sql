@@ -1,4 +1,7 @@
 BEGIN;
+
+DROP FUNCTION IF EXISTS sp_list_profiles_by_user(UUID);
+
 CREATE OR REPLACE FUNCTION sp_list_profiles_by_user(
     p_user_id UUID
 )
@@ -7,6 +10,8 @@ RETURNS TABLE (
     user_id UUID,
     name VARCHAR,
     avatar_url TEXT,
+    is_child BOOLEAN,
+    parental_pin_configured BOOLEAN,
     created_at TIMESTAMP,
     updated_at TIMESTAMP
 )
@@ -19,6 +24,8 @@ BEGIN
         v.user_id,
         v.name,
         v.avatar_url,
+        v.is_child,
+        v.parental_pin_configured,
         v.created_at,
         v.updated_at
     FROM vw_user_profiles v
@@ -26,4 +33,5 @@ BEGIN
     ORDER BY v.created_at ASC;
 END;
 $$;
+
 COMMIT;

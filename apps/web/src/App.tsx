@@ -10,6 +10,7 @@ import ContentDetailPage  from './pages/ContentDetailPage'
 import SubscriptionsPage  from './pages/SubscriptionsPage'
 import HistoryPage        from './pages/HistoryPage'
 import AccountPage        from './pages/AccountPage'
+import WatchPartyPage     from './pages/WatchPartyPage'
 import AdminLoginPage     from './pages/AdminLoginPage'
 import AdminPage          from './pages/AdminPage'
 
@@ -44,6 +45,9 @@ export default function App() {
           } />
           <Route path="/account" element={
             <ProtectedRoute><AccountPage /></ProtectedRoute>
+          } />
+          <Route path="/watch-party/:code" element={
+            <ProtectedRoute><WatchPartyPage /></ProtectedRoute>
           } />
 
           {/* Redirect raíz */}

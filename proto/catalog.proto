@@ -91,6 +91,7 @@ message ContentCard {
   int32 episodes_count = 13;
   string available_from = 14;
   string deleted_at = 15;
+  string maturity_rating = 16;
 }
 
 message ContentDetailResponse {
@@ -151,6 +152,7 @@ message CreateContentRequest {
   string available_from = 8;
   string actor_user_id = 9;
   string actor_email = 10;
+  string maturity_rating = 11;
 }
 
 message UpdateContentRequest {
@@ -165,6 +167,7 @@ message UpdateContentRequest {
   string actor_user_id = 9;
   string actor_email = 10;
   string type = 11;
+  string maturity_rating = 12;
 }
 
 message DeleteContentRequest {
