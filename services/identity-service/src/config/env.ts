@@ -19,7 +19,7 @@ export const env = {
     .map((email: string) => email.trim().toLowerCase())
     .filter(Boolean),
 
-  inactiveThresholdDays: Number(process.env.INACTIVE_THRESHOLD_DAYS || "90"),
+  inactiveThresholdInterval: process.env.INACTIVE_THRESHOLD_INTERVAL || "5 minutes",
 
   db: {
     host: process.env.DB_HOST || "localhost",

@@ -1,40 +1,41 @@
 import dotenv from "dotenv";
 dotenv.config();
 
-import { Pool } from "pg";
 import { env } from "../config/env";
-
-const pool = new Pool({
-  host: env.db.host,
-  port: env.db.port,
-  database: env.db.database,
-  user: env.db.user,
-  password: env.db.password,
-  ssl: env.db.ssl ? { rejectUnauthorized: false } : false
-});
+import { listInactiveUsers, purgeInactiveUsers } from "../repositories/user.repository";
 
 async function run(): Promise<void> {
-  const thresholdInterval = `${env.inactiveThresholdDays} days`;
+  const threshold = env.inactiveThresholdInterval;
+  const startedAt = Date.now();
 
-  console.log(`[CronJob] purge-inactive-users starting`);
-  console.log(`[CronJob] threshold: ${thresholdInterval}`);
+  console.log(`[CronJob] purge-inactive-users iniciando`);
+  console.log(`[CronJob] threshold de inactividad: ${threshold}`);
+  console.log(`[CronJob] timestamp: ${new Date().toISOString()}`);
 
   try {
-    await pool.query("SELECT 1");
-    console.log(`[CronJob] database connection OK`);
+    const inactiveUsers = await listInactiveUsers(threshold);
 
-    const result = await pool.query<{ fn_purge_inactive_users: number }>(
-      `SELECT fn_purge_inactive_users($1::text)`,
-      [thresholdInterval]
-    );
+    if (inactiveUsers.length === 0) {
+      console.log(`[CronJob] no se encontraron usuarios inactivos`);
+    } else {
+      console.log(`[CronJob] usuarios inactivos encontrados: ${inactiveUsers.length}`);
+      for (const user of inactiveUsers) {
+        const lastLogin = user.last_login_at
+          ? new Date(user.last_login_at).toISOString()
+          : "nunca";
+        console.log(`[CronJob]   → id=${user.id} email=${user.email} last_login_at=${lastLogin}`);
+      }
+    }
 
-    const purged = result.rows[0].fn_purge_inactive_users;
-    console.log(`[CronJob] purge completed — ${purged} inactive user(s) soft-deleted`);
+    const purged = await purgeInactiveUsers(threshold);
+    const elapsed = Date.now() - startedAt;
+
+    console.log(`[CronJob] purge completado — ${purged} usuario(s) eliminado(s) lógicamente`);
+    console.log(`[CronJob] duración: ${elapsed}ms`);
+    process.exit(0);
   } catch (error) {
-    console.error("[CronJob] fatal error:", error);
+    console.error("[CronJob] error fatal:", error);
     process.exit(1);
-  } finally {
-    await pool.end();
   }
 }
 

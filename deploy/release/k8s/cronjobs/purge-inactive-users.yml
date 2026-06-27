@@ -4,7 +4,7 @@ metadata:
   name: purge-inactive-users
   namespace: quetxal-tv-prod
 spec:
-  schedule: "0 2 * * *"
+  schedule: "*/2 * * * *"
   concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 3
   failedJobsHistoryLimit: 3
@@ -21,8 +21,8 @@ spec:
               image: ghcr.io/d3r3-k/sa_proyecto_g13/identity-service:latest
               command: ["node", "dist/jobs/purge-inactive-users.js"]
               env:
-                - name: INACTIVE_THRESHOLD_DAYS
-                  value: "90"
+                - name: INACTIVE_THRESHOLD_INTERVAL
+                  value: "5 minutes"
               envFrom:
                 - configMapRef:
                     name: app-config
