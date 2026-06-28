@@ -1084,3 +1084,35 @@ gcloud config get-value project
 cd infra/develop/terraform/environments/develop
 terraform output -raw bucket_name
 ```
+
+## Paso 8. Validar uso de Terraform y Ansible
+
+Para demostrar que Terraform y Ansible realmente estan gestionando la infraestructura y configuracion, puedes usar los siguientes comandos.
+
+### 8.1 Demostrar uso de Terraform
+
+Desde PowerShell en la carpeta `infra/develop/terraform/environments/develop`:
+
+Ver todos los recursos administrados por Terraform:
+
+```powershell
+terraform state list
+```
+
+Verificar si hay cambios manuales no registrados en Terraform (Drift detection):
+
+```powershell
+terraform plan -var-file="terraform.tfvars"
+```
+
+### 8.2 Demostrar uso de Ansible
+
+Desde Ubuntu/WSL en la carpeta `infra/develop/ansible`:
+
+Validar conectividad y control sobre todas las VMs usando el modulo `ping` de Ansible:
+
+```bash
+ANSIBLE_CONFIG=$PWD/ansible.cfg ansible -i inventories/develop/hosts.ini all -m ping
+```
+
+Si todo esta correcto, Ansible respondera con `"ping": "pong"` para cada VM, demostrando que tiene control administrativo.
