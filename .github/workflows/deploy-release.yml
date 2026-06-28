@@ -1,17 +1,24 @@
 name: Deploy release to GKE
 
 on:
-  push:
+  pull_request:
+    types: [closed]
     branches:
-      - 'release/*'
-      - 'test/*'
-    # paths-ignore:
-    #   - '**.md'
-    #   - 'LICENSE'
-    #   - '.gitignore'
-    #   - '.gitattributes'
-    #   - 'docs/**'
+      - 'release/**'
+      - 'test/**'
+    paths:
+      - 'apps/**'
+      - 'services/**'
+      - 'proto/**'
+      - 'scripts/**'
+      - 'deploy/release/**'
+      - '!**/*.md'
+      - '!**/docs/**'
   workflow_dispatch:
+
+concurrency:
+  group: deploy-release
+  cancel-in-progress: false
 
 permissions:
   contents: write
@@ -37,6 +44,10 @@ jobs:
 
   test-payment-gateway:
     name: "payment-gateway-service (Python)"
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.merged == true &&
+       contains(github.event.pull_request.labels.*.name, 'deploy:release'))
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -60,6 +71,10 @@ jobs:
 
   test-fx-service:
     name: "fx-service (Python)"
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.merged == true &&
+       contains(github.event.pull_request.labels.*.name, 'deploy:release'))
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -83,6 +98,10 @@ jobs:
 
   test-engagement-service:
     name: "engagement-service (Python)"
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.merged == true &&
+       contains(github.event.pull_request.labels.*.name, 'deploy:release'))
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -106,6 +125,10 @@ jobs:
 
   test-subscription-service:
     name: "subscription-service (Python)"
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.merged == true &&
+       contains(github.event.pull_request.labels.*.name, 'deploy:release'))
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -129,6 +152,10 @@ jobs:
 
   test-notification-service:
     name: "notification-service (Python)"
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.merged == true &&
+       contains(github.event.pull_request.labels.*.name, 'deploy:release'))
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -152,6 +179,10 @@ jobs:
 
   test-identity-service:
     name: "identity-service (TypeScript)"
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.merged == true &&
+       contains(github.event.pull_request.labels.*.name, 'deploy:release'))
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -175,6 +206,10 @@ jobs:
 
   test-api-gateway:
     name: "api-gateway (TypeScript)"
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.merged == true &&
+       contains(github.event.pull_request.labels.*.name, 'deploy:release'))
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -198,6 +233,10 @@ jobs:
 
   test-catalog-service:
     name: "catalog-service (Go)"
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.merged == true &&
+       contains(github.event.pull_request.labels.*.name, 'deploy:release'))
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -228,6 +267,10 @@ jobs:
 
   build-web:
     name: "web (build)"
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.merged == true &&
+       contains(github.event.pull_request.labels.*.name, 'deploy:release'))
     runs-on: ubuntu-latest
     defaults:
       run:

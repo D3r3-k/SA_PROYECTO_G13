@@ -192,3 +192,5 @@ volumes/
 reports/
 test-results/
 playwright-report/
+**/gcp-github-actions*-key.json
+**/*service-account*.json
