@@ -31,6 +31,9 @@ id_rsa.pub
 secrets/
 credentials/
 service-account*.json
+*service-account*.json
+*github-actions-key.json
+*backend-service-account.json
 
 # =========================================================
 # Logs
@@ -158,6 +161,9 @@ override.tf.json
 infra/ansible/inventories/**/hosts.ini
 infra/ansible/inventories/**/group_vars/*.yml
 !infra/ansible/inventories/**/group_vars/*.yml.example
+infra/**/ansible/inventories/**/hosts.ini
+infra/**/ansible/inventories/**/group_vars/*.yml
+!infra/**/ansible/inventories/**/group_vars/*.yml.example
 
 # =========================================================
 # Databases / local persistence
@@ -186,3 +192,5 @@ volumes/
 reports/
 test-results/
 playwright-report/
+**/gcp-github-actions*-key.json
+**/*service-account*.json

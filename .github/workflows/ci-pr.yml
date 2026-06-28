@@ -1,0 +1,345 @@
+name: CI selectivo por label
+
+on:
+  pull_request:
+    types: [labeled, unlabeled, synchronize, reopened]
+    branches:
+      - develop
+      - 'release/**'
+      - 'test/**'
+    paths:
+      - 'apps/**'
+      - 'services/**'
+      - 'proto/**'
+      - 'scripts/**'
+      - 'deploy/**'
+      - 'infra/**'
+      - '!**/*.md'
+      - '!**/docs/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.11"
+  NODE_VERSION: "20"
+  GO_VERSION: "1.22"
+
+jobs:
+  detect-changes:
+    name: Detectar componentes modificados
+    if: >-
+      (github.base_ref == 'develop' &&
+       contains(github.event.pull_request.labels.*.name, 'deploy:develop')) ||
+      ((startsWith(github.base_ref, 'release/') || startsWith(github.base_ref, 'test/')) &&
+       contains(github.event.pull_request.labels.*.name, 'deploy:release'))
+    runs-on: ubuntu-latest
+    outputs:
+      payment_gateway: ${{ steps.changes.outputs.payment_gateway }}
+      fx: ${{ steps.changes.outputs.fx }}
+      engagement: ${{ steps.changes.outputs.engagement }}
+      subscription: ${{ steps.changes.outputs.subscription }}
+      notification: ${{ steps.changes.outputs.notification }}
+      identity: ${{ steps.changes.outputs.identity }}
+      api_gateway: ${{ steps.changes.outputs.api_gateway }}
+      catalog: ${{ steps.changes.outputs.catalog }}
+      web: ${{ steps.changes.outputs.web }}
+      deploy: ${{ steps.changes.outputs.deploy }}
+      infra: ${{ steps.changes.outputs.infra }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Clasificar cambios
+        id: changes
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        shell: bash
+        run: |
+          changed_files="$(git diff --name-only "$BASE_SHA" "$HEAD_SHA")"
+
+          set_output() {
+            local name="$1"
+            local pattern="$2"
+            if printf '%s\n' "$changed_files" | grep -Eq "$pattern"; then
+              echo "$name=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "$name=false" >> "$GITHUB_OUTPUT"
+            fi
+          }
+
+          shared='^(proto/|scripts/)'
+          set_output payment_gateway "^(services/payment-gateway-service/|${shared#^})"
+          set_output fx "^(services/fx-service/|${shared#^})"
+          set_output engagement "^(services/engagement-service/|${shared#^})"
+          set_output subscription "^(services/subscription-service/|${shared#^})"
+          set_output notification "^(services/notification-service/|${shared#^})"
+          set_output identity "^(services/identity-service/|${shared#^})"
+          set_output api_gateway "^(apps/api-gateway/|${shared#^})"
+          set_output catalog "^(services/catalog-service/|${shared#^})"
+          set_output web "^(apps/web/|${shared#^})"
+          set_output deploy '^deploy/'
+          set_output infra '^infra/'
+
+  test-payment-gateway:
+    name: payment-gateway-service (Python)
+    needs: detect-changes
+    if: needs.detect-changes.outputs.payment_gateway == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/payment-gateway-service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: services/payment-gateway-service/requirements.txt
+      - run: pip install -r requirements.txt pytest pytest-asyncio pytest-cov
+      - run: pytest tests/ --cov=src --cov-report=term-missing --cov-report=xml --cov-fail-under=75 -v
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-payment-gateway
+          path: services/payment-gateway-service/coverage.xml
+
+  test-fx-service:
+    name: fx-service (Python)
+    needs: detect-changes
+    if: needs.detect-changes.outputs.fx == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/fx-service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: services/fx-service/requirements.txt
+      - run: pip install -r requirements.txt pytest pytest-asyncio pytest-cov
+      - run: pytest tests/ --cov=src --cov-report=term-missing --cov-report=xml --cov-fail-under=75 -v
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-fx-service
+          path: services/fx-service/coverage.xml
+
+  test-engagement-service:
+    name: engagement-service (Python)
+    needs: detect-changes
+    if: needs.detect-changes.outputs.engagement == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/engagement-service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: services/engagement-service/requirements.txt
+      - run: pip install -r requirements.txt pytest pytest-asyncio pytest-cov protobuf
+      - run: pytest tests/ --cov=src --cov-report=term-missing --cov-report=xml --cov-fail-under=75 -v
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-engagement-service
+          path: services/engagement-service/coverage.xml
+
+  test-subscription-service:
+    name: subscription-service (Python)
+    needs: detect-changes
+    if: needs.detect-changes.outputs.subscription == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/subscription-service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: services/subscription-service/requirements.txt
+      - run: pip install -r requirements.txt pytest pytest-asyncio pytest-cov pydantic
+      - run: pytest tests/ --cov=src --cov-report=term-missing --cov-report=xml --cov-fail-under=75 -v
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-subscription-service
+          path: services/subscription-service/coverage.xml
+
+  test-notification-service:
+    name: notification-service (Python)
+    needs: detect-changes
+    if: needs.detect-changes.outputs.notification == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/notification-service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: services/notification-service/requirements.txt
+      - run: pip install -r requirements.txt pytest pytest-asyncio pytest-cov
+      - run: pytest tests/ --cov=src --cov-report=term-missing --cov-report=xml --cov-fail-under=75 -v
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-notification-service
+          path: services/notification-service/coverage.xml
+
+  test-identity-service:
+    name: identity-service (TypeScript)
+    needs: detect-changes
+    if: needs.detect-changes.outputs.identity == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/identity-service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: services/identity-service/package-lock.json
+      - run: npm ci
+      - run: npm test -- --coverage --coverageThreshold='{"global":{"lines":75}}' --passWithNoTests
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-identity-service
+          path: services/identity-service/coverage/
+
+  test-api-gateway:
+    name: api-gateway (TypeScript)
+    needs: detect-changes
+    if: needs.detect-changes.outputs.api_gateway == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/api-gateway
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: apps/api-gateway/package-lock.json
+      - run: npm ci
+      - run: npm test -- --coverage --coverageThreshold='{"global":{"lines":75}}' --passWithNoTests
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-api-gateway
+          path: apps/api-gateway/coverage/
+
+  test-catalog-service:
+    name: catalog-service (Go)
+    needs: detect-changes
+    if: needs.detect-changes.outputs.catalog == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/catalog-service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+          cache-dependency-path: services/catalog-service/go.sum
+      - run: go test ./internal/service/... -v -coverprofile=coverage.out -covermode=atomic
+      - name: Verificar cobertura mínima
+        run: |
+          coverage="$(go tool cover -func=coverage.out | awk '/total/ {gsub(/%/, "", $3); print $3}')"
+          awk -v value="$coverage" 'BEGIN { exit(value >= 75 ? 0 : 1) }'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-catalog-service
+          path: services/catalog-service/coverage.out
+
+  build-web:
+    name: web (build)
+    needs: detect-changes
+    if: needs.detect-changes.outputs.web == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - run: npm ci
+      - run: npm run build
+
+  validate-deploy:
+    name: Validar manifiestos de despliegue
+    needs: detect-changes
+    if: needs.detect-changes.outputs.deploy == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validar sintaxis YAML
+        shell: bash
+        run: |
+          ruby -e 'require "yaml"; ARGV.each { |file| YAML.load_stream(File.read(file)); puts "OK #{file}" }' \
+            $(find deploy -type f \( -name '*.yml' -o -name '*.yaml' \))
+      - name: Validar archivos Docker Compose
+        shell: bash
+        run: |
+          while IFS= read -r compose_file; do
+            docker compose --file "$compose_file" config --quiet --no-interpolate
+          done < <(find deploy -type f -name 'docker-compose.yml')
+
+  validate-infra:
+    name: Validar Terraform y Ansible
+    needs: detect-changes
+    if: needs.detect-changes.outputs.infra == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+      - name: Validar Terraform
+        shell: bash
+        run: |
+          terraform fmt -check -recursive infra
+          for environment in \
+            infra/develop/terraform/environments/develop \
+            infra/release/terraform/environments/release; do
+            terraform -chdir="$environment" init -backend=false -input=false
+            terraform -chdir="$environment" validate
+          done
+      - name: Instalar Ansible
+        run: python -m pip install ansible-core
+      - name: Validar Ansible
+        shell: bash
+        run: |
+          ANSIBLE_CONFIG=infra/develop/ansible/ansible.cfg \
+            ansible-playbook \
+              -i infra/develop/ansible/inventories/develop/hosts.ini.example \
+              infra/develop/ansible/playbooks/prepare-develop-vms.yml \
+              --syntax-check
+          ANSIBLE_CONFIG=infra/release/ansible/ansible.cfg \
+            ansible-playbook \
+              -i infra/release/ansible/inventories/release/hosts.ini.example \
+              infra/release/ansible/playbooks/validate-release.yml \
+              --syntax-check
