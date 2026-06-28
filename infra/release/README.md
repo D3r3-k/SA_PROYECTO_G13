@@ -419,3 +419,34 @@ Confirmar:
 ```text
 yes
 ```
+
+## Paso 11. Validar uso de Terraform y Ansible
+
+Para demostrar que Terraform y Ansible estan gestionando correctamente el entorno, puedes ejecutar los siguientes comandos.
+
+### 11.1 Demostrar uso de Terraform
+
+Desde PowerShell en la carpeta `infra/release/terraform/environments/release`:
+
+Listar los recursos de produccion controlados por Terraform (como el cluster GKE, bases de datos y red):
+
+```powershell
+terraform state list
+```
+
+Detectar si alguien hizo modificaciones manuales en la consola de GCP:
+
+```powershell
+terraform plan -var-file="terraform.tfvars"
+```
+
+### 11.2 Demostrar uso de Ansible
+
+En el entorno de `release`, Ansible se utiliza para validar las credenciales de GKE y preparar el namespace localmente.
+Desde Ubuntu/WSL en la carpeta `infra/release/ansible`:
+
+Puedes ejecutar un dry-run (modo check) del playbook para demostrar las validaciones que hace Ansible sin realizar cambios:
+
+```bash
+ANSIBLE_CONFIG=$PWD/ansible.cfg ansible-playbook -i inventories/release/hosts.ini playbooks/validate-release.yml --check
+```

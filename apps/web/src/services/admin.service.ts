@@ -27,6 +27,7 @@ export interface AdminContentItem {
   content_id: string
   external_id: string
   type: ContentType | string
+  maturity_rating: string
   title: string
   overview: string
   poster_path: string
@@ -67,6 +68,7 @@ export interface ContentWritePayload {
   overview: string
   releaseDate: string
   availableFrom: string
+  maturityRating: string
   genres: string[]
   cast: CastInput[]
   episodes: EpisodeInput[]
