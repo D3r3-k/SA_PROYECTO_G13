@@ -1,11 +1,11 @@
 import { Router } from "express";
 import { callCatalogMethod } from "../grpc/catalog.client";
-import { callIdentityMethod } from "../grpc/identity.client";
+import { requireActiveSubscription, requireStandardDownloadSubscription } from "../middleware/subscription-policy";
+import { evaluateParentalControl } from "../policies/parental-control";
 import {
   AuthenticatedRequest,
   authMiddleware
 } from "../middleware/auth.middleware";
-import { requireActiveSubscription } from "../middleware/subscription-policy";
 
 export const catalogRoutes = Router();
 
@@ -56,11 +56,6 @@ type ListEpisodesResponse = BasicResponse & {
   episodes: Episode[];
 };
 
-type VerifyParentalPinResponse = {
-  success: boolean;
-  message: string;
-};
-
 function asString(value: unknown): string {
   if (Array.isArray(value)) {
     return String(value[0] || "");
@@ -78,60 +73,6 @@ function statusFromResponse(response: BasicResponse): number {
   if (message.includes("not found")) return 404;
   if (message.includes("required") || message.includes("invalid")) return 400;
   return 400;
-}
-
-function normalizeRating(value: string | undefined): string {
-  const normalized = String(value || "ALL").trim().toUpperCase().replace("-", "_");
-  if (["PG13", "PG_13"].includes(normalized)) return "PG_13";
-  if (normalized === "R") return "R";
-  return "ALL";
-}
-
-function pinFromRequest(req: AuthenticatedRequest): string {
-  const header = asString(req.headers["x-parental-pin"]);
-  const query = asString(req.query.parental_pin);
-  const body = req.body as Record<string, unknown> | undefined;
-  return (header || query || asString(body?.parental_pin)).trim();
-}
-
-async function canUnlockParentalContent(
-  req: AuthenticatedRequest,
-  maturityRating: string
-): Promise<{ blocked: boolean; reason: string; pinRequired: boolean }> {
-  const rating = normalizeRating(maturityRating);
-
-  if (!req.user?.profile_is_child || rating === "ALL") {
-    return { blocked: false, reason: "", pinRequired: false };
-  }
-
-  const pin = pinFromRequest(req);
-
-  if (!pin) {
-    return {
-      blocked: true,
-      reason: `El contenido con clasificación ${rating} requiere el PIN parental para los perfiles infantiles`,
-      pinRequired: true
-    };
-  }
-
-  const response = await callIdentityMethod<
-    { user_id: string; profile_id: string; pin: string },
-    VerifyParentalPinResponse
-  >("VerifyParentalPin", {
-    user_id: req.user.user_id,
-    profile_id: req.user.profile_id,
-    pin
-  });
-
-  if (!response.success) {
-    return {
-      blocked: true,
-      reason: response.message || "PIN parental no válido",
-      pinRequired: true
-    };
-  }
-
-  return { blocked: false, reason: "", pinRequired: false };
 }
 
 function stripPlaybackUrl(content?: ContentCard): ContentCard | undefined {
@@ -190,6 +131,152 @@ catalogRoutes.get(
   }
 );
 
+
+function downloadBlockedResponse(res: any, policy: { reason: string; pinRequired: boolean }) {
+  return res.status(403).json({
+    success: false,
+    code: "PARENTAL_PIN_REQUIRED",
+    message: policy.reason,
+    parental_control: {
+      blocked: true,
+      pin_required: policy.pinRequired,
+      reason: policy.reason
+    }
+  });
+}
+
+function downloadPayload(content: ContentCard, extra: Record<string, unknown> = {}) {
+  return {
+    success: true,
+    message: "Descarga generada para el plan Estandar.",
+    grant: {
+      content_id: content.content_id,
+      title: content.title,
+      type: content.type,
+      maturity_rating: content.maturity_rating || "ALL",
+      media_url: content.media_url || "",
+      media_mime_type: content.media_mime_type || "video/mp4",
+      poster_path: content.poster_path || "",
+      source_page_url: content.source_page_url || "",
+      authorized_at: new Date().toISOString(),
+      expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+      ...extra
+    }
+  };
+}
+
+catalogRoutes.get(
+  "/:contentId/download",
+  authMiddleware,
+  requireStandardDownloadSubscription(),
+  async (req: AuthenticatedRequest, res) => {
+    try {
+      const contentId = asString(req.params.contentId);
+      const response = await callCatalogMethod<Record<string, string>, ContentDetailResponse>(
+        "GetContentDetail",
+        { content_id: contentId }
+      );
+
+      if (!response.success || !response.content) {
+        return res.status(statusFromResponse(response)).json(response);
+      }
+
+      const policy = await evaluateParentalControl(req, response.content.maturity_rating || "ALL");
+      if (policy.blocked) return downloadBlockedResponse(res, policy);
+
+      if (response.content.type !== "movie") {
+        return res.status(400).json({
+          success: false,
+          code: "EPISODE_DOWNLOAD_REQUIRED",
+          message: "Las series deben descargarse episodio por episodio"
+        });
+      }
+
+      if (!response.content.media_url) {
+        return res.status(404).json({
+          success: false,
+          code: "DOWNLOAD_MEDIA_NOT_AVAILABLE",
+          message: "No hay ningún video descargable disponible para este contenido"
+        });
+      }
+
+      return res.json(downloadPayload(response.content));
+    } catch (error) {
+      console.error("Generate movie download grant failed", error);
+      return res.status(503).json({ success: false, message: "Catalog Service unavailable" });
+    }
+  }
+);
+
+catalogRoutes.get(
+  "/:contentId/episodes/:episodeId/download",
+  authMiddleware,
+  requireStandardDownloadSubscription(),
+  async (req: AuthenticatedRequest, res) => {
+    try {
+      const contentId = asString(req.params.contentId);
+      const episodeId = asString(req.params.episodeId);
+      const seasonNumber = asInt(req.query.season_number, 1);
+
+      const detail = await callCatalogMethod<Record<string, string>, ContentDetailResponse>(
+        "GetContentDetail",
+        { content_id: contentId }
+      );
+
+      if (!detail.success || !detail.content) {
+        return res.status(statusFromResponse(detail)).json(detail);
+      }
+
+      const policy = await evaluateParentalControl(req, detail.content.maturity_rating || "ALL");
+      if (policy.blocked) return downloadBlockedResponse(res, policy);
+
+      const response = await callCatalogMethod<
+        { content_id: string; season_number: number },
+        ListEpisodesResponse
+      >("ListEpisodes", {
+        content_id: contentId,
+        season_number: seasonNumber
+      });
+
+      if (!response.success) {
+        return res.status(statusFromResponse(response)).json(response);
+      }
+
+      const episode = (response.episodes || []).find((item) => item.episode_id === episodeId);
+      if (!episode) {
+        return res.status(404).json({
+          success: false,
+          code: "EPISODE_NOT_FOUND",
+          message: "Episodio no encontrado para este contenido y temporada"
+        });
+      }
+
+      if (!episode.media_url) {
+        return res.status(404).json({
+          success: false,
+          code: "DOWNLOAD_MEDIA_NOT_AVAILABLE",
+          message: "No hay ningún video descargable disponible para este episodio"
+        });
+      }
+
+      return res.json(downloadPayload(detail.content, {
+        media_url: episode.media_url,
+        media_mime_type: episode.media_mime_type || "video/mp4",
+        episode: {
+          episode_id: episode.episode_id,
+          season_number: episode.season_number,
+          episode_number: episode.episode_number,
+          title: episode.title,
+          runtime_minutes: episode.runtime_minutes
+        }
+      }));
+    } catch (error) {
+      console.error("Generate episode download grant failed", error);
+      return res.status(503).json({ success: false, message: "Catalog Service unavailable" });
+    }
+  }
+);
+
 catalogRoutes.get(
   "/:contentId",
   authMiddleware,
@@ -207,7 +294,7 @@ catalogRoutes.get(
         return res.status(statusFromResponse(response)).json(response);
       }
 
-      const policy = await canUnlockParentalContent(
+      const policy = await evaluateParentalControl(
         req,
         response.content?.maturity_rating || "ALL"
       );
@@ -264,7 +351,7 @@ catalogRoutes.get(
         season_number: asInt(req.query.season_number, 1)
       });
 
-      const policy = await canUnlockParentalContent(
+      const policy = await evaluateParentalControl(
         req,
         detail.content?.maturity_rating || "ALL"
       );

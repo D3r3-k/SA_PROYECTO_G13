@@ -5,6 +5,8 @@ import { useAuth } from '../hooks/useAuth'
 import { catalogService, type ContentDetail, type Episode } from '../services/catalog.service'
 import { engagementService, type RatingSummary, type ResumeResponse } from '../services/engagement.service'
 import { watchPartyService } from '../services/watchParty.service'
+import { downloadService } from '../services/download.service'
+import { saveEncryptedDownload } from '../services/offlineDownloads.service'
 import styles from './ContentDetailPage.module.css'
 
 type UserRating = 'THUMBS_UP' | 'THUMBS_DOWN' | null
@@ -24,6 +26,9 @@ export default function ContentDetailPage() {
   const [pinError, setPinError] = useState('')
   const [watchPartyError, setWatchPartyError] = useState('')
   const [creatingParty, setCreatingParty] = useState(false)
+  const [downloadError, setDownloadError] = useState('')
+  const [downloadStatus, setDownloadStatus] = useState('')
+  const [downloading, setDownloading] = useState(false)
 
   const [selectedEpisode, setSelectedEpisode] = useState<Episode | null>(null)
   const [userRating, setUserRating] = useState<UserRating>(null)
@@ -44,8 +49,14 @@ export default function ContentDetailPage() {
     try {
       const [detailRes, ratingRes, resumeRes] = await Promise.all([
         catalogService.detail(contentId, pin),
-        engagementService.getRatingSummary(contentId).catch(() => null),
-        profileId ? engagementService.resume(contentId, profileId).catch(() => null) : Promise.resolve(null),
+        engagementService.getRatingSummary(contentId).catch((error) => {
+          console.error(`[ContentDetailPage.tsx] Error: ${error instanceof Error ? error.message : String(error)}`)
+          return null
+        }),
+        profileId ? engagementService.resume(contentId, profileId).catch((error) => {
+          console.error(`[ContentDetailPage.tsx] Error: ${error instanceof Error ? error.message : String(error)}`)
+          return null
+        }) : Promise.resolve(null),
       ])
 
       const d = detailRes.data
@@ -71,10 +82,11 @@ export default function ContentDetailPage() {
         }
       }
     } catch (err: any) {
+      console.error(`[ContentDetailPage.tsx] Error: ${err instanceof Error ? err.message : String(err)}`)
       const code = err?.response?.data?.code
       setError(code === 'ACTIVE_SUBSCRIPTION_REQUIRED'
         ? 'Necesitas una suscripción activa para reproducir contenido.'
-        : 'No se pudo cargar el contenido. El servicio puede no estar disponible.')
+        : 'No pudimos cargar este contenido en este momento.')
     } finally {
       setLoading(false)
     }
@@ -104,15 +116,56 @@ export default function ContentDetailPage() {
     setCreatingParty(true)
     setWatchPartyError('')
     try {
-      const res = await watchPartyService.createRoom(contentId)
+      const res = await watchPartyService.createRoom(contentId, parentalPin)
       navigate(`/watch-party/${res.data.code}`)
     } catch (err: any) {
+      console.error(`[ContentDetailPage.tsx] Error: ${err instanceof Error ? err.message : String(err)}`)
       const code = err?.response?.data?.code
       setWatchPartyError(code === 'PREMIUM_PLAN_REQUIRED'
         ? 'Solo usuarios Premium pueden crear una Watch Party.'
-        : 'No se pudo crear la Watch Party.')
+        : code === 'PARENTAL_PIN_REQUIRED'
+          ? 'Ingresa el PIN parental antes de crear la Watch Party.'
+          : 'No se pudo crear la Watch Party.')
     } finally {
       setCreatingParty(false)
+    }
+  }
+
+  const handleDownload = async () => {
+    if (!contentId || downloading) return
+    setDownloadError('')
+    setDownloadStatus('')
+    setDownloading(true)
+
+    try {
+      const response = isSeries && selectedEpisode
+        ? await downloadService.requestEpisodeDownload(
+            contentId,
+            selectedEpisode.episode_id,
+            selectedEpisode.season_number,
+            parentalPin,
+          )
+        : await downloadService.requestMovieDownload(contentId, parentalPin)
+
+      const record = await saveEncryptedDownload(response.data.grant)
+      const readyMessage = record.cache_status === 'cached' || record.cache_status === 'cached_opaque'
+        ? 'Ya puedes abrirlo desde Mis descargas.'
+        : 'Quedó agregado a tus descargas en este navegador.'
+      setDownloadStatus(`${record.title} se guardó correctamente. ${readyMessage}`)
+    } catch (err: any) {
+      console.error(`[ContentDetailPage.tsx] Error: ${err instanceof Error ? err.message : String(err)}`)
+      const code = err?.response?.data?.code
+      setDownloadError(code === 'STANDARD_PLAN_REQUIRED'
+        ? 'La descarga solo está disponible para Plan Estándar.'
+        : code === 'PARENTAL_PIN_REQUIRED'
+          ? 'Ingresa el PIN parental correcto antes de descargar.'
+          : code === 'DOWNLOAD_MEDIA_NOT_AVAILABLE'
+            ? 'Este contenido no tiene video disponible para descarga.'
+            : code === 'EPISODE_DOWNLOAD_REQUIRED'
+              ? 'Selecciona un episodio para descargar la serie.'
+              : err?.message || 'No se pudo guardar la descarga.')
+    } finally {
+      setDownloading(false)
     }
   }
 
@@ -144,7 +197,9 @@ export default function ContentDetailPage() {
           selectedEpisode?.season_number ?? 0,
           selectedEpisode?.episode_number ?? 0,
         )
-        .catch(() => {})
+        .catch((error) => {
+          console.error(`[ContentDetailPage.tsx] Error: ${error instanceof Error ? error.message : String(error)}`)
+        })
     }, 500)
   }, [contentId, user, selectedEpisode])
 
@@ -153,8 +208,13 @@ export default function ContentDetailPage() {
     const next = userRating === rating ? null : rating
     setUserRating(next)
     if (next) {
-      await engagementService.rate(contentId, user.profile_id, next).catch(() => {})
-      const fresh = await engagementService.getRatingSummary(contentId).catch(() => null)
+      await engagementService.rate(contentId, user.profile_id, next).catch((error) => {
+        console.error(`[ContentDetailPage.tsx] Error: ${error instanceof Error ? error.message : String(error)}`)
+      })
+      const fresh = await engagementService.getRatingSummary(contentId).catch((error) => {
+        console.error(`[ContentDetailPage.tsx] Error: ${error instanceof Error ? error.message : String(error)}`)
+        return null
+      })
       if (fresh) setRatingSummary(fresh.data)
     }
   }
@@ -164,7 +224,9 @@ export default function ContentDetailPage() {
     lastSavedMinute.current = -1
     if (videoRef.current) {
       videoRef.current.currentTime = 0
-      videoRef.current.play().catch(() => {})
+      videoRef.current.play().catch((error) => {
+        console.error(`[ContentDetailPage.tsx] Error: ${error instanceof Error ? error.message : String(error)}`)
+      })
     }
   }
 
@@ -254,6 +316,12 @@ export default function ContentDetailPage() {
                 </button>
                 {watchPartyError && <span style={{ color: 'var(--color-danger)' }}>{watchPartyError}</span>}
 
+                <button className="btn btn-secondary btn-sm" onClick={handleDownload} disabled={downloading || (isSeries && !selectedEpisode)}>
+                  {downloading ? 'Guardando...' : isSeries ? 'Descargar episodio' : 'Descargar'}
+                </button>
+                {downloadError && <span style={{ color: 'var(--color-danger)' }}>{downloadError}</span>}
+                {downloadStatus && <span style={{ color: 'var(--color-success)' }}>{downloadStatus}</span>}
+
                 <div className={styles.ratingButtons}>
                   <button className={`${styles.ratingBtn} ${userRating === 'THUMBS_UP' ? styles.ratingBtnActive : ''}`} onClick={() => handleRate('THUMBS_UP')} title="Me gusta">👍</button>
                   <button className={`${styles.ratingBtn} ${userRating === 'THUMBS_DOWN' ? styles.ratingBtnActive : ''}`} onClick={() => handleRate('THUMBS_DOWN')} title="No me gusta">👎</button>
@@ -288,7 +356,7 @@ export default function ContentDetailPage() {
 
               {isSeries && selectedEpisode && <p className={styles.playerTitle}>T{selectedEpisode.season_number} E{selectedEpisode.episode_number} — {selectedEpisode.title}</p>}
 
-              {videoDuration !== null && <p className={styles.videoDuration}>Duración real: {formatVideoDuration(videoDuration)}</p>}
+              {videoDuration !== null && <p className={styles.videoDuration}>Duración: {formatVideoDuration(videoDuration)}</p>}
 
               {currentVideoUrl ? (
                 <div className={styles.videoWrapper}>

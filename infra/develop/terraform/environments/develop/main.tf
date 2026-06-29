@@ -149,9 +149,16 @@ module "storage" {
     "http://localhost:5173",
     "https://localhost:5173",
     "http://localhost:8080",
-    "http://${module.compute_vms.frontend_public_ip}"
+    "https://${module.compute_vms.frontend_public_ip}"
   ]
   labels = var.labels
+}
+
+resource "google_compute_address" "frontend" {
+  name   = "dev-frontend-ip"
+  region = var.region
+
+  depends_on = [google_project_service.required]
 }
 
 module "compute_vms" {
@@ -164,11 +171,12 @@ module "compute_vms" {
 
   instances = {
     frontend = {
-      name         = "dev-vm-frontend"
-      machine_type = "e2-micro"
-      subnet       = "public"
-      public_ip    = true
-      tags         = ["frontend", "http-server"]
+      name              = "dev-vm-frontend"
+      machine_type      = "e2-micro"
+      subnet            = "public"
+      public_ip         = true
+      public_ip_address = google_compute_address.frontend.address
+      tags              = ["frontend", "http-server", "https-server"]
     }
     gateway = {
       name         = "dev-vm-gateway"
@@ -219,6 +227,13 @@ module "firewall" {
       source_ranges = ["0.0.0.0/0"]
       target_tags   = ["http-server"]
     }
+    allow_https = {
+      name          = "dev-allow-https"
+      protocol      = "tcp"
+      ports         = ["443"]
+      source_ranges = ["0.0.0.0/0"]
+      target_tags   = ["https-server"]
+    }
     allow_gateway = {
       name          = "dev-allow-gateway"
       protocol      = "tcp"
@@ -229,7 +244,7 @@ module "firewall" {
     allow_grpc_services = {
       name          = "dev-allow-grpc-services"
       protocol      = "tcp"
-      ports         = ["50051-50057"]
+      ports         = ["50051-50058"]
       source_ranges = ["10.0.2.0/24"]
       target_tags   = ["services"]
     }

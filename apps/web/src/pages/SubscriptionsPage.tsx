@@ -49,9 +49,9 @@ interface PaymentReceipt {
 const PLAN_META: Record<string, { features: string[]; highlighted: boolean }> = {
   básico:   { highlighted: false, features: ['1 pantalla simultánea', 'Calidad HD', 'Sin descargas'] },
   basic:    { highlighted: false, features: ['1 pantalla simultánea', 'Calidad HD', 'Sin descargas'] },
-  estándar: { highlighted: true,  features: ['2 pantallas simultáneas', 'Calidad Full HD', 'Descargas limitadas'] },
-  standard: { highlighted: true,  features: ['2 pantallas simultáneas', 'Calidad Full HD', 'Descargas limitadas'] },
-  premium:  { highlighted: false, features: ['4 pantallas simultáneas', 'Calidad 4K + HDR', 'Descargas ilimitadas'] },
+  estándar: { highlighted: true,  features: ['2 pantallas simultáneas', 'Calidad Full HD', 'Descargas disponibles'] },
+  standard: { highlighted: true,  features: ['2 pantallas simultáneas', 'Calidad Full HD', 'Descargas disponibles'] },
+  premium:  { highlighted: false, features: ['4 pantallas simultáneas', 'Calidad 4K + HDR', 'Watch Party', 'Sin descargas por norma'] },
 }
 
 const FALLBACK_PLANS: PlanDisplay[] = [
@@ -188,7 +188,7 @@ export default function SubscriptionsPage() {
       const last4 = p?.card_last4 ? ` (**** **** **** ${p.card_last4})` : ''
 
       if (p?.status === 'declined') {
-        setError(`Pago rechazado por el emisor${last4}. Verifica los datos o usa otra tarjeta.`)
+        setError(`El pago fue rechazado. Verifica los datos o usa otra tarjeta.`)
       } else if (msg.toLowerCase().includes('funds')) {
         setError(`Fondos insuficientes${last4}. Intenta con otra tarjeta.`)
       } else if (p?.status === 'rejected' || msg.toLowerCase().includes('invalid') || msg.toLowerCase().includes('expired')) {

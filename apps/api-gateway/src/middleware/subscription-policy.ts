@@ -130,3 +130,36 @@ export function requirePremiumSubscription() {
     }
   };
 }
+
+export function requireStandardDownloadSubscription() {
+  return async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      const active = await getActiveSubscriptionForUser(req.user?.user_id || "");
+
+      if (!active) {
+        return res.status(403).json({
+          success: false,
+          code: "ACTIVE_SUBSCRIPTION_REQUIRED",
+          message: "Se requiere una suscripción Standard activa para descargar contenido"
+        });
+      }
+
+      if (active.plan_tier !== "standard") {
+        return res.status(403).json({
+          success: false,
+          code: "STANDARD_PLAN_REQUIRED",
+          message: "La descarga de contenido está habilitada únicamente para el Plan Estándar. Los planes Básico y Premium no pueden descargar."
+        });
+      }
+
+      req.activeSubscription = active;
+      return next();
+    } catch (error) {
+      console.error("Subscription validation failed", error);
+      return res.status(503).json({
+        success: false,
+        message: "Subscription Service unavailable"
+      });
+    }
+  };
+}

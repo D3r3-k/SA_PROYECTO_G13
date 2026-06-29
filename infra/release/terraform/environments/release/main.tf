@@ -146,7 +146,7 @@ module "storage" {
   cors_origins = [
     "http://localhost:5173",
     "https://localhost:5173",
-    "http://${module.ingress_ip.address}"
+    "https://${module.ingress_ip.address}"
   ]
   labels = var.labels
 }

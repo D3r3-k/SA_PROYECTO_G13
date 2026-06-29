@@ -27,6 +27,7 @@ export default function AppLayout({ children }: Props) {
             <Link to="/catalog" className={styles.navLink}>Catálogo</Link>
             <Link to="/subscriptions" className={styles.navLink}>Planes</Link>
             <Link to="/history" className={styles.navLink}>Historial</Link>
+            <Link to="/downloads" className={styles.navLink}>Descargas</Link>
             {user?.is_admin && <Link to="/admin" className={styles.navLink}>Admin</Link>}
           </nav>
           <div className={styles.actions}>

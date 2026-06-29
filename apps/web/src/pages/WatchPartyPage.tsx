@@ -44,6 +44,9 @@ export default function WatchPartyPage() {
   const [connected, setConnected] = useState(false)
   const [syncWarning, setSyncWarning] = useState('')
   const [playbackUnlocked, setPlaybackUnlocked] = useState(false)
+  const [parentalPin, setParentalPin] = useState('')
+  const [parentalReason, setParentalReason] = useState('')
+  const [unlockAttempt, setUnlockAttempt] = useState(0)
 
   const setHost = useCallback((value: boolean) => {
     isHostRef.current = value
@@ -53,8 +56,9 @@ export default function WatchPartyPage() {
 
   const wsUrl = useMemo(() => {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    return `${protocol}//${window.location.host}/api/watch-party/ws/${code}`
-  }, [code])
+    const query = parentalPin ? `?parental_pin=${encodeURIComponent(parentalPin)}` : ''
+    return `${protocol}//${window.location.host}/api/watch-party/ws/${code}${query}`
+  }, [code, parentalPin])
 
   const releaseRemoteLock = useCallback(() => {
     if (remoteTimerRef.current) {
@@ -104,15 +108,21 @@ export default function WatchPartyPage() {
 
     async function load() {
       try {
-        const roomRes = await watchPartyService.getRoom(code)
+        const roomRes = await watchPartyService.getRoom(code, parentalPin)
         if (cancelled) return
         setRoom(roomRes.data.room)
         setHost(roomRes.data.is_host)
+        setParentalReason('')
 
-        const detailRes = await catalogService.detail(roomRes.data.room.content_id)
+        const detailRes = await catalogService.detail(roomRes.data.room.content_id, parentalPin)
         if (!cancelled) setDetail(detailRes.data)
       } catch (err: any) {
         const code = err?.response?.data?.code
+        if (code === 'PARENTAL_PIN_REQUIRED') {
+          setParentalReason(err?.response?.data?.message || 'Este contenido requiere PIN parental para unirte a la Watch Party.')
+          return
+        }
+
         setError(code === 'ACTIVE_SUBSCRIPTION_REQUIRED'
           ? 'Necesitas una suscripción activa para unirte a la Watch Party.'
           : 'No se pudo abrir la Watch Party.')
@@ -121,7 +131,7 @@ export default function WatchPartyPage() {
 
     load()
     return () => { cancelled = true }
-  }, [code, setHost])
+  }, [code, setHost, unlockAttempt])
 
   useEffect(() => {
     if (!room) return
@@ -216,6 +226,34 @@ export default function WatchPartyPage() {
     }
   }, [applyPlayback, room?.playback])
 
+  if (parentalReason && !room) {
+    return (
+      <AppLayout>
+        <div className={styles.error}>
+          <p>{parentalReason}</p>
+          <div style={{ display: 'flex', gap: '.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+            <input
+              className="input"
+              placeholder="PIN de 4 dígitos"
+              value={parentalPin}
+              maxLength={4}
+              inputMode="numeric"
+              onChange={(e) => setParentalPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+            />
+            <button
+              className="btn btn-primary"
+              onClick={() => setUnlockAttempt((value) => value + 1)}
+              disabled={!/^\d{4}$/.test(parentalPin)}
+            >
+              Desbloquear Watch Party
+            </button>
+          </div>
+          <button className="btn btn-secondary" onClick={() => navigate('/catalog')}>Volver al catálogo</button>
+        </div>
+      </AppLayout>
+    )
+  }
+
   if (error) {
     return (
       <AppLayout>
@@ -272,7 +310,7 @@ export default function WatchPartyPage() {
           </div>
           {!isHost && (
             <p className={styles.meta}>
-              En modo invitado los controles del video se bloquean para evitar desincronización. Usa el botón de activación si el navegador bloquea el inicio automático.
+              Como invitado, la reproducción la controla el anfitrión. Usa el botón de activación si el navegador bloquea el inicio automático.
             </p>
           )}
         </div>

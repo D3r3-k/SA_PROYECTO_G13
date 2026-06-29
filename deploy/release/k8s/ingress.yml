@@ -5,14 +5,18 @@ metadata:
   namespace: quetxal-tv-prod
   annotations:
     kubernetes.io/ingress.global-static-ip-name: prod-release-ingress-ip
+    kubernetes.io/ingress.class: gce
+    acme.cert-manager.io/http01-edit-in-place: "true"
 spec:
+  tls:
+    - secretName: __TLS_SECRET_NAME__
   rules:
     - http:
         paths:
           - path: /*
             pathType: ImplementationSpecific
             backend:
-               service:
-                 name: web
-                 port:
-                   number: 80
+              service:
+                name: web
+                port:
+                  number: 80

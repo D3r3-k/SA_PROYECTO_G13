@@ -42,6 +42,7 @@ jobs:
       payment_gateway: ${{ steps.changes.outputs.payment_gateway }}
       fx: ${{ steps.changes.outputs.fx }}
       engagement: ${{ steps.changes.outputs.engagement }}
+      recommendation: ${{ steps.changes.outputs.recommendation }}
       subscription: ${{ steps.changes.outputs.subscription }}
       notification: ${{ steps.changes.outputs.notification }}
       identity: ${{ steps.changes.outputs.identity }}
@@ -77,6 +78,7 @@ jobs:
           set_output payment_gateway "^(services/payment-gateway-service/|${shared#^})"
           set_output fx "^(services/fx-service/|${shared#^})"
           set_output engagement "^(services/engagement-service/|${shared#^})"
+          set_output recommendation "^(services/recommendation-service/|${shared#^})"
           set_output subscription "^(services/subscription-service/|${shared#^})"
           set_output notification "^(services/notification-service/|${shared#^})"
           set_output identity "^(services/identity-service/|${shared#^})"
@@ -154,6 +156,24 @@ jobs:
         with:
           name: coverage-engagement-service
           path: services/engagement-service/coverage.xml
+
+  validate-recommendation-service:
+    name: recommendation-service (Python)
+    needs: detect-changes
+    if: needs.detect-changes.outputs.recommendation == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/recommendation-service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: services/recommendation-service/requirements.txt
+      - run: pip install -r requirements.txt
+      - run: python -m compileall src
 
   test-subscription-service:
     name: subscription-service (Python)
@@ -303,6 +323,26 @@ jobs:
         run: |
           ruby -e 'require "yaml"; ARGV.each { |file| YAML.load_stream(File.read(file)); puts "OK #{file}" }' \
             $(find deploy -type f \( -name '*.yml' -o -name '*.yaml' \))
+      - name: Validar plantillas TLS
+        shell: bash
+        run: |
+          bash -n deploy/develop/frontend/bootstrap-tls.sh
+          mkdir -p /tmp/quetxal-tls
+          sed \
+            -e 's|__ACME_EMAIL__|admin@example.com|g' \
+            deploy/release/k8s/tls/cluster-issuers.yml > /tmp/quetxal-tls/cluster-issuers.yml
+          sed \
+            -e 's|__ACME_ENVIRONMENT__|staging|g' \
+            -e 's|__INGRESS_IP__|203.0.113.10|g' \
+            deploy/release/k8s/tls/certificate.yml > /tmp/quetxal-tls/certificate.yml
+          sed \
+            -e 's|__TLS_SECRET_NAME__|quetxal-tv-tls-staging|g' \
+            deploy/release/k8s/ingress.yml > /tmp/quetxal-tls/ingress.yml
+          if rg -n '__[A-Z_]+__' /tmp/quetxal-tls; then
+            echo '[ci-pr.yml] Error: quedaron marcadores TLS sin reemplazar' >&2
+            exit 1
+          fi
+          ruby -e 'require "yaml"; ARGV.each { |file| YAML.load_stream(File.read(file)) }' /tmp/quetxal-tls/*.yml
       - name: Validar archivos Docker Compose
         shell: bash
         run: |

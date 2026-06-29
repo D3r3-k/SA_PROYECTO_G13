@@ -1,0 +1,8 @@
+[Unit]
+Description=Renovar certificado TLS de Quetxal TV
+After=network-online.target nginx.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/certbot/bin/certbot renew --cert-name quetxal-tv-ip-production --quiet --deploy-hook "systemctl reload nginx"

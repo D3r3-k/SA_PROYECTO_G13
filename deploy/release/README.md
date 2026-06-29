@@ -13,7 +13,7 @@ El objetivo es dejar documentado el proceso completo desde cero, incluyendo VPC,
 | -------------- | ----------------------------------------------------------------------------------------- |
 | Orquestacion   | Google Kubernetes Engine (`prod-gke-release`)                                             |
 | Namespace      | `quetxal-tv-prod`                                                                         |
-| Acceso externo | Ingress con IP estatica (`prod-release-ingress-ip`)                                       |
+| Acceso externo | Ingress HTTPS con IP estatica (`prod-release-ingress-ip`)                                 |
 | Servicios      | Kubernetes Services tipo `ClusterIP`                                                      |
 | Bases de datos | Cloud SQL PostgreSQL 16 (`identity_db`, `subscription_db`, `catalog_db`, `engagement_db`) |
 | Cache / Colas  | Memorystore Redis 7 (`prod-redis`)                                                        |
@@ -25,6 +25,30 @@ El objetivo es dejar documentado el proceso completo desde cero, incluyendo VPC,
 
 > [!NOTE]
 > Todos los comandos de esta guia estan escritos para PowerShell en Windows.
+
+## HTTPS mediante IP publica
+
+El workflow instala cert-manager 1.20.2 y solicita a Let’s Encrypt un certificado `shortlived` para la IP global `prod-release-ingress-ip`. cert-manager guarda y renueva la clave y el certificado en un Secret TLS; ninguna clave privada pasa por GitHub Actions.
+
+Configure en el GitHub Environment `release`:
+
+| Variable | Valor inicial |
+| -------- | ------------- |
+| `ACME_EMAIL` | Correo operativo para la cuenta ACME |
+| `ACME_ENVIRONMENT` | `staging` |
+
+Ejecute una primera entrega con `staging`. Después de verificar `Certificate Ready=True`, cambie la variable a `production` y repita el despliegue. El Ingress cambia al Secret `quetxal-tv-tls-production` y elimina los recursos staging.
+
+Diagnostico:
+
+```powershell
+kubectl get clusterissuer
+kubectl get certificate,certificaterequest,order,challenge -n quetxal-tv-prod
+kubectl describe certificate quetxal-tv-ip-production -n quetxal-tv-prod
+kubectl describe ingress quetxal-tv-ingress -n quetxal-tv-prod
+```
+
+El puerto 80 permanece habilitado para HTTP-01 y redirige el trafico normal a HTTPS. `/healthz` queda excluido de la redireccion para las comprobaciones del balanceador.
 
 ---
 

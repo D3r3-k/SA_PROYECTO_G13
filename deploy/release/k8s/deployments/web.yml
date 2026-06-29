@@ -37,6 +37,9 @@ spec:
                 name: app-config
             - secretRef:
                 name: app-secrets
+          env:
+            - name: ENFORCE_HTTPS
+              value: "true"
           readinessProbe:
             httpGet:
               path: /

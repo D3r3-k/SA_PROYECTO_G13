@@ -56,6 +56,14 @@ resource "google_container_cluster" "this" {
     disk_size_gb = 20
     disk_type    = "pd-standard"
   }
+
+  lifecycle {
+    ignore_changes = [
+      node_config,
+      node_pool,
+      initial_node_count
+    ]
+  }
 }
 
 resource "google_container_node_pool" "primary" {
