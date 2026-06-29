@@ -138,3 +138,7 @@ En la quinta seccion el worker registra la notificacion con `logger.info(Email s
 ### Diagrama de Actividades — Gestion de Usuarios
 
 ![Diagrama de Actividades — Publicacion de Contenido y Notificaciones](../00_assets/diagrams/04_diagramas/actividades/actividadgestionusuarios.drawio.png)
+
+### Diagrama de Actividades - Motor de Recomendaciones
+
+![alt text](recomendacionesActividades.jpg)
