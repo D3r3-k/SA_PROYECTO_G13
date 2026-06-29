@@ -23,6 +23,11 @@ spec:
               env:
                 - name: INACTIVE_THRESHOLD_INTERVAL
                   value: "5 minutes"
+                - name: DB_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      key: IDENTITY_DB_PASSWORD
+                      name: app-secrets
               envFrom:
                 - configMapRef:
                     name: app-config

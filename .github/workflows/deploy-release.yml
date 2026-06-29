@@ -736,6 +736,7 @@ jobs:
             --namespace="${GKE_NAMESPACE}" \
             --timeout=2m
 
+          kubectl apply -f deploy/release/k8s/frontend-config.yml
           kubectl apply -f runtime-k8s/ingress.yml
 
           if [ "${ACME_ENVIRONMENT}" = "production" ]; then
