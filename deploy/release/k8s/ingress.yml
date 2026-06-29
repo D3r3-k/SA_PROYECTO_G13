@@ -12,13 +12,6 @@ spec:
   rules:
     - http:
         paths:
-          - path: /.well-known/acme-challenge/*
-            pathType: ImplementationSpecific
-            backend:
-              service:
-                name: acme-solver-service
-                port:
-                  number: 8089
           - path: /*
             pathType: ImplementationSpecific
             backend:
