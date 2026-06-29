@@ -60,7 +60,7 @@ export default function AccountPage() {
               <span className={styles.infoValue}>{user?.email}</span>
             </div>
             <div className={styles.infoRow}>
-              <span className={styles.infoLabel}>ID de usuario</span>
+              <span className={styles.infoLabel}>Código de cuenta</span>
               <span className={`${styles.infoValue} ${styles.mono}`}>{user?.user_id}</span>
             </div>
           </div>

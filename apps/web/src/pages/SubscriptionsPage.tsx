@@ -188,7 +188,7 @@ export default function SubscriptionsPage() {
       const last4 = p?.card_last4 ? ` (**** **** **** ${p.card_last4})` : ''
 
       if (p?.status === 'declined') {
-        setError(`Pago rechazado por el emisor${last4}. Verifica los datos o usa otra tarjeta.`)
+        setError(`El pago fue rechazado. Verifica los datos o usa otra tarjeta.`)
       } else if (msg.toLowerCase().includes('funds')) {
         setError(`Fondos insuficientes${last4}. Intenta con otra tarjeta.`)
       } else if (p?.status === 'rejected' || msg.toLowerCase().includes('invalid') || msg.toLowerCase().includes('expired')) {

@@ -236,3 +236,15 @@ En el segundo flujo el administrador solicita ver el log completo de auditoria. 
 En el tercer flujo el administrador aplica filtros por tabla afectada, tipo de operacion y rango de fechas. El panel envia los parametros al Gateway, que los propaga al servicio. El servicio ejecuta la consulta filtrada sobre la tabla de auditoria y retorna unicamente los registros que coinciden con los criterios. La vista del panel se actualiza con el resultado filtrado.
 
 En el cuarto flujo el administrador solicita descargar el reporte en formato CSV o PDF. El panel envia la solicitud con los filtros activos al Gateway, que recopila los registros de todos los servicios via `gRPC ListAuditLogs` y genera el archivo directamente en el Gateway. El archivo resultante es retornado al navegador del administrador, que inicia la descarga automaticamente.
+
+### Diagrama de Secuencia — Motor de Recomendación [Fase 3]
+
+![alt text](recomendacionesSecuencias.jpg)
+
+Este diagrama muestra la interacción temporal entre seis participantes: Usuario, Frontend (React), API Gateway, recommendation-service, catalog_db y engagement_db, cubriendo el flujo completo de generación y presentación de recomendaciones personalizadas.
+
+El flujo inicia cuando el usuario accede al catálogo con un perfil activo en sesión. El Frontend ejecuta automáticamente GET /api/recommendations?limit=10 adjuntando la cookie de sesión. El API Gateway valida el JWT y extrae el profile_id del perfil activo, luego invoca GetRecommendations(profile_id, limit) en el recommendation-service vía gRPC.
+
+El recommendation-service realiza dos consultas en secuencia: primero consulta catalog_db obteniendo todos los contenidos disponibles con sus géneros mediante ARRAY_AGG, y luego consulta engagement_db obteniendo el historial de visualización del perfil con LEFT JOIN sobre la tabla de calificaciones. Con ambos resultados construye en memoria el historial enriquecido, cruzan los registros de engagement con los géneros del catálogo por content_id.
+
+Finalmente el servicio ejecuta el algoritmo Content-Based Filtering: construye el vocabulario de géneros, genera vectores binarios, calcula el perfil de preferencias del usuario ponderando THUMBS_UP como +1 y THUMBS_DOWN como -1, aplica similitud del coseno con NumPy y retorna los K contenidos con mayor puntuación. La respuesta sube por la cadena hasta que el Frontend renderiza la sección "Recomendados para ti" entre el hero y los filtros del catálogo.

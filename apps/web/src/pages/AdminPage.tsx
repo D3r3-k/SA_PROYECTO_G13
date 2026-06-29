@@ -814,7 +814,7 @@ export default function AdminPage() {
 
       const response = await adminService.downloadAuditPdf(currentAuditFilters(1000, 0))
       downloadBlob(response.data, 'quetxal-tv-auditoria.pdf')
-      showFeedback({ title: 'PDF generado', text: 'El reporte fue generado por el servidor y está listo para revisar.' })
+      showFeedback({ title: 'PDF generado', text: 'El reporte fue generado correctamente y está listo para revisar.' })
     } catch (error) {
       setNotice({ type: 'error', text: extractError(error, `No se pudo descargar ${format.toUpperCase()}.`) })
     } finally {
@@ -947,7 +947,7 @@ export default function AdminPage() {
                         onChange={(e) => void selectMovieVideo(e.target.files?.[0] ?? null)}
                       />
                       {movieVideoFile && <span className={styles.fileHint}>{movieVideoFile.name} · {fileSizeLabel(movieVideoFile)}</span>}
-                      {movieVideoDurationLabel && <span className={styles.fileHint}>Duración detectada: {movieVideoDurationLabel}</span>}
+                      {movieVideoDurationLabel && <span className={styles.fileHint}>Duración del video: {movieVideoDurationLabel}</span>}
                     </label>
                   )}
                 </>
