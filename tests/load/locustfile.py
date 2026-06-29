@@ -12,9 +12,9 @@ from urllib.parse import urlparse
 from locust import HttpUser, between, events, task
 from locust.exception import StopUser
 
-try:  
+try:  # websocket-client es opcional; el Dockerfile de tests/load lo instala.
     import websocket  # type: ignore
-except Exception:  # pragma: no cover - se valida en ejecucion cloud
+except Exception:  # pragma: no cover - depende del ambiente de ejecucion.
     websocket = None
 
 
@@ -38,6 +38,13 @@ def split_env(name: str, default: Iterable[str]) -> list[str]:
     raw = os.getenv(name, "")
     values = [item.strip() for item in raw.split(",") if item.strip()]
     return values or list(default)
+
+
+def normalize_mode(value: str) -> str:
+    normalized = value.strip().lower().replace("_", "-")
+    if normalized in {"route-check", "routes", "smoke", "smoke-load", "no-auth"}:
+        return "route-check"
+    return "full-flow"
 
 
 def normalize_plan(value: str) -> str:
@@ -113,6 +120,8 @@ def accounts_from_env() -> list[TestAccount]:
     return accounts
 
 
+LOAD_MODE = normalize_mode(os.getenv("LOCUST_MODE", "full-flow"))
+ROUTE_CHECK_MODE = LOAD_MODE == "route-check"
 ACCOUNTS = accounts_from_env()
 SEARCH_TERMS = split_env("LOCUST_SEARCH_TERMS", ["accion", "drama", "comedia", "familia", "aventura"])
 STATIC_CONTENT_IDS = split_env("LOCUST_CONTENT_IDS", [])
@@ -161,8 +170,15 @@ def ws_base_url(host: str) -> str:
     return f"{scheme}://{parsed.netloc}"
 
 
+def mark_expected(response: Any, expected_statuses: set[int], context: str) -> None:
+    if response.status_code in expected_statuses:
+        response.success()
+        return
+    response.failure(f"{context}: status inesperado {response.status_code}; esperados {sorted(expected_statuses)}")
+
+
 class QuetxalTvUser(HttpUser):
-    """Usuario virtual que reproduce flujos reales de navegacion y consumo."""
+    """Usuario virtual que puede operar en modo route-check o full-flow."""
 
     wait_time = between(1, 4)
 
@@ -175,10 +191,14 @@ class QuetxalTvUser(HttpUser):
     def on_start(self) -> None:
         self.content_ids = list(STATIC_CONTENT_IDS)
         self.watch_party_codes = []
-        self.account = choose_account()
 
+        if ROUTE_CHECK_MODE:
+            # Modo tolerante a ambientes volatiles: no requiere data semilla ni usuarios.
+            self.authenticated = False
+            return
+
+        self.account = choose_account()
         if not self.account:
-            # Permite ejecutar al menos health checks si aun no hay data de prueba configurada.
             self.authenticated = False
             if STRICT_AUTH:
                 raise StopUser("No hay usuarios de prueba configurados para Locust")
@@ -270,11 +290,78 @@ class QuetxalTvUser(HttpUser):
 
     @task(5)
     def health(self) -> None:
-        self.client.get("/api/health", name="GET /api/health")
+        with self.client.get("/api/health", name="GET /api/health", catch_response=True) as response:
+            mark_expected(response, {200}, "health")
+
+    @task(4)
+    def route_check_protected_session(self) -> None:
+        if not ROUTE_CHECK_MODE:
+            return
+        with self.client.get("/api/auth/me", name="ROUTE CHECK GET /api/auth/me", catch_response=True) as response:
+            mark_expected(response, {401, 403}, "auth/me protegido sin sesion")
+
+    @task(4)
+    def route_check_catalog(self) -> None:
+        if not ROUTE_CHECK_MODE:
+            return
+        with self.client.get("/api/catalog", name="ROUTE CHECK GET /api/catalog", catch_response=True) as response:
+            # 200 si el catalogo es publico; 401/403 si se protege por sesion. 5xx y 404 se consideran problema.
+            mark_expected(response, {200, 401, 403}, "catalog route-check")
+
+    @task(3)
+    def route_check_search(self) -> None:
+        if not ROUTE_CHECK_MODE:
+            return
+        term = random.choice(SEARCH_TERMS)
+        with self.client.get(
+            "/api/catalog/search",
+            params={"q": term, "limit": 10},
+            name="ROUTE CHECK GET /api/catalog/search",
+            catch_response=True,
+        ) as response:
+            mark_expected(response, {200, 401, 403}, "catalog/search route-check")
+
+    @task(3)
+    def route_check_recommendations(self) -> None:
+        if not ROUTE_CHECK_MODE:
+            return
+        with self.client.get(
+            "/api/recommendations",
+            params={"limit": 10},
+            name="ROUTE CHECK GET /api/recommendations",
+            catch_response=True,
+        ) as response:
+            mark_expected(response, {401, 403}, "recommendations protegido sin sesion")
+
+    @task(2)
+    def route_check_watch_party_create(self) -> None:
+        if not ROUTE_CHECK_MODE:
+            return
+        with self.client.post(
+            "/api/watch-party/rooms",
+            json={"content_id": "route-check-content"},
+            name="ROUTE CHECK POST /api/watch-party/rooms",
+            catch_response=True,
+        ) as response:
+            # 400 puede ser valido si el gateway valida payload antes de autorizacion.
+            mark_expected(response, {400, 401, 403}, "watch-party route-check")
+
+    @task(2)
+    def route_check_download(self) -> None:
+        if not ROUTE_CHECK_MODE:
+            return
+        content_id = self.random_content_id() or "route-check-content"
+        with self.client.get(
+            f"/api/catalog/{content_id}/download",
+            name="ROUTE CHECK GET /api/catalog/[contentId]/download",
+            catch_response=True,
+        ) as response:
+            # 404 es tolerado solo en este modo porque puede no existir data de catalogo en develop.
+            mark_expected(response, {200, 401, 403, 404}, "download route-check")
 
     @task(8)
     def browse_catalog(self) -> None:
-        if not self.authenticated:
+        if ROUTE_CHECK_MODE or not self.authenticated:
             return
         with self.client.get("/api/catalog", name="GET /api/catalog", catch_response=True) as response:
             if response.status_code == 200:
@@ -287,14 +374,14 @@ class QuetxalTvUser(HttpUser):
 
     @task(6)
     def search_catalog(self) -> None:
-        if not self.authenticated:
+        if ROUTE_CHECK_MODE or not self.authenticated:
             return
         term = random.choice(SEARCH_TERMS)
         self.client.get("/api/catalog/search", params={"q": term, "limit": 20}, name="GET /api/catalog/search")
 
     @task(7)
     def view_content_detail(self) -> None:
-        if not self.authenticated:
+        if ROUTE_CHECK_MODE or not self.authenticated:
             return
         content_id = self.random_content_id()
         if not content_id:
@@ -303,13 +390,13 @@ class QuetxalTvUser(HttpUser):
 
     @task(4)
     def recommendations(self) -> None:
-        if not self.authenticated or not self.profile_id:
+        if ROUTE_CHECK_MODE or not self.authenticated or not self.profile_id:
             return
         self.client.get("/api/recommendations", params={"limit": 10}, name="GET /api/recommendations")
 
     @task(3)
     def save_progress(self) -> None:
-        if not self.authenticated or not self.profile_id:
+        if ROUTE_CHECK_MODE or not self.authenticated or not self.profile_id:
             return
         content_id = self.random_content_id()
         if not content_id:
@@ -322,7 +409,7 @@ class QuetxalTvUser(HttpUser):
 
     @task(2)
     def rate_content(self) -> None:
-        if not self.authenticated or not self.profile_id:
+        if ROUTE_CHECK_MODE or not self.authenticated or not self.profile_id:
             return
         content_id = self.random_content_id()
         if not content_id:
@@ -335,7 +422,7 @@ class QuetxalTvUser(HttpUser):
 
     @task(2)
     def download_grant_standard(self) -> None:
-        if not self.authenticated or not self.account or self.account.plan_tier != "standard":
+        if ROUTE_CHECK_MODE or not self.authenticated or not self.account or self.account.plan_tier != "standard":
             return
         content_id = self.random_content_id()
         if not content_id:
@@ -352,7 +439,7 @@ class QuetxalTvUser(HttpUser):
 
     @task(2)
     def create_watch_party_premium(self) -> None:
-        if not self.authenticated or not self.account or self.account.plan_tier != "premium":
+        if ROUTE_CHECK_MODE or not self.authenticated or not self.account or self.account.plan_tier != "premium":
             return
         content_id = self.random_content_id()
         if not content_id:
@@ -374,14 +461,14 @@ class QuetxalTvUser(HttpUser):
 
     @task(1)
     def inspect_watch_party_room(self) -> None:
-        if not self.authenticated or not self.watch_party_codes:
+        if ROUTE_CHECK_MODE or not self.authenticated or not self.watch_party_codes:
             return
         code = random.choice(self.watch_party_codes)
         self.client.get(f"/api/watch-party/rooms/{code}", name="GET /api/watch-party/rooms/[code]")
 
     @task(1)
     def join_watch_party_websocket(self) -> None:
-        if not ENABLE_WS or websocket is None or not self.authenticated or not self.watch_party_codes:
+        if ROUTE_CHECK_MODE or not ENABLE_WS or websocket is None or not self.authenticated or not self.watch_party_codes:
             return
         code = random.choice(self.watch_party_codes)
         url = f"{ws_base_url(self.host)}/api/watch-party/ws/{code}"
@@ -395,7 +482,7 @@ class QuetxalTvUser(HttpUser):
             message = ws.recv()
             response_length = len(message or "")
             ws.close()
-        except Exception as error:  # pragma: no cover - depende de red/ingress.
+        except Exception as error:  # pragma: no cover - depende de red/cloud.
             exception = error
         finally:
             events.request.fire(
