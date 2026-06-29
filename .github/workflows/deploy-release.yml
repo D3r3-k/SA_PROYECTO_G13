@@ -759,8 +759,8 @@ jobs:
           echo "${GITHUB_TOKEN}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
           echo "FROM docker.elastic.co/logstash/logstash:8.15.0" > Dockerfile.logstash
           echo "RUN bin/logstash-plugin install logstash-input-google_pubsub" >> Dockerfile.logstash
-          docker build -t ghcr.io/${{ github.repository }}/logstash-pubsub:latest -f Dockerfile.logstash .
-          docker push ghcr.io/${{ github.repository }}/logstash-pubsub:latest
+          docker build -t ${{ env.IMAGE_NAMESPACE }}/logstash-pubsub:latest -f Dockerfile.logstash .
+          docker push ${{ env.IMAGE_NAMESPACE }}/logstash-pubsub:latest
 
       - name: Deploy Observability Stack (Helm)
         env:
