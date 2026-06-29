@@ -752,6 +752,59 @@ jobs:
             fi
           done
 
+      - name: Deploy Observability Stack (Helm)
+        env:
+          GCP_PROJECT_ID: ${{ env.GCP_PROJECT_ID }}
+        run: |
+          set -e
+          
+          # Agregar repositorios de Helm
+          helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+          helm repo add elastic https://helm.elastic.co
+          helm repo update
+          
+          # Stack de Métricas (Prometheus + Grafana)
+          echo "Desplegando kube-prometheus-stack..."
+          helm upgrade --install prometheus prometheus-community/kube-prometheus-stack \
+            --namespace observability --create-namespace \
+            --set grafana.service.type=LoadBalancer \
+            --wait --timeout 10m
+            
+          echo "Desplegando stackdriver-exporter..."
+          helm upgrade --install gcp-exporter prometheus-community/prometheus-stackdriver-exporter \
+            --namespace observability \
+            --set stackdriver.projectId=${GCP_PROJECT_ID} \
+            --set serviceMonitor.enabled=true \
+            --wait --timeout 5m
+            
+          # Stack de Logs (ELK)
+          echo "Desplegando Elasticsearch..."
+          helm upgrade --install elasticsearch elastic/elasticsearch \
+            --namespace observability \
+            --set replicas=1 --set minimumMasterNodes=1 \
+            --wait --timeout 10m
+            
+          echo "Desplegando Kibana..."
+          helm upgrade --install kibana elastic/kibana \
+            --namespace observability \
+            --set service.type=LoadBalancer \
+            --wait --timeout 10m
+            
+          echo "Desplegando Logstash..."
+          # Reemplazamos la variable GCP_PROJECT_ID en el values
+          sed -i "s/\${GCP_PROJECT_ID}/${GCP_PROJECT_ID}/g" deploy/release/k8s/observability-values/logstash-values.yml
+          helm upgrade --install logstash elastic/logstash \
+            --namespace observability \
+            -f deploy/release/k8s/observability-values/logstash-values.yml \
+            --wait --timeout 5m
+            
+          echo "Desplegando Filebeat..."
+          helm upgrade --install filebeat elastic/filebeat \
+            --namespace observability \
+            -f deploy/release/k8s/observability-values/filebeat-values.yml \
+            --wait --timeout 5m
+
+
   validation:
     name: Validación
     runs-on: ubuntu-latest

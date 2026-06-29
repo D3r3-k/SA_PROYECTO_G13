@@ -1,0 +1,41 @@
+logstashConfig:
+  logstash.yml: |
+    http.host: "0.0.0.0"
+    path.config: /usr/share/logstash/pipeline
+  pipelines.yml: |
+    - pipeline.id: main
+      path.config: "/usr/share/logstash/pipeline/logstash.conf"
+
+logstashPipeline:
+  logstash.conf: |
+    input {
+      google_pubsub {
+        project_id => "${GCP_PROJECT_ID}"
+        topic => "cloud-sql-logs-topic"
+        subscription => "logstash-sub"
+        # Uses Application Default Credentials (Node SA)
+      }
+      beats {
+        port => 5044
+      }
+    }
+    filter {
+      # Basic parsing
+    }
+    output {
+      elasticsearch {
+        hosts => ["http://elasticsearch-master:9200"]
+      }
+      stdout { codec => rubydebug }
+    }
+
+image: "docker.elastic.co/logstash/logstash"
+imageTag: "8.15.0" # Match ELK version
+
+service:
+  type: ClusterIP
+  ports:
+    - name: beats
+      port: 5044
+      protocol: TCP
+      targetPort: 5044
