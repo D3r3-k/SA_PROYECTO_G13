@@ -86,6 +86,7 @@ export async function cacheVideoWithServiceWorker(payload: CacheVideoPayload): P
       worker.postMessage({ type: 'CACHE_VIDEO', payload }, [channel.port2])
     })
   } catch (error) {
+    console.error(`[serviceWorker.service.ts] Error: ${error instanceof Error ? error.message : String(error)}`)
     return {
       ok: false,
       status: 'failed',

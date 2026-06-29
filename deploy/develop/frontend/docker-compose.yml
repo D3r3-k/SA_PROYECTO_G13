@@ -6,11 +6,12 @@ services:
     container_name: sa_web
     restart: unless-stopped
     ports:
-      - "80:80"
+      - "127.0.0.1:8080:80"
     env_file:
       - .env
     environment:
       API_GATEWAY_UPSTREAM: ${API_GATEWAY_UPSTREAM}
+      ENFORCE_HTTPS: ${ENFORCE_HTTPS:-true}
     networks:
       - sa_net
 

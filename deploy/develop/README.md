@@ -8,7 +8,7 @@ Esta guia deja el ambiente `develop` operativo desde cero hasta el despliegue au
 | -------------- | --------------------------------------------------------------------------------------------------------------------- |
 | Bases de datos | Cloud SQL PostgreSQL 16 (`identity_db`, `subscription_db`, `catalog_db`, `engagement_db`) -> Instancia `dev-postgres` |
 | Cache / Colas  | Memorystore Redis 7 -> Instancia `dev-redis`                                                                          |
-| VM Frontend    | `dev-vm-frontend` - publica, expone puerto 80                                                                         |
+| VM Frontend    | `dev-vm-frontend` - IP estatica, proxy HTTPS en 443 y ACME/redirect en 80                                             |
 | VM Gateway     | `dev-vm-gateway` - privada, expone puerto 3000                                                                        |
 | VM Servicios   | `dev-vm-services` - privada, expone puertos gRPC 50051-50057                                                          |
 | Almacenamiento | Cloud Storage bucket `dev-media-sa-derek-proyecto`                                                                    |
@@ -17,6 +17,30 @@ Esta guia deja el ambiente `develop` operativo desde cero hasta el despliegue au
 
 > [!NOTE]
 > Todos los comandos de esta guia estan escritos para PowerShell en Windows.
+
+## HTTPS mediante IP publica
+
+El frontend usa la IP regional estatica `dev-frontend-ip`. Nginx se ejecuta en la VM como terminador TLS y reenvia al contenedor web publicado solamente en `127.0.0.1:8080`. Certbot 5.4 solicita certificados de IP con el perfil `shortlived`; el timer `certbot-renew.timer` comprueba la renovacion cada 12 horas.
+
+Configure estas variables en el GitHub Environment `develop`:
+
+| Variable | Valor inicial |
+| -------- | ------------- |
+| `ACME_EMAIL` | Correo operativo para la cuenta ACME |
+| `ACME_ENVIRONMENT` | `staging` |
+
+Ejecute primero el workflow con `staging`. Cuando `https://<IP>/healthz` responda y el certificado contenga la IP como SAN, cambie `ACME_ENVIRONMENT` a `production` y ejecute nuevamente el workflow. El despliegue elimina el certificado staging despues de emitir el de produccion.
+
+Diagnostico en la VM:
+
+```bash
+sudo nginx -t
+systemctl status certbot-renew.timer
+sudo /opt/certbot/bin/certbot certificates
+journalctl -u certbot-renew.service --since today
+```
+
+No cierre el puerto 80: Let’s Encrypt lo utiliza para HTTP-01. No copie `/etc/letsencrypt` al repositorio ni a GitHub Actions.
 
 ---
 

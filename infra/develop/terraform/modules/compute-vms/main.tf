@@ -20,7 +20,9 @@ resource "google_compute_instance" "this" {
 
     dynamic "access_config" {
       for_each = each.value.public_ip ? [1] : []
-      content {}
+      content {
+        nat_ip = each.value.public_ip_address
+      }
     }
   }
 

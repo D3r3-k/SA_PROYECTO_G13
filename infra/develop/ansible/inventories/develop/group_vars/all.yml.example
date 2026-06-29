@@ -12,3 +12,8 @@ app_directories:
 
 docker_users:
   - "{{ ansible_user }}"
+
+tls_enabled: false
+frontend_public_ip: "CAMBIAR_IP_ESTATICA"
+acme_email: "CAMBIAR_CORREO_ACME"
+acme_environment: staging

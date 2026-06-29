@@ -21,10 +21,11 @@ variable "private_subnet_self_link" {
 variable "instances" {
   description = "Mapa de VMs a crear."
   type = map(object({
-    name         = string
-    machine_type = string
-    subnet       = string
-    public_ip    = bool
-    tags         = list(string)
+    name              = string
+    machine_type      = string
+    subnet            = string
+    public_ip         = bool
+    public_ip_address = optional(string)
+    tags              = list(string)
   }))
 }

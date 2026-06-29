@@ -616,10 +616,10 @@ jobs:
           cat > runtime-envs/gateway.env <<EOF
           NODE_ENV=production
           API_GATEWAY_PORT=3000
-          FRONTEND_URL=http://${FRONTEND_PUBLIC_IP}
+          FRONTEND_URL=https://${FRONTEND_PUBLIC_IP}
           JWT_SECRET=${{ secrets.JWT_SECRET }}
           COOKIE_NAME=access_token
-          COOKIE_SECURE=false
+          COOKIE_SECURE=true
           COOKIE_SAME_SITE=lax
 
           IDENTITY_GRPC_URL=${SERVICES_PRIVATE_IP}:50051
@@ -635,6 +635,7 @@ jobs:
           cat > runtime-envs/frontend.env <<EOF
           WEB_PORT=80
           API_GATEWAY_UPSTREAM=${GATEWAY_PRIVATE_IP}:3000
+          ENFORCE_HTTPS=true
           EOF
 
       - name: Deploy docker compose files
@@ -642,6 +643,8 @@ jobs:
         env:
           GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
           GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+          ACME_EMAIL: ${{ vars.ACME_EMAIL }}
+          ACME_ENVIRONMENT: ${{ vars.ACME_ENVIRONMENT || 'staging' }}
         run: |
           set -euo pipefail
 
@@ -693,6 +696,34 @@ jobs:
           deploy_role "${VM_GATEWAY_NAME}" "gateway"
           deploy_role "${VM_FRONTEND_NAME}" "frontend"
 
+          if [ -z "${ACME_EMAIL}" ]; then
+            echo "[deploy-develop.yml] Error: falta la variable ACME_EMAIL del environment develop" >&2
+            exit 1
+          fi
+
+          FRONTEND_PUBLIC_IP="$(gcloud compute instances describe "${VM_FRONTEND_NAME}" --zone="${GCP_ZONE}" --format='value(networkInterfaces[0].accessConfigs[0].natIP)')"
+          FRONTEND_STATIC_IP="$(gcloud compute addresses describe dev-frontend-ip --region="${GCP_REGION}" --format='value(address)')"
+          if [ "${FRONTEND_PUBLIC_IP}" != "${FRONTEND_STATIC_IP}" ]; then
+            echo "[deploy-develop.yml] Error: aplique Terraform; la VM no utiliza dev-frontend-ip" >&2
+            exit 1
+          fi
+          TLS_REMOTE_DIR="~/quetxal-tv/frontend/tls"
+          gcloud compute ssh "${VM_FRONTEND_NAME}" \
+            --zone="${GCP_ZONE}" \
+            --tunnel-through-iap \
+            --command="mkdir -p ${TLS_REMOTE_DIR}"
+
+          for tls_file in bootstrap-tls.sh nginx-http.conf.template nginx-https.conf.template certbot-renew.service certbot-renew.timer; do
+            gcloud compute scp "deploy/develop/frontend/${tls_file}" "${VM_FRONTEND_NAME}:${TLS_REMOTE_DIR}/${tls_file}" \
+              --zone="${GCP_ZONE}" \
+              --tunnel-through-iap
+          done
+
+          gcloud compute ssh "${VM_FRONTEND_NAME}" \
+            --zone="${GCP_ZONE}" \
+            --tunnel-through-iap \
+            --command="chmod +x ${TLS_REMOTE_DIR}/bootstrap-tls.sh && sudo ${TLS_REMOTE_DIR}/bootstrap-tls.sh '${FRONTEND_PUBLIC_IP}' '${ACME_EMAIL}' '${ACME_ENVIRONMENT}'"
+
   validation:
     name: Validación
     runs-on: ubuntu-latest
@@ -714,6 +745,8 @@ jobs:
 
       - name: Validate containers and frontend
         shell: bash
+        env:
+          ACME_ENVIRONMENT: ${{ vars.ACME_ENVIRONMENT || 'staging' }}
         run: |
           set -euo pipefail
 
@@ -735,4 +768,15 @@ jobs:
             --command="cd ~/quetxal-tv/frontend && sudo docker compose ps"
 
           FRONTEND_PUBLIC_IP="$(gcloud compute instances describe "${VM_FRONTEND_NAME}" --zone="${GCP_ZONE}" --format='value(networkInterfaces[0].accessConfigs[0].natIP)')"
-          curl -fsS "http://${FRONTEND_PUBLIC_IP}" >/dev/null
+          gcloud compute ssh "${VM_FRONTEND_NAME}" \
+            --zone="${GCP_ZONE}" \
+            --tunnel-through-iap \
+            --command="sudo nginx -t && systemctl is-active nginx"
+
+          if [ "${ACME_ENVIRONMENT}" = "production" ]; then
+            curl -fsS "https://${FRONTEND_PUBLIC_IP}/healthz" >/dev/null
+          else
+            curl -kfsS "https://${FRONTEND_PUBLIC_IP}/healthz" >/dev/null
+          fi
+
+          test "$(curl -sS -o /dev/null -w '%{http_code}' "http://${FRONTEND_PUBLIC_IP}/")" = "301"

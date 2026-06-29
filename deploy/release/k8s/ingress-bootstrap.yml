@@ -8,8 +8,6 @@ metadata:
     kubernetes.io/ingress.class: gce
     acme.cert-manager.io/http01-edit-in-place: "true"
 spec:
-  tls:
-    - secretName: __TLS_SECRET_NAME__
   rules:
     - http:
         paths:

@@ -25,6 +25,8 @@ Herramientas por entorno:
 | `develop` | Compute Engine + Docker Compose | 3 VMs: frontend, gateway y servicios             |
 | `release` | GKE + Kubernetes                | Produccion con manifests de `deploy/release/k8s` |
 
+El ambiente `develop` reserva `dev-frontend-ip`, abre TCP/443 y conserva TCP/80 para HTTP-01. Después de aplicar Terraform, use el output `frontend_public_ip` como `frontend_public_ip` del rol Ansible `tls-frontend`. La ejecucion automatizada habitual se realiza desde `deploy-develop.yml`.
+
 ## Paso 1. Instalar herramientas
 
 ### 1.1 Instalar Google Cloud SDK en Windows

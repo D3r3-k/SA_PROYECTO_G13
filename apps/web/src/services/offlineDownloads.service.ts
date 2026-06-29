@@ -116,7 +116,8 @@ async function deleteCachedVideo(cacheKey?: string): Promise<void> {
   try {
     const cache = await caches.open(VIDEO_CACHE_NAME)
     await cache.delete(cacheKey)
-  } catch (_) {
+  } catch (error) {
+    console.error(`[offlineDownloads.service.ts] Error: ${error instanceof Error ? error.message : String(error)}`)
     // Si el navegador no permite limpiar Cache Storage, la descarga de IndexedDB igual se elimina.
   }
 }
@@ -131,8 +132,11 @@ function getAllRecords(db: IDBDatabase): Promise<OfflineDownloadRecord[]> {
 }
 
 export async function saveEncryptedDownload(grant: DownloadGrant): Promise<OfflineDownloadRecord> {
+  if (!window.isSecureContext) {
+    throw new Error('Las descargas cifradas requieren abrir la aplicación mediante HTTPS')
+  }
   if (!window.crypto?.subtle || !window.indexedDB) {
-    throw new Error('Este navegador no soporta almacenamiento cifrado para descargas')
+    throw new Error('Este navegador no soporta Web Crypto o IndexedDB para descargas cifradas')
   }
 
   const episode = grant.episode
