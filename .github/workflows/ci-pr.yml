@@ -42,6 +42,7 @@ jobs:
       payment_gateway: ${{ steps.changes.outputs.payment_gateway }}
       fx: ${{ steps.changes.outputs.fx }}
       engagement: ${{ steps.changes.outputs.engagement }}
+      recommendation: ${{ steps.changes.outputs.recommendation }}
       subscription: ${{ steps.changes.outputs.subscription }}
       notification: ${{ steps.changes.outputs.notification }}
       identity: ${{ steps.changes.outputs.identity }}
@@ -77,6 +78,7 @@ jobs:
           set_output payment_gateway "^(services/payment-gateway-service/|${shared#^})"
           set_output fx "^(services/fx-service/|${shared#^})"
           set_output engagement "^(services/engagement-service/|${shared#^})"
+          set_output recommendation "^(services/recommendation-service/|${shared#^})"
           set_output subscription "^(services/subscription-service/|${shared#^})"
           set_output notification "^(services/notification-service/|${shared#^})"
           set_output identity "^(services/identity-service/|${shared#^})"
@@ -154,6 +156,24 @@ jobs:
         with:
           name: coverage-engagement-service
           path: services/engagement-service/coverage.xml
+
+  validate-recommendation-service:
+    name: recommendation-service (Python)
+    needs: detect-changes
+    if: needs.detect-changes.outputs.recommendation == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/recommendation-service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: services/recommendation-service/requirements.txt
+      - run: pip install -r requirements.txt
+      - run: python -m compileall src
 
   test-subscription-service:
     name: subscription-service (Python)

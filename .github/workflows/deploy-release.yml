@@ -123,6 +123,29 @@ jobs:
           name: coverage-engagement-service
           path: services/engagement-service/coverage.xml
 
+  validate-recommendation-service:
+    name: "recommendation-service (Python)"
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.merged == true &&
+       contains(github.event.pull_request.labels.*.name, 'deploy:release'))
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/recommendation-service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: services/recommendation-service/requirements.txt
+      - name: Instalar dependencias y validar codigo
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          python -m compileall src
+
   test-subscription-service:
     name: "subscription-service (Python)"
     if: >-
@@ -299,6 +322,7 @@ jobs:
       - test-payment-gateway
       - test-fx-service
       - test-engagement-service
+      - validate-recommendation-service
       - test-subscription-service
       - test-notification-service
       - test-identity-service
@@ -366,6 +390,9 @@ jobs:
           - image: engagement-service
             context: .
             dockerfile: ./services/engagement-service/Dockerfile
+          - image: recommendation-service
+            context: .
+            dockerfile: ./services/recommendation-service/Dockerfile
           - image: payment-gateway-service
             context: .
             dockerfile: ./services/payment-gateway-service/Dockerfile
@@ -556,6 +583,7 @@ jobs:
             --from-literal=CATALOG_GRPC_PORT=50055 \
             --from-literal=ENGAGEMENT_GRPC_PORT=50056 \
             --from-literal=PAYMENT_GRPC_PORT=50057 \
+            --from-literal=RECOMMENDATION_GRPC_PORT=50058 \
             --from-literal=IDENTITY_GRPC_URL=identity-service:50051 \
             --from-literal=FX_GRPC_URL=fx-service:50052 \
             --from-literal=SUBSCRIPTION_GRPC_URL=subscription-service:50053 \
@@ -563,6 +591,7 @@ jobs:
             --from-literal=CATALOG_GRPC_URL=catalog-service:50055 \
             --from-literal=ENGAGEMENT_GRPC_URL=engagement-service:50056 \
             --from-literal=PAYMENT_GRPC_URL=payment-gateway-service:50057 \
+            --from-literal=RECOMMENDATION_GRPC_URL=recommendation-service:50058 \
             --from-literal=ADMIN_EMAILS="${{ vars.ADMIN_EMAILS }}" \
             --from-literal=IDENTITY_DB_HOST=${CLOUD_SQL_PRIVATE_IP} \
             --from-literal=IDENTITY_DB_PORT=5432 \
@@ -572,6 +601,14 @@ jobs:
             --from-literal=DB_PORT=5432 \
             --from-literal=DB_NAME=identity_db \
             --from-literal=DB_USER=identity_user \
+            --from-literal=ENGAGEMENT_DB_HOST=${CLOUD_SQL_PRIVATE_IP} \
+            --from-literal=ENGAGEMENT_DB_PORT=5432 \
+            --from-literal=ENGAGEMENT_DB_NAME=engagement_db \
+            --from-literal=ENGAGEMENT_DB_USER=engagement_user \
+            --from-literal=CATALOG_DB_HOST=${CLOUD_SQL_PRIVATE_IP} \
+            --from-literal=CATALOG_DB_PORT=5432 \
+            --from-literal=CATALOG_DB_NAME=catalog_db \
+            --from-literal=CATALOG_DB_USER=catalog_user \
             --from-literal=REDIS_URL=redis://${REDIS_HOST}:${REDIS_PORT}/0 \
             --from-literal=NOTIFICATION_QUEUE_NAME=notification:queue \
             --from-literal=FX_CACHE_TTL=3600 \
@@ -647,7 +684,7 @@ jobs:
           kubectl apply -f deploy/release/k8s/deployments/
           kubectl apply -f deploy/release/k8s/ingress.yml
 
-          for deployment in web api-gateway identity-service fx-service subscription-service notification-service catalog-service engagement-service payment-gateway-service
+          for deployment in web api-gateway identity-service fx-service subscription-service notification-service catalog-service engagement-service recommendation-service payment-gateway-service
           do
             if ! kubectl rollout status deployment/${deployment} -n "${GKE_NAMESPACE}" --timeout=180s; then
               kubectl rollout undo deployment/${deployment} -n "${GKE_NAMESPACE}"
