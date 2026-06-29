@@ -1,6 +1,5 @@
-/**
+/*
  * Pruebas unitarias para subscription-policy.ts.
- * Mockea el cliente gRPC de subscription-service para validar reglas de plan.
  */
 
 jest.mock("../grpc/subscription.client", () => ({
@@ -14,6 +13,7 @@ import {
   normalizePlanTier,
   requireActiveSubscription,
   requirePremiumSubscription,
+  requireStandardDownloadSubscription,
 } from "../middleware/subscription-policy";
 
 const { callSubscriptionMethod } = require("../grpc/subscription.client") as {
@@ -233,5 +233,46 @@ describe("requirePremiumSubscription", () => {
     await requirePremiumSubscription()(req, res as Response, next);
 
     expect((res as any).status).toHaveBeenCalledWith(503);
+  });
+});
+
+
+describe("requireStandardDownloadSubscription", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it("permite descarga solo a Plan Estándar activo", async () => {
+    callSubscriptionMethod.mockResolvedValueOnce({
+      success: true,
+      message: "ok",
+      subscriptions: [activeSubscription("Plan Estándar")],
+    });
+
+    const req = makeReq({ user_id: "u-1", is_admin: false });
+    const res = makeRes();
+
+    await requireStandardDownloadSubscription()(req, res as Response, next);
+
+    expect(next).toHaveBeenCalled();
+    expect(req.activeSubscription?.plan_tier).toBe("standard");
+  });
+
+  it("bloquea Plan Básico y Plan Premium para descarga", async () => {
+    callSubscriptionMethod.mockResolvedValueOnce({
+      success: true,
+      message: "ok",
+      subscriptions: [activeSubscription("Plan Premium")],
+    });
+
+    const req = makeReq({ user_id: "u-1", is_admin: false });
+    const res = makeRes();
+
+    await requireStandardDownloadSubscription()(req, res as Response, next);
+
+    expect((res as any).status).toHaveBeenCalledWith(403);
+    expect((res as any).json).toHaveBeenCalledWith(
+      expect.objectContaining({ code: "STANDARD_PLAN_REQUIRED" })
+    );
   });
 });

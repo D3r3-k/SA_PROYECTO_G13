@@ -5,6 +5,8 @@ import { useAuth } from '../hooks/useAuth'
 import { catalogService, type ContentDetail, type Episode } from '../services/catalog.service'
 import { engagementService, type RatingSummary, type ResumeResponse } from '../services/engagement.service'
 import { watchPartyService } from '../services/watchParty.service'
+import { downloadService } from '../services/download.service'
+import { saveEncryptedDownload } from '../services/offlineDownloads.service'
 import styles from './ContentDetailPage.module.css'
 
 type UserRating = 'THUMBS_UP' | 'THUMBS_DOWN' | null
@@ -24,6 +26,9 @@ export default function ContentDetailPage() {
   const [pinError, setPinError] = useState('')
   const [watchPartyError, setWatchPartyError] = useState('')
   const [creatingParty, setCreatingParty] = useState(false)
+  const [downloadError, setDownloadError] = useState('')
+  const [downloadStatus, setDownloadStatus] = useState('')
+  const [downloading, setDownloading] = useState(false)
 
   const [selectedEpisode, setSelectedEpisode] = useState<Episode | null>(null)
   const [userRating, setUserRating] = useState<UserRating>(null)
@@ -104,15 +109,51 @@ export default function ContentDetailPage() {
     setCreatingParty(true)
     setWatchPartyError('')
     try {
-      const res = await watchPartyService.createRoom(contentId)
+      const res = await watchPartyService.createRoom(contentId, parentalPin)
       navigate(`/watch-party/${res.data.code}`)
     } catch (err: any) {
       const code = err?.response?.data?.code
       setWatchPartyError(code === 'PREMIUM_PLAN_REQUIRED'
         ? 'Solo usuarios Premium pueden crear una Watch Party.'
-        : 'No se pudo crear la Watch Party.')
+        : code === 'PARENTAL_PIN_REQUIRED'
+          ? 'Ingresa el PIN parental antes de crear la Watch Party.'
+          : 'No se pudo crear la Watch Party.')
     } finally {
       setCreatingParty(false)
+    }
+  }
+
+  const handleDownload = async () => {
+    if (!contentId || downloading) return
+    setDownloadError('')
+    setDownloadStatus('')
+    setDownloading(true)
+
+    try {
+      const response = isSeries && selectedEpisode
+        ? await downloadService.requestEpisodeDownload(
+            contentId,
+            selectedEpisode.episode_id,
+            selectedEpisode.season_number,
+            parentalPin,
+          )
+        : await downloadService.requestMovieDownload(contentId, parentalPin)
+
+      const record = await saveEncryptedDownload(response.data.grant)
+      setDownloadStatus(`Descarga simulada cifrada guardada en este navegador: ${record.subtitle}.`)
+    } catch (err: any) {
+      const code = err?.response?.data?.code
+      setDownloadError(code === 'STANDARD_PLAN_REQUIRED'
+        ? 'La descarga solo está disponible para Plan Estándar.'
+        : code === 'PARENTAL_PIN_REQUIRED'
+          ? 'Ingresa el PIN parental correcto antes de descargar.'
+          : code === 'DOWNLOAD_MEDIA_NOT_AVAILABLE'
+            ? 'Este contenido no tiene video disponible para descarga.'
+            : code === 'EPISODE_DOWNLOAD_REQUIRED'
+              ? 'Selecciona un episodio para descargar la serie.'
+              : err?.message || 'No se pudo guardar la descarga cifrada.')
+    } finally {
+      setDownloading(false)
     }
   }
 
@@ -253,6 +294,12 @@ export default function ContentDetailPage() {
                   {creatingParty ? 'Creando...' : 'Crear Watch Party'}
                 </button>
                 {watchPartyError && <span style={{ color: 'var(--color-danger)' }}>{watchPartyError}</span>}
+
+                <button className="btn btn-secondary btn-sm" onClick={handleDownload} disabled={downloading || (isSeries && !selectedEpisode)}>
+                  {downloading ? 'Guardando...' : isSeries ? 'Descargar episodio' : 'Descargar'}
+                </button>
+                {downloadError && <span style={{ color: 'var(--color-danger)' }}>{downloadError}</span>}
+                {downloadStatus && <span style={{ color: 'var(--color-success)' }}>{downloadStatus}</span>}
 
                 <div className={styles.ratingButtons}>
                   <button className={`${styles.ratingBtn} ${userRating === 'THUMBS_UP' ? styles.ratingBtnActive : ''}`} onClick={() => handleRate('THUMBS_UP')} title="Me gusta">👍</button>

@@ -3,15 +3,25 @@ import crypto from "crypto";
 import { IncomingMessage, Server as HttpServer } from "http";
 import { Socket } from "net";
 import { env } from "../config/env";
+import { callCatalogMethod } from "../grpc/catalog.client";
 import { callIdentityMethod } from "../grpc/identity.client";
 import { getActiveSubscriptionForUser } from "../middleware/subscription-policy";
 import { getWatchPartyRoom, serializeRoom } from "./rooms";
+import { evaluateParentalControlForSubject } from "../policies/parental-control";
 
 type ValidTokenResponse = {
   valid: boolean;
   user_id: string;
   email: string;
   profile_id: string;
+  profile_is_child?: boolean;
+  parental_pin_configured?: boolean;
+};
+
+type CatalogResponse = {
+  success: boolean;
+  message: string;
+  content?: { maturity_rating?: string };
 };
 
 type Client = {
@@ -151,6 +161,29 @@ export function attachWatchPartyUpgrade(server: HttpServer) {
       const subscription = await getActiveSubscriptionForUser(identity.user_id);
       if (!subscription) {
         return reject(socket, 403, "Subscription Required");
+      }
+
+      const content = await callCatalogMethod<
+        { content_id: string },
+        CatalogResponse
+      >("GetContentDetail", { content_id: room.content_id });
+
+      if (!content.success) {
+        return reject(socket, 404, "Content Not Found");
+      }
+
+      const policy = await evaluateParentalControlForSubject({
+        subject: {
+          user_id: identity.user_id,
+          profile_id: identity.profile_id || "",
+          profile_is_child: Boolean(identity.profile_is_child)
+        },
+        maturityRating: content.content?.maturity_rating || "ALL",
+        pin: url.searchParams.get("parental_pin") || ""
+      });
+
+      if (policy.blocked) {
+        return reject(socket, 403, "Parental Pin Required");
       }
 
       const acceptKey = crypto
