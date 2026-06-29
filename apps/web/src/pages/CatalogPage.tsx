@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AppLayout from '../layouts/AppLayout'
 import { catalogService, type ContentCard } from '../services/catalog.service'
+import RecommendedRow from '../components/RecommendedRow'
 import styles from './CatalogPage.module.css'
 
 type TypeFilter = 'all' | 'movie' | 'series'
@@ -72,6 +73,8 @@ export default function CatalogPage() {
           </div>
         </div>
       </div>
+
+      <RecommendedRow />
 
       <div className="container section">
         <div className={styles.filters}>

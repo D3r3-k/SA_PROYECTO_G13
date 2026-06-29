@@ -13,6 +13,7 @@ import { catalogRoutes } from "./routes/catalog.routes";
 import { engagementRoutes } from "./routes/engagement.routes";
 import { adminRoutes } from "./routes/admin.routes";
 import { watchPartyRoutes } from "./routes/watch-party.routes";
+import { recommendationRoutes } from "./routes/recommendations.routes";
 
 export const app = express();
 
@@ -36,4 +37,5 @@ app.use("/api", fxRoutes);
 app.use("/api/catalog", catalogRoutes);
 app.use("/api/engagement", engagementRoutes);
 app.use("/api/watch-party", watchPartyRoutes);
+app.use("/api/recommendations", recommendationRoutes);
 app.use("/api/admin", adminRoutes);
