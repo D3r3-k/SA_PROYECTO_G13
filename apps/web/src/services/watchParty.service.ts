@@ -14,15 +14,21 @@ export interface WatchPartyRoom {
   }
 }
 
+function parentalPinHeaders(parentalPin?: string) {
+  return parentalPin ? { 'X-Parental-Pin': parentalPin } : undefined
+}
+
 export const watchPartyService = {
-  createRoom: (contentId: string) =>
+  createRoom: (contentId: string, parentalPin?: string) =>
     api.post<{ success: boolean; message: string; code: string; room: WatchPartyRoom; join_url: string; ws_path: string }>(
       '/watch-party/rooms',
-      { content_id: contentId },
+      { content_id: contentId, parental_pin: parentalPin || '' },
+      { headers: parentalPinHeaders(parentalPin) },
     ),
 
-  getRoom: (code: string) =>
+  getRoom: (code: string, parentalPin?: string) =>
     api.get<{ success: boolean; message: string; room: WatchPartyRoom; is_host: boolean }>(
       `/watch-party/rooms/${code}`,
+      { headers: parentalPinHeaders(parentalPin) },
     ),
 }
