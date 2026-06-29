@@ -586,19 +586,17 @@ jobs:
 
           echo "INGRESS_IP=${INGRESS_IP}" >> "${GITHUB_ENV}"
           echo "ACME_ENVIRONMENT=${ACME_ENVIRONMENT}" >> "${GITHUB_ENV}"
-          echo "TLS_SECRET_NAME=quetxal-tv-tls-${ACME_ENVIRONMENT}" >> "${GITHUB_ENV}"
+          echo "TLS_SECRET_NAME=quetxal-tv-tls" >> "${GITHUB_ENV}"
 
           mkdir -p runtime-k8s
+          cp deploy/release/k8s/tls/cluster-issuers.yml runtime-k8s/cluster-issuers.yml
           sed \
-            -e "s|__ACME_EMAIL__|${ACME_EMAIL}|g" \
-            deploy/release/k8s/tls/cluster-issuers.yml > runtime-k8s/cluster-issuers.yml
-          sed \
-            -e "s|__ACME_ENVIRONMENT__|${ACME_ENVIRONMENT}|g" \
             -e "s|__INGRESS_IP__|${INGRESS_IP}|g" \
             deploy/release/k8s/tls/certificate.yml > runtime-k8s/certificate.yml
           sed \
-            -e "s|__TLS_SECRET_NAME__|quetxal-tv-tls-${ACME_ENVIRONMENT}|g" \
+            -e "s|__TLS_SECRET_NAME__|quetxal-tv-tls|g" \
             deploy/release/k8s/ingress.yml > runtime-k8s/ingress.yml
+
 
           kubectl create namespace "${GKE_NAMESPACE}" --dry-run=client -o yaml | kubectl apply -f -
 
@@ -734,9 +732,9 @@ jobs:
 
           kubectl wait \
             --for=condition=Ready \
-            "certificate/quetxal-tv-ip-${ACME_ENVIRONMENT}" \
+            "certificate/quetxal-tv-ip" \
             --namespace="${GKE_NAMESPACE}" \
-            --timeout=15m
+            --timeout=2m
 
           kubectl apply -f runtime-k8s/ingress.yml
 
@@ -784,7 +782,7 @@ jobs:
           echo "Waiting for Ingress to be ready at https://${INGRESS_IP} ..."
           for i in {1..45}; do
             if [ "${ACME_ENVIRONMENT}" = "production" ]; then
-              CURL_TLS=(curl -fsS)
+              CURL_TLS=(curl -kfsS)
             else
               CURL_TLS=(curl -kfsS)
             fi
