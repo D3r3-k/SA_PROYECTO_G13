@@ -166,10 +166,10 @@ module "gke" {
   services_range_name           = "prod-gke-services"
   services_range_cidr           = "10.20.0.0/20"
   master_ipv4_cidr_block        = "172.16.0.0/28"
-  node_machine_type             = "e2-small"
-  initial_node_count            = 1
-  min_node_count                = 1
-  max_node_count                = 3
+  node_machine_type             = "e2-standard-4"
+  initial_node_count            = 2
+  min_node_count                = 2
+  max_node_count                = 4
   master_authorized_cidr_blocks = var.gke_master_authorized_cidr_blocks
 
   depends_on = [module.network]
@@ -190,3 +190,24 @@ module "firewall" {
     }
   }
 }
+
+data "google_project" "project" {}
+
+resource "google_project_iam_member" "gke_monitoring_viewer" {
+  project = var.project_id
+  role    = "roles/monitoring.viewer"
+  member  = "serviceAccount:${data.google_project.project.number}-compute@developer.gserviceaccount.com"
+}
+
+resource "google_project_iam_member" "gke_pubsub_subscriber" {
+  project = var.project_id
+  role    = "roles/pubsub.subscriber"
+  member  = "serviceAccount:${data.google_project.project.number}-compute@developer.gserviceaccount.com"
+}
+
+resource "google_project_iam_member" "gke_pubsub_viewer" {
+  project = var.project_id
+  role    = "roles/pubsub.viewer"
+  member  = "serviceAccount:${data.google_project.project.number}-compute@developer.gserviceaccount.com"
+}
+

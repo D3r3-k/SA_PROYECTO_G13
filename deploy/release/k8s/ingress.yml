@@ -6,6 +6,7 @@ metadata:
   annotations:
     kubernetes.io/ingress.global-static-ip-name: prod-release-ingress-ip
     kubernetes.io/ingress.class: gce
+    networking.gke.io/v1beta1.FrontendConfig: quetxal-tv-frontend-config
 spec:
   tls:
     - secretName: __TLS_SECRET_NAME__
