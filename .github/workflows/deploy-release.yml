@@ -775,6 +775,7 @@ jobs:
             --namespace observability \
             --set stackdriver.projectId=${GCP_PROJECT_ID} \
             --set serviceMonitor.enabled=true \
+            --set serviceMonitor.namespace=observability \
             --wait --timeout 5m
             
           # Stack de Logs (ELK)
