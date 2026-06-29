@@ -12,6 +12,6 @@ spec:
     algorithm: RSA
     size: 2048
     rotationPolicy: Always
-  ipAddresses:
-    - __INGRESS_IP__
+  dnsNames:
+    - __INGRESS_IP__.nip.io
   renewBeforePercentage: 50

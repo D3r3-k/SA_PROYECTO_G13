@@ -607,7 +607,7 @@ jobs:
             --namespace="${GKE_NAMESPACE}" \
             --from-literal=NODE_ENV=production \
             --from-literal=RUN_MIGRATIONS=false \
-            --from-literal=FRONTEND_URL=https://${INGRESS_IP} \
+            --from-literal=FRONTEND_URL=https://${INGRESS_IP}.nip.io \
             --from-literal=API_GATEWAY_PORT=3000 \
             --from-literal=WEB_PORT=80 \
             --from-literal=API_GATEWAY_UPSTREAM=api-gateway:3000 \
