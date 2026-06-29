@@ -29,8 +29,8 @@ logstashPipeline:
       stdout { codec => rubydebug }
     }
 
-image: "docker.elastic.co/logstash/logstash"
-imageTag: "8.15.0" # Match ELK version
+image: "ghcr.io/d3r3-k/sa_proyecto_g13/logstash-pubsub"
+imageTag: "latest"
 
 service:
   type: ClusterIP
