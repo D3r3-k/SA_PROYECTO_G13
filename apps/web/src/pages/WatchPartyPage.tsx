@@ -310,7 +310,7 @@ export default function WatchPartyPage() {
           </div>
           {!isHost && (
             <p className={styles.meta}>
-              En modo invitado los controles del video se bloquean para evitar desincronización. Usa el botón de activación si el navegador bloquea el inicio automático.
+              Como invitado, la reproducción la controla el anfitrión. Usa el botón de activación si el navegador bloquea el inicio automático.
             </p>
           )}
         </div>

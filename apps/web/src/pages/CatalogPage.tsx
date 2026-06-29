@@ -30,7 +30,7 @@ export default function CatalogPage() {
         const code = err?.response?.data?.code
         setError(code === 'ACTIVE_SUBSCRIPTION_REQUIRED'
           ? 'Necesitas una suscripción activa para ver el catálogo.'
-          : 'El servicio de catálogo no está disponible.')
+          : 'No pudimos cargar el catálogo en este momento.')
       })
       .finally(() => setLoading(false))
   }, [])
@@ -131,7 +131,7 @@ export default function CatalogPage() {
                   catalogService
                     .list()
                     .then((res) => setItems(res.data.items ?? []))
-                    .catch(() => setError('El servicio de catálogo no está disponible.'))
+                    .catch(() => setError('No pudimos cargar el catálogo en este momento.'))
                     .finally(() => setLoading(false))
                 }}
               >
@@ -145,7 +145,7 @@ export default function CatalogPage() {
           <div className={styles.empty}>
             <p>
               {items.length === 0
-                ? 'El catálogo está vacío. Un administrador debe sincronizar el contenido.'
+                ? 'Aún no hay contenido disponible.'
                 : 'No se encontraron resultados para tu búsqueda.'}
             </p>
           </div>

@@ -26,13 +26,13 @@ function statusCopy(record: OfflineDownloadRecord): { label: string; description
       }
     case 'local':
       return {
-        label: 'Guardado localmente',
-        description: 'El título quedó agregado a tus descargas en este navegador.',
+        label: 'Guardado en este dispositivo',
+        description: 'El contenido quedó agregado a tus descargas.',
         tone: styles.statusLocal,
       }
     default:
       return {
-        label: 'Guardado parcialmente',
+        label: 'Guardado con acceso limitado',
         description: 'La descarga quedó registrada, pero este navegador no pudo preparar el acceso local completo.',
         tone: styles.statusLimited,
       }
@@ -140,7 +140,7 @@ export default function DownloadsPage() {
           <div className={styles.notice}>
             <span className={styles.noticeIcon}>🔒</span>
             <div>
-              <strong>Protegidas en tu navegador</strong>
+              <strong>Protegidas en tu dispositivo</strong>
               <p>Por seguridad, las descargas solo están disponibles en el dispositivo donde fueron guardadas.</p>
             </div>
           </div>
@@ -201,7 +201,7 @@ export default function DownloadsPage() {
                           </a>
                         ) : (
                           <button className="btn btn-secondary btn-sm" disabled>
-                            Acceso local preparado
+                            No disponible sin conexión
                           </button>
                         )}
                         <button
