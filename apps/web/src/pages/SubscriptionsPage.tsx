@@ -49,8 +49,8 @@ interface PaymentReceipt {
 const PLAN_META: Record<string, { features: string[]; highlighted: boolean }> = {
   básico:   { highlighted: false, features: ['1 pantalla simultánea', 'Calidad HD', 'Sin descargas'] },
   basic:    { highlighted: false, features: ['1 pantalla simultánea', 'Calidad HD', 'Sin descargas'] },
-  estándar: { highlighted: true,  features: ['2 pantallas simultáneas', 'Calidad Full HD', 'Descarga cifrada disponible'] },
-  standard: { highlighted: true,  features: ['2 pantallas simultáneas', 'Calidad Full HD', 'Descarga cifrada disponible'] },
+  estándar: { highlighted: true,  features: ['2 pantallas simultáneas', 'Calidad Full HD', 'Descargas disponibles'] },
+  standard: { highlighted: true,  features: ['2 pantallas simultáneas', 'Calidad Full HD', 'Descargas disponibles'] },
   premium:  { highlighted: false, features: ['4 pantallas simultáneas', 'Calidad 4K + HDR', 'Watch Party', 'Sin descargas por norma'] },
 }
 
