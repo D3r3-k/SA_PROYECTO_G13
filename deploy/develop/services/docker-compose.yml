@@ -91,6 +91,17 @@ services:
     networks:
       - sa_net
 
+  recommendation-service:
+    image: ghcr.io/d3r3-k/sa_proyecto_g13/recommendation-service:latest
+    container_name: recommendation-service
+    restart: unless-stopped
+    ports:
+      - "${RECOMMENDATION_GRPC_PORT:-50058}:50058"
+    env_file:
+      - .env
+    networks:
+      - sa_net
+
   notification-service:
     image: ghcr.io/d3r3-k/sa_proyecto_g13/notification-service:latest
     container_name: sa_notification_service

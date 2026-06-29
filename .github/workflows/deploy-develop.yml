@@ -122,6 +122,29 @@ jobs:
           name: coverage-engagement-service
           path: services/engagement-service/coverage.xml
 
+  validate-recommendation-service:
+    name: "recommendation-service (Python)"
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.merged == true &&
+       contains(github.event.pull_request.labels.*.name, 'deploy:develop'))
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/recommendation-service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: services/recommendation-service/requirements.txt
+      - name: Instalar dependencias y validar codigo
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          python -m compileall src
+
   test-subscription-service:
     name: "subscription-service (Python)"
     if: >-
@@ -298,6 +321,7 @@ jobs:
       - test-payment-gateway
       - test-fx-service
       - test-engagement-service
+      - validate-recommendation-service
       - test-subscription-service
       - test-notification-service
       - test-identity-service
@@ -365,6 +389,9 @@ jobs:
           - image: engagement-service
             context: .
             dockerfile: ./services/engagement-service/Dockerfile
+          - image: recommendation-service
+            context: .
+            dockerfile: ./services/recommendation-service/Dockerfile
           - image: payment-gateway-service
             context: .
             dockerfile: ./services/payment-gateway-service/Dockerfile
@@ -547,6 +574,18 @@ jobs:
           CATALOG_DATABASE_URL=postgresql://catalog_user:${{ secrets.CATALOG_DB_PASSWORD }}@${CLOUD_SQL_PRIVATE_IP}:5432/catalog_db
           ENGAGEMENT_DATABASE_URL=postgresql://engagement_user:${{ secrets.ENGAGEMENT_DB_PASSWORD }}@${CLOUD_SQL_PRIVATE_IP}:5432/engagement_db
 
+          RECOMMENDATION_GRPC_PORT=50058
+          ENGAGEMENT_DB_HOST=${CLOUD_SQL_PRIVATE_IP}
+          ENGAGEMENT_DB_PORT=5432
+          ENGAGEMENT_DB_NAME=engagement_db
+          ENGAGEMENT_DB_USER=engagement_user
+          ENGAGEMENT_DB_PASSWORD=${{ secrets.ENGAGEMENT_DB_PASSWORD }}
+          CATALOG_DB_HOST=${CLOUD_SQL_PRIVATE_IP}
+          CATALOG_DB_PORT=5432
+          CATALOG_DB_NAME=catalog_db
+          CATALOG_DB_USER=catalog_user
+          CATALOG_DB_PASSWORD=${{ secrets.CATALOG_DB_PASSWORD }}
+
           REDIS_URL=redis://${REDIS_HOST}:${REDIS_PORT}/0
           NOTIFICATION_QUEUE_NAME=notification:queue
           FX_CACHE_TTL=3600
@@ -590,6 +629,7 @@ jobs:
           CATALOG_GRPC_URL=${SERVICES_PRIVATE_IP}:50055
           ENGAGEMENT_GRPC_URL=${SERVICES_PRIVATE_IP}:50056
           PAYMENT_GRPC_URL=${SERVICES_PRIVATE_IP}:50057
+          RECOMMENDATION_GRPC_URL=${SERVICES_PRIVATE_IP}:50058
           EOF
 
           cat > runtime-envs/frontend.env <<EOF
@@ -682,7 +722,7 @@ jobs:
           gcloud compute ssh "${VM_SERVICES_NAME}" \
             --zone="${GCP_ZONE}" \
             --tunnel-through-iap \
-            --command="cd ~/quetxal-tv/services && sudo docker compose ps && for port in 50051 50052 50053 50054 50055 50056 50057; do timeout 5 bash -lc \"cat < /dev/null > /dev/tcp/127.0.0.1/\${port}\"; done"
+            --command="cd ~/quetxal-tv/services && sudo docker compose ps && for port in 50051 50052 50053 50054 50055 50056 50057 50058; do timeout 5 bash -lc \"cat < /dev/null > /dev/tcp/127.0.0.1/\${port}\"; done"
 
           gcloud compute ssh "${VM_GATEWAY_NAME}" \
             --zone="${GCP_ZONE}" \

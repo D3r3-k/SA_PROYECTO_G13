@@ -229,7 +229,7 @@ module "firewall" {
     allow_grpc_services = {
       name          = "dev-allow-grpc-services"
       protocol      = "tcp"
-      ports         = ["50051-50057"]
+      ports         = ["50051-50058"]
       source_ranges = ["10.0.2.0/24"]
       target_tags   = ["services"]
     }
