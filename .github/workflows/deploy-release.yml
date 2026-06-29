@@ -538,6 +538,19 @@ jobs:
       - name: Get GKE credentials
         run: gcloud container clusters get-credentials "${GKE_CLUSTER_NAME}" --region="${GCP_REGION}" --project="${GCP_PROJECT_ID}"
 
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+
+      - name: Install cert-manager
+        run: |
+          helm upgrade --install cert-manager oci://quay.io/jetstack/charts/cert-manager \
+            --namespace cert-manager \
+            --create-namespace \
+            --version v1.20.2 \
+            --set crds.enabled=true \
+            --wait \
+            --timeout 5m
+
       - name: Generate config and secrets
         shell: bash
         env:
@@ -552,6 +565,8 @@ jobs:
           SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
           SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
           SMTP_FROM: ${{ secrets.SMTP_FROM }}
+          ACME_EMAIL: ${{ vars.ACME_EMAIL }}
+          ACME_ENVIRONMENT: ${{ vars.ACME_ENVIRONMENT || 'staging' }}
         run: |
           set -euo pipefail
 
@@ -560,6 +575,31 @@ jobs:
           REDIS_PORT="$(gcloud redis instances describe ${{ env.REDIS_INSTANCE }} --region="${GCP_REGION}" --format='value(port)')"
           INGRESS_IP="$(gcloud compute addresses describe "${INGRESS_IP_NAME}" --global --format='value(address)')"
 
+          if [ -z "${ACME_EMAIL}" ]; then
+            echo "[deploy-release.yml] Error: falta la variable ACME_EMAIL del environment release" >&2
+            exit 1
+          fi
+          if [ "${ACME_ENVIRONMENT}" != "staging" ] && [ "${ACME_ENVIRONMENT}" != "production" ]; then
+            echo "[deploy-release.yml] Error: ACME_ENVIRONMENT debe ser staging o production" >&2
+            exit 1
+          fi
+
+          echo "INGRESS_IP=${INGRESS_IP}" >> "${GITHUB_ENV}"
+          echo "ACME_ENVIRONMENT=${ACME_ENVIRONMENT}" >> "${GITHUB_ENV}"
+          echo "TLS_SECRET_NAME=quetxal-tv-tls-${ACME_ENVIRONMENT}" >> "${GITHUB_ENV}"
+
+          mkdir -p runtime-k8s
+          sed \
+            -e "s|__ACME_EMAIL__|${ACME_EMAIL}|g" \
+            deploy/release/k8s/tls/cluster-issuers.yml > runtime-k8s/cluster-issuers.yml
+          sed \
+            -e "s|__ACME_ENVIRONMENT__|${ACME_ENVIRONMENT}|g" \
+            -e "s|__INGRESS_IP__|${INGRESS_IP}|g" \
+            deploy/release/k8s/tls/certificate.yml > runtime-k8s/certificate.yml
+          sed \
+            -e "s|__TLS_SECRET_NAME__|quetxal-tv-tls-${ACME_ENVIRONMENT}|g" \
+            deploy/release/k8s/ingress.yml > runtime-k8s/ingress.yml
+
           kubectl create namespace "${GKE_NAMESPACE}" --dry-run=client -o yaml | kubectl apply -f -
 
           # ConfigMap
@@ -567,12 +607,12 @@ jobs:
             --namespace="${GKE_NAMESPACE}" \
             --from-literal=NODE_ENV=production \
             --from-literal=RUN_MIGRATIONS=false \
-            --from-literal=FRONTEND_URL=http://${INGRESS_IP} \
+            --from-literal=FRONTEND_URL=https://${INGRESS_IP} \
             --from-literal=API_GATEWAY_PORT=3000 \
             --from-literal=WEB_PORT=80 \
             --from-literal=API_GATEWAY_UPSTREAM=api-gateway:3000 \
             --from-literal=COOKIE_NAME=access_token \
-            --from-literal=COOKIE_SECURE=false \
+            --from-literal=COOKIE_SECURE=true \
             --from-literal=COOKIE_SAME_SITE=lax \
             --from-literal=JWT_EXPIRES_IN=1d \
             --from-literal=IDENTITY_GRPC_HOST=0.0.0.0 \
@@ -680,9 +720,29 @@ jobs:
 
       - name: Apply Kubernetes manifests
         run: |
+          kubectl apply -f deploy/release/k8s/backend-config.yml
           kubectl apply -f deploy/release/k8s/services/
           kubectl apply -f deploy/release/k8s/deployments/
-          kubectl apply -f deploy/release/k8s/ingress.yml
+
+          if ! kubectl get ingress quetxal-tv-ingress --namespace="${GKE_NAMESPACE}" >/dev/null 2>&1; then
+            kubectl apply -f deploy/release/k8s/ingress-bootstrap.yml
+          fi
+
+          kubectl apply -f runtime-k8s/cluster-issuers.yml
+          kubectl apply -f runtime-k8s/certificate.yml
+
+          kubectl wait \
+            --for=condition=Ready \
+            "certificate/quetxal-tv-ip-${ACME_ENVIRONMENT}" \
+            --namespace="${GKE_NAMESPACE}" \
+            --timeout=15m
+
+          kubectl apply -f runtime-k8s/ingress.yml
+
+          if [ "${ACME_ENVIRONMENT}" = "production" ]; then
+            kubectl delete certificate quetxal-tv-ip-staging --namespace="${GKE_NAMESPACE}" --ignore-not-found
+            kubectl delete secret quetxal-tv-tls-staging --namespace="${GKE_NAMESPACE}" --ignore-not-found
+          fi
 
           for deployment in web api-gateway identity-service fx-service subscription-service notification-service catalog-service engagement-service recommendation-service payment-gateway-service
           do
@@ -715,19 +775,31 @@ jobs:
 
       - name: Validate Ingress URL
         shell: bash
+        env:
+          ACME_ENVIRONMENT: ${{ vars.ACME_ENVIRONMENT || 'staging' }}
         run: |
           INGRESS_IP="$(gcloud compute addresses describe "${INGRESS_IP_NAME}" --global --format='value(address)')"
           
-          echo "Waiting for Ingress to be ready at http://${INGRESS_IP} ..."
-          for i in {1..30}; do
-            if curl -fsS "http://${INGRESS_IP}" >/dev/null; then
+          echo "Waiting for Ingress to be ready at https://${INGRESS_IP} ..."
+          for i in {1..45}; do
+            if [ "${ACME_ENVIRONMENT}" = "production" ]; then
+              CURL_TLS=(curl -fsS)
+            else
+              CURL_TLS=(curl -kfsS)
+            fi
+
+            if "${CURL_TLS[@]}" "https://${INGRESS_IP}/healthz" >/dev/null; then
               echo "Smoke test passed!"
-              exit 0
+              HTTP_STATUS="$(curl -sS -o /dev/null -w '%{http_code}' "http://${INGRESS_IP}/")"
+              if [ "${HTTP_STATUS}" = "301" ]; then
+                exit 0
+              fi
+              echo "HTTPS responde, pero HTTP aun no redirige (estado ${HTTP_STATUS})."
             fi
             echo "Attempt $i failed. Retrying in 20s..."
             sleep 20
           done
-          echo "Smoke test failed after 30 attempts."
+          echo "Smoke test failed after 45 attempts."
           exit 1
 
       - name: Generate and push Git tag and Release

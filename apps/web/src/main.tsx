@@ -15,4 +15,6 @@ createRoot(document.getElementById('root')!).render(
   </StrictMode>
 )
 
-registerDownloadServiceWorker().catch(() => {})
+registerDownloadServiceWorker().catch((error) => {
+  console.error(`[main.tsx] Error: ${error instanceof Error ? error.message : String(error)}`)
+})

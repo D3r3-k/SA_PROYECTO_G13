@@ -49,8 +49,14 @@ export default function ContentDetailPage() {
     try {
       const [detailRes, ratingRes, resumeRes] = await Promise.all([
         catalogService.detail(contentId, pin),
-        engagementService.getRatingSummary(contentId).catch(() => null),
-        profileId ? engagementService.resume(contentId, profileId).catch(() => null) : Promise.resolve(null),
+        engagementService.getRatingSummary(contentId).catch((error) => {
+          console.error(`[ContentDetailPage.tsx] Error: ${error instanceof Error ? error.message : String(error)}`)
+          return null
+        }),
+        profileId ? engagementService.resume(contentId, profileId).catch((error) => {
+          console.error(`[ContentDetailPage.tsx] Error: ${error instanceof Error ? error.message : String(error)}`)
+          return null
+        }) : Promise.resolve(null),
       ])
 
       const d = detailRes.data
@@ -76,6 +82,7 @@ export default function ContentDetailPage() {
         }
       }
     } catch (err: any) {
+      console.error(`[ContentDetailPage.tsx] Error: ${err instanceof Error ? err.message : String(err)}`)
       const code = err?.response?.data?.code
       setError(code === 'ACTIVE_SUBSCRIPTION_REQUIRED'
         ? 'Necesitas una suscripción activa para reproducir contenido.'
@@ -112,6 +119,7 @@ export default function ContentDetailPage() {
       const res = await watchPartyService.createRoom(contentId, parentalPin)
       navigate(`/watch-party/${res.data.code}`)
     } catch (err: any) {
+      console.error(`[ContentDetailPage.tsx] Error: ${err instanceof Error ? err.message : String(err)}`)
       const code = err?.response?.data?.code
       setWatchPartyError(code === 'PREMIUM_PLAN_REQUIRED'
         ? 'Solo usuarios Premium pueden crear una Watch Party.'
@@ -145,6 +153,7 @@ export default function ContentDetailPage() {
         : 'Quedó agregado a tus descargas en este navegador.'
       setDownloadStatus(`${record.title} se guardó correctamente. ${readyMessage}`)
     } catch (err: any) {
+      console.error(`[ContentDetailPage.tsx] Error: ${err instanceof Error ? err.message : String(err)}`)
       const code = err?.response?.data?.code
       setDownloadError(code === 'STANDARD_PLAN_REQUIRED'
         ? 'La descarga solo está disponible para Plan Estándar.'
@@ -188,7 +197,9 @@ export default function ContentDetailPage() {
           selectedEpisode?.season_number ?? 0,
           selectedEpisode?.episode_number ?? 0,
         )
-        .catch(() => {})
+        .catch((error) => {
+          console.error(`[ContentDetailPage.tsx] Error: ${error instanceof Error ? error.message : String(error)}`)
+        })
     }, 500)
   }, [contentId, user, selectedEpisode])
 
@@ -197,8 +208,13 @@ export default function ContentDetailPage() {
     const next = userRating === rating ? null : rating
     setUserRating(next)
     if (next) {
-      await engagementService.rate(contentId, user.profile_id, next).catch(() => {})
-      const fresh = await engagementService.getRatingSummary(contentId).catch(() => null)
+      await engagementService.rate(contentId, user.profile_id, next).catch((error) => {
+        console.error(`[ContentDetailPage.tsx] Error: ${error instanceof Error ? error.message : String(error)}`)
+      })
+      const fresh = await engagementService.getRatingSummary(contentId).catch((error) => {
+        console.error(`[ContentDetailPage.tsx] Error: ${error instanceof Error ? error.message : String(error)}`)
+        return null
+      })
       if (fresh) setRatingSummary(fresh.data)
     }
   }
@@ -208,7 +224,9 @@ export default function ContentDetailPage() {
     lastSavedMinute.current = -1
     if (videoRef.current) {
       videoRef.current.currentTime = 0
-      videoRef.current.play().catch(() => {})
+      videoRef.current.play().catch((error) => {
+        console.error(`[ContentDetailPage.tsx] Error: ${error instanceof Error ? error.message : String(error)}`)
+      })
     }
   }
 

@@ -1,0 +1,17 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: quetxal-tv-ip-__ACME_ENVIRONMENT__
+  namespace: quetxal-tv-prod
+spec:
+  secretName: quetxal-tv-tls-__ACME_ENVIRONMENT__
+  issuerRef:
+    name: letsencrypt-ip-__ACME_ENVIRONMENT__
+    kind: ClusterIssuer
+  privateKey:
+    algorithm: RSA
+    size: 2048
+    rotationPolicy: Always
+  ipAddresses:
+    - __INGRESS_IP__
+  renewBeforePercentage: 50

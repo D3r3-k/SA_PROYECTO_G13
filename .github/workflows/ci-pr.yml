@@ -323,6 +323,26 @@ jobs:
         run: |
           ruby -e 'require "yaml"; ARGV.each { |file| YAML.load_stream(File.read(file)); puts "OK #{file}" }' \
             $(find deploy -type f \( -name '*.yml' -o -name '*.yaml' \))
+      - name: Validar plantillas TLS
+        shell: bash
+        run: |
+          bash -n deploy/develop/frontend/bootstrap-tls.sh
+          mkdir -p /tmp/quetxal-tls
+          sed \
+            -e 's|__ACME_EMAIL__|admin@example.com|g' \
+            deploy/release/k8s/tls/cluster-issuers.yml > /tmp/quetxal-tls/cluster-issuers.yml
+          sed \
+            -e 's|__ACME_ENVIRONMENT__|staging|g' \
+            -e 's|__INGRESS_IP__|203.0.113.10|g' \
+            deploy/release/k8s/tls/certificate.yml > /tmp/quetxal-tls/certificate.yml
+          sed \
+            -e 's|__TLS_SECRET_NAME__|quetxal-tv-tls-staging|g' \
+            deploy/release/k8s/ingress.yml > /tmp/quetxal-tls/ingress.yml
+          if rg -n '__[A-Z_]+__' /tmp/quetxal-tls; then
+            echo '[ci-pr.yml] Error: quedaron marcadores TLS sin reemplazar' >&2
+            exit 1
+          fi
+          ruby -e 'require "yaml"; ARGV.each { |file| YAML.load_stream(File.read(file)) }' /tmp/quetxal-tls/*.yml
       - name: Validar archivos Docker Compose
         shell: bash
         run: |

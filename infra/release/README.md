@@ -22,6 +22,8 @@
 | IP estatica global     | `prod-release-ingress-ip`                                       |
 | Service Accounts       | `github-actions-prod`, `prod-catalog-media-signer`              |
 
+La IP global se mantiene como identidad TLS. Terraform administra la IP y el origen CORS HTTPS; cert-manager y los manifests de `deploy/release/k8s/tls` administran la emision y renovacion del certificado dentro de GKE.
+
 ## Paso 1. Preparar variables
 
 Ejecutar en PowerShell desde la raiz del proyecto:

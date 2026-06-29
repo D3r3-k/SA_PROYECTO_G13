@@ -9,7 +9,8 @@ function normalizeCacheKey(cacheKey) {
   if (!cacheKey || typeof cacheKey !== 'string') return ''
   try {
     return new URL(cacheKey, self.location.origin).toString()
-  } catch (_) {
+  } catch (error) {
+    console.error(`[sw.js] Error: ${error instanceof Error ? error.message : String(error)}`)
     return ''
   }
 }
@@ -66,6 +67,7 @@ async function cacheVideo({ videoUrl, cacheKey, title, contentId, episodeId, mim
     await cache.put(normalizedKey, response.clone())
     return { ok: true, status: 'cached', cacheKey: normalizedKey }
   } catch (corsError) {
+    console.error(`[sw.js] Error: ${corsError instanceof Error ? corsError.message : String(corsError)}`)
     try {
       const opaqueResponse = await fetch(videoUrl, {
         mode: 'no-cors',
@@ -76,6 +78,7 @@ async function cacheVideo({ videoUrl, cacheKey, title, contentId, episodeId, mim
       await cache.put(normalizedKey, opaqueResponse.clone())
       return { ok: true, status: 'cached_opaque', cacheKey: normalizedKey }
     } catch (opaqueError) {
+      console.error(`[sw.js] Error: ${opaqueError instanceof Error ? opaqueError.message : String(opaqueError)}`)
       await cacheTextFallback(cache, normalizedKey, {
         title,
         content_id: contentId,

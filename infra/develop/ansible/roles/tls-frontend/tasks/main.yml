@@ -1,0 +1,40 @@
+---
+- name: Instalar dependencias del proxy TLS
+  ansible.builtin.apt:
+    name:
+      - nginx
+      - python3-venv
+    state: present
+    update_cache: true
+  when: tls_enabled | bool
+
+- name: Crear directorio de bootstrap TLS
+  ansible.builtin.file:
+    path: "{{ remote_base_dir }}/frontend/tls"
+    state: directory
+    owner: "{{ ansible_user }}"
+    mode: "0755"
+  when: tls_enabled | bool
+
+- name: Copiar archivos compartidos de bootstrap TLS
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../../../../deploy/develop/frontend/{{ item }}"
+    dest: "{{ remote_base_dir }}/frontend/tls/{{ item }}"
+    owner: "{{ ansible_user }}"
+    mode: "{{ '0755' if item == 'bootstrap-tls.sh' else '0644' }}"
+  loop:
+    - bootstrap-tls.sh
+    - nginx-http.conf.template
+    - nginx-https.conf.template
+    - certbot-renew.service
+    - certbot-renew.timer
+  when: tls_enabled | bool
+
+- name: Ejecutar bootstrap TLS compartido
+  ansible.builtin.command:
+    argv:
+      - "{{ remote_base_dir }}/frontend/tls/bootstrap-tls.sh"
+      - "{{ frontend_public_ip }}"
+      - "{{ acme_email }}"
+      - "{{ acme_environment }}"
+  when: tls_enabled | bool
