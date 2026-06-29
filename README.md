@@ -63,6 +63,8 @@ La solucion utiliza un API Gateway como punto unico de entrada, comunicacion int
 - [8. Infraestructura](docs/07_kubernetes/entorno_kubernetes.md)
   - [8.1 Configuración de Entorno Local y Cloud](docs/configuraciones.md)
   - [8.2 Entorno Kubernetes](docs/07_kubernetes/entorno_kubernetes.md)
+  - [8.3 Aprovisionamiento con Terraform](docs/terraform.md)
+  - [8.4 Automatización con Ansible](docs/ansible.md)
 
 - [9. Contratos gRPC](proto)
 
