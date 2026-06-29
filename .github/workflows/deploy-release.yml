@@ -746,7 +746,7 @@ jobs:
 
           for deployment in web api-gateway identity-service fx-service subscription-service notification-service catalog-service engagement-service recommendation-service payment-gateway-service
           do
-            if ! kubectl rollout status deployment/${deployment} -n "${GKE_NAMESPACE}" --timeout=180s; then
+            if ! kubectl rollout status deployment/${deployment} -n "${GKE_NAMESPACE}" --timeout=600s; then
               kubectl rollout undo deployment/${deployment} -n "${GKE_NAMESPACE}"
               exit 1
             fi
