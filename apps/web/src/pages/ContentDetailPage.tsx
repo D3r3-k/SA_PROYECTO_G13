@@ -140,18 +140,21 @@ export default function ContentDetailPage() {
         : await downloadService.requestMovieDownload(contentId, parentalPin)
 
       const record = await saveEncryptedDownload(response.data.grant)
-      setDownloadStatus(`Descarga simulada cifrada guardada en este navegador: ${record.subtitle}.`)
+      const readyMessage = record.cache_status === 'cached' || record.cache_status === 'cached_opaque'
+        ? 'Ya puedes abrirlo desde Mis descargas.'
+        : 'Quedó agregado a tus descargas en este navegador.'
+      setDownloadStatus(`${record.title} se guardó correctamente. ${readyMessage}`)
     } catch (err: any) {
       const code = err?.response?.data?.code
       setDownloadError(code === 'STANDARD_PLAN_REQUIRED'
-        ? 'La descarga solo está disponible para Plan Estándar.'
+        ? 'La descarga solo está disponible para Plan Estándar. Básico y Premium están bloqueados por la regla del proyecto.'
         : code === 'PARENTAL_PIN_REQUIRED'
           ? 'Ingresa el PIN parental correcto antes de descargar.'
           : code === 'DOWNLOAD_MEDIA_NOT_AVAILABLE'
             ? 'Este contenido no tiene video disponible para descarga.'
             : code === 'EPISODE_DOWNLOAD_REQUIRED'
               ? 'Selecciona un episodio para descargar la serie.'
-              : err?.message || 'No se pudo guardar la descarga cifrada.')
+              : err?.message || 'No se pudo guardar la descarga.')
     } finally {
       setDownloading(false)
     }

@@ -11,6 +11,7 @@ import SubscriptionsPage  from './pages/SubscriptionsPage'
 import HistoryPage        from './pages/HistoryPage'
 import AccountPage        from './pages/AccountPage'
 import WatchPartyPage     from './pages/WatchPartyPage'
+import DownloadsPage      from './pages/DownloadsPage'
 import AdminLoginPage     from './pages/AdminLoginPage'
 import AdminPage          from './pages/AdminPage'
 
@@ -42,6 +43,9 @@ export default function App() {
           } />
           <Route path="/history" element={
             <ProtectedRoute><HistoryPage /></ProtectedRoute>
+          } />
+          <Route path="/downloads" element={
+            <ProtectedRoute><DownloadsPage /></ProtectedRoute>
           } />
           <Route path="/account" element={
             <ProtectedRoute><AccountPage /></ProtectedRoute>
