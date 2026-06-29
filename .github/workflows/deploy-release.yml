@@ -723,6 +723,7 @@ jobs:
           kubectl apply -f deploy/release/k8s/backend-config.yml
           kubectl apply -f deploy/release/k8s/services/
           kubectl apply -f deploy/release/k8s/deployments/
+          kubectl apply -f deploy/release/k8s/cronjobs/
 
           if ! kubectl get ingress quetxal-tv-ingress --namespace="${GKE_NAMESPACE}" >/dev/null 2>&1; then
             kubectl apply -f deploy/release/k8s/ingress-bootstrap.yml

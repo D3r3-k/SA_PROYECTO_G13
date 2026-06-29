@@ -12,7 +12,7 @@ spec:
     solvers:
       - http01:
           ingress:
-            name: quetxal-tv-ingress
+            class: "cert-manager-internal"
 ---
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
@@ -28,4 +28,4 @@ spec:
     solvers:
       - http01:
           ingress:
-            name: quetxal-tv-ingress
+            class: "cert-manager-internal"
