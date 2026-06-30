@@ -1,3 +1,5 @@
+[← Regresar](../../README.md)
+
 ## V2 — Vista Lógica
 
 La vista lógica describe la organización interna de cada microservicio en términos

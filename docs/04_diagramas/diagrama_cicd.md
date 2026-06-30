@@ -1,8 +1,13 @@
+[← Regresar](../../README.md)
+
 [Regresar](../../README.md)
 
 # Diagrama de Flujo del Pipeline CI/CD
 
 ![Pipeline CI/CD](../00_assets/diagrams/04_diagramas/cicd-pipeline.drawio.png)
+
+![Pipeline CI/CD](../00_assets/diagrams/04_diagramas/cicd-pipeline-smoke-locust.jpg)
+
 
 
 ---

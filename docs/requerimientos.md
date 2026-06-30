@@ -1,3 +1,5 @@
+[← Regresar](../README.md)
+
 # Requerimientos del Sistema
 
 ## 1. Introducción

@@ -1,0 +1,183 @@
+<mxfile host="Electron">
+  <diagram name="Página-1" id="4gTAuabO3MSVdL0Y-eju">
+    <mxGraphModel dx="2457" dy="1511" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="ORRvNWbraSWizlhXQDH0-2" parent="1" style="ellipse;html=1;shape=startState;fillColor=#000000;strokeColor=#000000;" value="" vertex="1">
+          <mxGeometry height="30" width="30" x="1220" y="480" as="geometry" />
+        </mxCell>
+        <mxCell id="ORRvNWbraSWizlhXQDH0-3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="Se abre un Pull Request&lt;br&gt;con el cambio" vertex="1">
+          <mxGeometry height="60" width="220" x="1125" y="540" as="geometry" />
+        </mxCell>
+        <mxCell id="ORRvNWbraSWizlhXQDH0-4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="Detecta qué servicios&lt;br&gt;fueron modificados" vertex="1">
+          <mxGeometry height="60" width="220" x="1125" y="640" as="geometry" />
+        </mxCell>
+        <mxCell id="ORRvNWbraSWizlhXQDH0-5" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="Revisar solo el código de los&#xa;servicios afectados&#xa;(pruebas + cobertura mínima 75%)" vertex="1">
+          <mxGeometry height="70" width="220" x="1125" y="740" as="geometry" />
+        </mxCell>
+        <mxCell id="ORRvNWbraSWizlhXQDH0-6" parent="1" style="strokeWidth=2;html=1;shape=mxgraph.flowchart.decision;whiteSpace=wrap;" value="¿Todo pasa?" vertex="1">
+          <mxGeometry height="90" width="180" x="1145" y="850" as="geometry" />
+        </mxCell>
+        <mxCell id="ORRvNWbraSWizlhXQDH0-55" edge="1" parent="1" source="ORRvNWbraSWizlhXQDH0-7" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="ORRvNWbraSWizlhXQDH0-27">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="640" y="895" />
+              <mxPoint x="640" y="2415" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="ORRvNWbraSWizlhXQDH0-7" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="Detener el proceso y avisar&lt;br&gt;qué falló&amp;nbsp;" vertex="1">
+          <mxGeometry height="60" width="220" x="690" y="865" as="geometry" />
+        </mxCell>
+        <mxCell id="ORRvNWbraSWizlhXQDH0-9" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="El equipo aprueba y&#xa;fusiona el Pull Request" vertex="1">
+          <mxGeometry height="60" width="220" x="1125" y="980" as="geometry" />
+        </mxCell>
+        <mxCell id="ORRvNWbraSWizlhXQDH0-10" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="Volver a ejecutar todas las&#xa;pruebas de los servicios afectados" vertex="1">
+          <mxGeometry height="60" width="220" x="1125" y="1080" as="geometry" />
+        </mxCell>
+        <mxCell id="ORRvNWbraSWizlhXQDH0-11" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="Respaldar las bases de datos&#xa;antes de continuar" vertex="1">
+          <mxGeometry height="60" width="220" x="1125" y="1180" as="geometry" />
+        </mxCell>
+        <mxCell id="ORRvNWbraSWizlhXQDH0-12" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="Empaquetar la aplicación&#xa;en imágenes Docker y publicarlas&#xa;en el registro" vertex="1">
+          <mxGeometry height="70" width="220" x="1125" y="1280" as="geometry" />
+        </mxCell>
+        <mxCell id="ORRvNWbraSWizlhXQDH0-13" parent="1" style="strokeWidth=2;html=1;shape=mxgraph.flowchart.decision;whiteSpace=wrap;" value="¿A qué entorno&lt;br&gt;se&amp;nbsp; publica?" vertex="1">
+          <mxGeometry height="80" width="160" x="1155" y="1390" as="geometry" />
+        </mxCell>
+        <mxCell id="ORRvNWbraSWizlhXQDH0-14" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="Configurar variables y&#xa;secretos del entorno de desarrollo" vertex="1">
+          <mxGeometry height="60" width="220" x="770" y="1520" as="geometry" />
+        </mxCell>
+        <mxCell id="ORRvNWbraSWizlhXQDH0-15" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="Publicar la nueva versión en&lt;br&gt;las VM de desarrollo&amp;nbsp;vía Docker Compose" vertex="1">
+          <mxGeometry height="70" width="220" x="770" y="1630" as="geometry" />
+        </mxCell>
+        <mxCell id="ORRvNWbraSWizlhXQDH0-16" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="Renovar certificado HTTPS&#xa;del sitio si es necesario" vertex="1">
+          <mxGeometry height="60" width="220" x="770" y="1790" as="geometry" />
+        </mxCell>
+        <mxCell id="ORRvNWbraSWizlhXQDH0-17" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="Verificar que los contenedores&#xa;y el sitio respondan correctamente&#xa;(Smoke Tests)" vertex="1">
+          <mxGeometry height="70" width="220" x="770" y="1940" as="geometry" />
+        </mxCell>
+        <mxCell id="ORRvNWbraSWizlhXQDH0-18" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="Configurar variables, secretos&#xa;y certificado HTTPS en el clúster&#xa;de producción" vertex="1">
+          <mxGeometry height="70" width="220" x="1470" y="1510" as="geometry" />
+        </mxCell>
+        <mxCell id="ORRvNWbraSWizlhXQDH0-19" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="Publicar la nueva versión en el&lt;br&gt;clúster de producción (GKE)" vertex="1">
+          <mxGeometry height="70" width="220" x="1470" y="1630" as="geometry" />
+        </mxCell>
+        <mxCell id="ORRvNWbraSWizlhXQDH0-20" parent="1" style="strokeWidth=2;html=1;shape=mxgraph.flowchart.decision;whiteSpace=wrap;" value="¿Los nuevos servicios&#xa;arrancaron bien?" vertex="1">
+          <mxGeometry height="80" width="160" x="1500" y="1740" as="geometry" />
+        </mxCell>
+        <mxCell id="ORRvNWbraSWizlhXQDH0-21" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="Revertir automáticamente&#xa;a la última versión estable" vertex="1">
+          <mxGeometry height="60" width="220" x="1750" y="1750" as="geometry" />
+        </mxCell>
+        <mxCell id="ORRvNWbraSWizlhXQDH0-22" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="Verificar que el sitio responda&#xa;correctamente sobre HTTPS&#xa;(Smoke Tests)" vertex="1">
+          <mxGeometry height="70" width="220" x="1470" y="1890" as="geometry" />
+        </mxCell>
+        <mxCell id="ORRvNWbraSWizlhXQDH0-23" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="Generar la etiqueta de versión&#xa;y publicar el release en GitHub" vertex="1">
+          <mxGeometry height="60" width="220" x="1470" y="1990" as="geometry" />
+        </mxCell>
+        <mxCell id="ORRvNWbraSWizlhXQDH0-24" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="Simular usuarios reales para&#xa;medir el comportamiento bajo&#xa;carga (Locust)" vertex="1">
+          <mxGeometry height="70" width="240" x="1115" y="2030" as="geometry" />
+        </mxCell>
+        <mxCell id="ORRvNWbraSWizlhXQDH0-25" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="Generar reporte ejecutivo&#xa;de resultados (HTML)" vertex="1">
+          <mxGeometry height="60" width="240" x="1115" y="2150" as="geometry" />
+        </mxCell>
+        <mxCell id="ORRvNWbraSWizlhXQDH0-26" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="Monitorear continuamente&#xa;el estado del sistema&#xa;(logs y métricas en vivo)" vertex="1">
+          <mxGeometry height="70" width="240" x="1115" y="2280" as="geometry" />
+        </mxCell>
+        <mxCell id="ORRvNWbraSWizlhXQDH0-27" parent="1" style="ellipse;html=1;shape=endState;fillColor=#000000;strokeColor=#000000;" value="" vertex="1">
+          <mxGeometry height="30" width="30" x="1220" y="2400" as="geometry" />
+        </mxCell>
+        <mxCell id="ORRvNWbraSWizlhXQDH0-28" edge="1" parent="1" source="ORRvNWbraSWizlhXQDH0-2" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=open;endSize=8;rounded=0;" target="ORRvNWbraSWizlhXQDH0-3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ORRvNWbraSWizlhXQDH0-29" edge="1" parent="1" source="ORRvNWbraSWizlhXQDH0-3" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=open;endSize=8;rounded=0;" target="ORRvNWbraSWizlhXQDH0-4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ORRvNWbraSWizlhXQDH0-30" edge="1" parent="1" source="ORRvNWbraSWizlhXQDH0-4" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=open;endSize=8;rounded=0;" target="ORRvNWbraSWizlhXQDH0-5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ORRvNWbraSWizlhXQDH0-31" edge="1" parent="1" source="ORRvNWbraSWizlhXQDH0-5" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=open;endSize=8;rounded=0;" target="ORRvNWbraSWizlhXQDH0-6">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ORRvNWbraSWizlhXQDH0-32" edge="1" parent="1" source="ORRvNWbraSWizlhXQDH0-6" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=open;endSize=8;rounded=0;" target="ORRvNWbraSWizlhXQDH0-7" value="No">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ORRvNWbraSWizlhXQDH0-34" edge="1" parent="1" source="ORRvNWbraSWizlhXQDH0-6" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=open;endSize=8;rounded=0;" target="ORRvNWbraSWizlhXQDH0-9" value="Sí">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ORRvNWbraSWizlhXQDH0-35" edge="1" parent="1" source="ORRvNWbraSWizlhXQDH0-9" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=open;endSize=8;rounded=0;" target="ORRvNWbraSWizlhXQDH0-10">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ORRvNWbraSWizlhXQDH0-36" edge="1" parent="1" source="ORRvNWbraSWizlhXQDH0-10" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=open;endSize=8;rounded=0;" target="ORRvNWbraSWizlhXQDH0-11">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ORRvNWbraSWizlhXQDH0-37" edge="1" parent="1" source="ORRvNWbraSWizlhXQDH0-11" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=open;endSize=8;rounded=0;" target="ORRvNWbraSWizlhXQDH0-12">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ORRvNWbraSWizlhXQDH0-38" edge="1" parent="1" source="ORRvNWbraSWizlhXQDH0-12" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=open;endSize=8;rounded=0;" target="ORRvNWbraSWizlhXQDH0-13">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ORRvNWbraSWizlhXQDH0-39" edge="1" parent="1" source="ORRvNWbraSWizlhXQDH0-13" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=open;endSize=8;rounded=0;" target="ORRvNWbraSWizlhXQDH0-14" value="develop">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ORRvNWbraSWizlhXQDH0-40" edge="1" parent="1" source="ORRvNWbraSWizlhXQDH0-13" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=open;endSize=8;rounded=0;" target="ORRvNWbraSWizlhXQDH0-18" value="release">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ORRvNWbraSWizlhXQDH0-41" edge="1" parent="1" source="ORRvNWbraSWizlhXQDH0-14" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=open;endSize=8;rounded=0;" target="ORRvNWbraSWizlhXQDH0-15">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ORRvNWbraSWizlhXQDH0-42" edge="1" parent="1" source="ORRvNWbraSWizlhXQDH0-15" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=open;endSize=8;rounded=0;" target="ORRvNWbraSWizlhXQDH0-16">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ORRvNWbraSWizlhXQDH0-43" edge="1" parent="1" source="ORRvNWbraSWizlhXQDH0-16" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=open;endSize=8;rounded=0;" target="ORRvNWbraSWizlhXQDH0-17">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ORRvNWbraSWizlhXQDH0-44" edge="1" parent="1" source="ORRvNWbraSWizlhXQDH0-18" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=open;endSize=8;rounded=0;" target="ORRvNWbraSWizlhXQDH0-19">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ORRvNWbraSWizlhXQDH0-45" edge="1" parent="1" source="ORRvNWbraSWizlhXQDH0-19" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=open;endSize=8;rounded=0;" target="ORRvNWbraSWizlhXQDH0-20">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ORRvNWbraSWizlhXQDH0-46" edge="1" parent="1" source="ORRvNWbraSWizlhXQDH0-20" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=open;endSize=8;rounded=0;" target="ORRvNWbraSWizlhXQDH0-21" value="No">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ORRvNWbraSWizlhXQDH0-47" edge="1" parent="1" source="ORRvNWbraSWizlhXQDH0-21" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=open;endSize=8;rounded=0;" target="ORRvNWbraSWizlhXQDH0-19" value="Versión anterior&#xa;restaurada">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1860" y="1645" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="ORRvNWbraSWizlhXQDH0-48" edge="1" parent="1" source="ORRvNWbraSWizlhXQDH0-20" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=open;endSize=8;rounded=0;" target="ORRvNWbraSWizlhXQDH0-22" value="Sí">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ORRvNWbraSWizlhXQDH0-49" edge="1" parent="1" source="ORRvNWbraSWizlhXQDH0-22" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=open;endSize=8;rounded=0;" target="ORRvNWbraSWizlhXQDH0-23">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ORRvNWbraSWizlhXQDH0-50" edge="1" parent="1" source="ORRvNWbraSWizlhXQDH0-17" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=open;endSize=8;rounded=0;" target="ORRvNWbraSWizlhXQDH0-24">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="880" y="2070" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="ORRvNWbraSWizlhXQDH0-51" edge="1" parent="1" source="ORRvNWbraSWizlhXQDH0-23" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=open;endSize=8;rounded=0;" target="ORRvNWbraSWizlhXQDH0-24">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1580" y="2070" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="ORRvNWbraSWizlhXQDH0-52" edge="1" parent="1" source="ORRvNWbraSWizlhXQDH0-24" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=open;endSize=8;rounded=0;" target="ORRvNWbraSWizlhXQDH0-25">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ORRvNWbraSWizlhXQDH0-53" edge="1" parent="1" source="ORRvNWbraSWizlhXQDH0-25" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=open;endSize=8;rounded=0;" target="ORRvNWbraSWizlhXQDH0-26">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ORRvNWbraSWizlhXQDH0-54" edge="1" parent="1" source="ORRvNWbraSWizlhXQDH0-26" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=open;endSize=8;rounded=0;" target="ORRvNWbraSWizlhXQDH0-27">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

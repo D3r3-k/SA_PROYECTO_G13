@@ -1,0 +1,163 @@
+name: Load test Locust cloud
+
+on:
+  workflow_dispatch:
+    inputs:
+      users:
+        description: "Usuarios concurrentes para carga ligera"
+        required: false
+        default: "20"
+      spawn_rate:
+        description: "Usuarios nuevos por segundo"
+        required: false
+        default: "2"
+      run_time:
+        description: "Duracion de la prueba, por ejemplo 3m o 5m"
+        required: false
+        default: "3m"
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE_NAMESPACE: ghcr.io/d3r3-k/sa_proyecto_g13
+  GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+  GCP_REGION: ${{ vars.GCP_REGION }}
+  GKE_CLUSTER_NAME: ${{ vars.GKE_CLUSTER_NAME }}
+  GKE_NAMESPACE: ${{ vars.GKE_NAMESPACE }}
+  INGRESS_IP_NAME: ${{ vars.INGRESS_IP_NAME }}
+
+jobs:
+  build-locust-image:
+    name: Build Locust image
+    runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.meta.outputs.image }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set image tag
+        id: meta
+        run: echo "image=${IMAGE_NAMESPACE}/locust-load:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push Locust image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: tests/load/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.image }}
+
+  run-locust-in-gke:
+    name: Run Locust in GKE
+    needs: build-locust-image
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+          project_id: ${{ env.GCP_PROJECT_ID }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Install gke-gcloud-auth-plugin
+        run: gcloud components install gke-gcloud-auth-plugin --quiet
+
+      - name: Get GKE credentials
+        run: gcloud container clusters get-credentials "${GKE_CLUSTER_NAME}" --region="${GCP_REGION}" --project="${GCP_PROJECT_ID}"
+
+      - name: Resolve cloud target
+        id: target
+        shell: bash
+        run: |
+          set -euo pipefail
+          INGRESS_IP="$(gcloud compute addresses describe "${INGRESS_IP_NAME}" --global --format='value(address)')"
+          echo "host=http://${INGRESS_IP}" >> "$GITHUB_OUTPUT"
+
+      - name: Prepare Locust config in Kubernetes
+        shell: bash
+        env:
+          LOCUST_USERS_CSV: ${{ secrets.LOCUST_USERS_CSV }}
+          LOCUST_CONTENT_IDS: ${{ vars.LOCUST_CONTENT_IDS }}
+          LOCUST_SEARCH_TERMS: ${{ vars.LOCUST_SEARCH_TERMS }}
+          LOCUST_PREMIUM_EMAIL: ${{ secrets.LOCUST_PREMIUM_EMAIL }}
+          LOCUST_PREMIUM_PASSWORD: ${{ secrets.LOCUST_PREMIUM_PASSWORD }}
+          LOCUST_STANDARD_EMAIL: ${{ secrets.LOCUST_STANDARD_EMAIL }}
+          LOCUST_STANDARD_PASSWORD: ${{ secrets.LOCUST_STANDARD_PASSWORD }}
+          LOCUST_BASIC_EMAIL: ${{ secrets.LOCUST_BASIC_EMAIL }}
+          LOCUST_BASIC_PASSWORD: ${{ secrets.LOCUST_BASIC_PASSWORD }}
+          LOCUST_ADMIN_EMAIL: ${{ secrets.LOCUST_ADMIN_EMAIL }}
+          LOCUST_ADMIN_PASSWORD: ${{ secrets.LOCUST_ADMIN_PASSWORD }}
+        run: |
+          set -euo pipefail
+          kubectl create namespace "${GKE_NAMESPACE}" --dry-run=client -o yaml | kubectl apply -f -
+
+          kubectl delete configmap locust-load-config --namespace="${GKE_NAMESPACE}" --ignore-not-found
+          kubectl create configmap locust-load-config \
+            --namespace="${GKE_NAMESPACE}" \
+            --from-literal=LOCUST_HOST="${{ steps.target.outputs.host }}" \
+            --from-literal=LOCUST_USERS="${{ github.event.inputs.users }}" \
+            --from-literal=LOCUST_SPAWN_RATE="${{ github.event.inputs.spawn_rate }}" \
+            --from-literal=LOCUST_RUN_TIME="${{ github.event.inputs.run_time }}" \
+            --from-literal=LOCUST_AUTO_SELECT_PROFILE="true" \
+            --from-literal=LOCUST_STRICT_AUTH="true" \
+            --from-literal=LOCUST_ENABLE_WS="true" \
+            --from-literal=LOCUST_CONTENT_IDS="${LOCUST_CONTENT_IDS:-}" \
+            --from-literal=LOCUST_SEARCH_TERMS="${LOCUST_SEARCH_TERMS:-accion,drama,comedia,familia,aventura}"
+
+          kubectl delete secret locust-load-secrets --namespace="${GKE_NAMESPACE}" --ignore-not-found
+          kubectl create secret generic locust-load-secrets \
+            --namespace="${GKE_NAMESPACE}" \
+            --from-literal=LOCUST_USERS_CSV="${LOCUST_USERS_CSV:-}" \
+            --from-literal=LOCUST_PREMIUM_EMAIL="${LOCUST_PREMIUM_EMAIL:-}" \
+            --from-literal=LOCUST_PREMIUM_PASSWORD="${LOCUST_PREMIUM_PASSWORD:-}" \
+            --from-literal=LOCUST_STANDARD_EMAIL="${LOCUST_STANDARD_EMAIL:-}" \
+            --from-literal=LOCUST_STANDARD_PASSWORD="${LOCUST_STANDARD_PASSWORD:-}" \
+            --from-literal=LOCUST_BASIC_EMAIL="${LOCUST_BASIC_EMAIL:-}" \
+            --from-literal=LOCUST_BASIC_PASSWORD="${LOCUST_BASIC_PASSWORD:-}" \
+            --from-literal=LOCUST_ADMIN_EMAIL="${LOCUST_ADMIN_EMAIL:-}" \
+            --from-literal=LOCUST_ADMIN_PASSWORD="${LOCUST_ADMIN_PASSWORD:-}"
+
+      - name: Run Locust Kubernetes Job
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p reports/locust
+          kubectl delete job locust-light-load --namespace="${GKE_NAMESPACE}" --ignore-not-found
+          sed "s|__LOCUST_IMAGE__|${{ needs.build-locust-image.outputs.image }}|g" deploy/release/k8s/load/locust-job.yml | kubectl apply -f -
+
+          set +e
+          kubectl wait --for=condition=complete --timeout=10m job/locust-light-load --namespace="${GKE_NAMESPACE}"
+          STATUS="$?"
+          set -e
+
+          POD_NAME="$(kubectl get pods --namespace="${GKE_NAMESPACE}" -l job-name=locust-light-load -o jsonpath='{.items[0].metadata.name}')"
+          kubectl logs --namespace="${GKE_NAMESPACE}" "$POD_NAME" | tee reports/locust/locust-job.log || true
+          kubectl cp "${GKE_NAMESPACE}/${POD_NAME}:/reports" reports/locust || true
+
+          if [[ "$STATUS" != "0" ]]; then
+            echo "La prueba Locust no finalizo correctamente. Revisar reports/locust/locust-job.log" >&2
+            exit 1
+          fi
+
+      - name: Upload Locust HTML report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: locust-cloud-report
+          path: reports/locust

@@ -1,0 +1,4 @@
+email,password,plan_tier,profile_id,is_admin
+premium.qa@example.com,123123123,premium,28b62382-e8bb-44fa-ace3-9929b7c8f4cb,false
+standard+.qa@example.com,123123123,standard,bca03ec4-5fb2-4052-a5e9-63bc6998c43e,false
+basic+.qa@example.com,123123123,basic,5210b600-a169-4d1b-ba51-e9a10883b771,false

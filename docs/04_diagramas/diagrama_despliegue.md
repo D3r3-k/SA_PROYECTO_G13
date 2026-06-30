@@ -1,3 +1,5 @@
+[← Regresar](../../README.md)
+
 ## Diagrama de Despliegue — Quetxal TV
 
 Este diagrama muestra el mapeo físico de todos los componentes del sistema a sus contenedores Docker en los dos entornos requeridos por el proyecto.

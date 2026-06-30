@@ -1,3 +1,5 @@
+[← Regresar](../../README.md)
+
 ## V4 — Vista de Componentes
 
 ![Diagrama de Componentes](../00_assets/diagrams/04_diagramas/componentesactualizado.drawio.png)

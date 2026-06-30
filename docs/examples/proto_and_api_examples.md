@@ -1,3 +1,5 @@
+[← Regresar](../../README.md)
+
 # Ejemplos de payloads y comandos
 
 El cliente externo siempre prueba por el API Gateway. Internamente, el Gateway usa gRPC hacia los servicios principales y las notificaciones viajan por Redis.

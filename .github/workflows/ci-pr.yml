@@ -350,6 +350,36 @@ jobs:
             docker compose --file "$compose_file" config --quiet --no-interpolate
           done < <(find deploy -type f -name 'docker-compose.yml')
 
+      - name: Buscar patrones prohibidos
+        shell: bash
+        run: |
+          set -euo pipefail
+          FAILED=0
+
+          check_pattern() {
+            local description="$1"
+            local pattern="$2"
+            shift 2
+            if grep -r --include='*.yml' --include='*.yaml' --include='*.tf' \
+                 -l "${pattern}" "$@" 2>/dev/null | grep -q .; then
+              echo "[ci-pr.yml] Error: patron prohibido encontrado '${description}':" >&2
+              grep -r --include='*.yml' --include='*.yaml' --include='*.tf' \
+                   -n "${pattern}" "$@" 2>/dev/null >&2 || true
+              FAILED=1
+            fi
+          }
+
+          # Referencias a Pub/Sub eliminadas
+          check_pattern "google_pubsub" 'google_pubsub' deploy/ infra/release/
+          check_pattern "cloud-sql-logs-topic" 'cloud-sql-logs-topic' deploy/ infra/release/
+
+          if [ "${FAILED}" -ne 0 ]; then
+            echo "[ci-pr.yml] Error: se encontraron patrones prohibidos" >&2
+            exit 1
+          fi
+          echo "Sin patrones prohibidos."
+
+
   validate-infra:
     name: Validar Terraform y Ansible
     needs: detect-changes

@@ -164,3 +164,28 @@
 - **¿Para qué?** Proveer autenticación stateless en el API Gateway que proteja contra XSS y CSRF, permita escalar horizontalmente sin session store centralizado, y limite el impacto de un token comprometido mediante expiración automática.
 
 ---
+
+### 2.9. Terraform como Herramienta de Infraestructura como Código
+
+- **Decisión:** Toda la infraestructura de GCP (VPC, subredes, firewalls, clúster de GKE, instancias de base de datos externas y VMs de desarrollo) se define y gestiona de forma declarativa mediante Terraform, organizada en módulos reutilizables por entorno (`develop` y `release`).
+- **¿Qué?** Terraform es una herramienta de Infraestructura como Código (IaC) de HashiCorp que permite describir el estado deseado de la infraestructura cloud en archivos `.tf` declarativos. Mantiene un archivo de estado (`terraform.tfstate`) que mapea los recursos declarados con los recursos reales aprovisionados en GCP, permitiendo calcular y aplicar únicamente los cambios necesarios (`terraform plan` / `terraform apply`).
+- **¿Por qué?**
+  - **Reproducibilidad total:** La infraestructura completa puede destruirse y reconstruirse de forma idéntica ejecutando `terraform apply`, eliminando la deriva de configuración (configuration drift) que ocurre al provisionar recursos manualmente desde la consola de GCP.
+  - **Versionado de infraestructura:** Los archivos `.tf` se pueden versionar en Git junto al código de aplicación, permitiendo revisar cambios de infraestructura en Pull Requests con el mismo rigor que cambios de código.
+  - **Módulos por dominio:** La organización en módulos (`network`, `firewall`, `cloud-sql`, `compute-vms`, `gke`, `redis`, `storage`) evita duplicar definiciones entre los entornos `develop` y `release`, reutilizando la misma lógica con variables distintas.
+- **¿Para qué?** Garantizar que la creación, modificación y destrucción de la infraestructura de Quetxal TV sea auditable, repetible y libre de intervención manual, alineando el aprovisionamiento cloud con las mismas prácticas de control de versiones que el código de aplicación.
+
+---
+
+### 2.10. Ansible para Gestión de Configuración Automatizada
+
+- **Decisión:** El despliegue de dependencias, herramientas base y preparación de los entornos de ejecución en las VMs de Compute Engine se automatiza exclusivamente mediante Playbooks de Ansible, organizados en roles reutilizables.
+- **¿Qué?** Ansible es una herramienta de gestión de configuración *agentless* que automatiza la instalación de software y configuración de servidores remotos mediante conexiones SSH, sin requerir un agente instalado en las VMs destino. Los Playbooks (`elk_playbook.yml`, entre otros) describen en YAML las tareas a ejecutar, organizadas en roles (`docker`, `deploy-user`, `app-directories`, `validations`) e inventarios que listan las VMs objetivo por entorno.
+- **¿Por qué?**
+  - **Agentless:** Al no requerir instalar software adicional en las VMs, Ansible reduce la superficie de configuración y el mantenimiento de las máquinas; basta con acceso SSH y Python en el host remoto.
+  - **Idempotencia:** Ejecutar el mismo Playbook múltiples veces produce el mismo resultado final sin generar efectos secundarios, lo que permite reaplicar la configuración de forma segura tras cambios o reinicios de las VMs.
+  - **Separación de responsabilidades respecto a Terraform:** Terraform aprovisiona los recursos de infraestructura (la VM existe), mientras que Ansible configura el software dentro de esos recursos (Docker, dependencias, usuarios de despliegue). Esta separación evita mezclar el ciclo de vida del recurso cloud con el ciclo de vida de su configuración interna.
+  - **Roles reutilizables:** La estructura de roles permite aplicar la misma configuración base (Docker, estructura de directorios) tanto en las VMs de `develop` como en las VMs auxiliares de `release`, sin duplicar tareas.
+- **¿Para qué?** Garantizar que toda VM aprovisionada por Terraform quede configurada de forma consistente y reproducible, sin necesidad de configuración manual post-creación, alineando la gestión de software de los servidores con el mismo principio de automatización declarativa que rige el resto del pipeline.
+
+---
