@@ -6,6 +6,9 @@
 
 ![Pipeline CI/CD](../00_assets/diagrams/04_diagramas/cicd-pipeline.drawio.png)
 
+![Pipeline CI/CD](../00_assets/diagrams/04_diagramas/cicd-pipeline-smoke-locust.jpg)
+
+
 
 ---
 
