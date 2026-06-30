@@ -21,6 +21,13 @@ export const env = {
 
   inactiveThresholdInterval: process.env.INACTIVE_THRESHOLD_INTERVAL || "5 minutes",
 
+  
+  locustUsersCsv:
+    process.env.LOCUST_USERS_CSV ||
+    (process.env.LOCUST_USERS_CSV_B64
+      ? Buffer.from(process.env.LOCUST_USERS_CSV_B64, "base64").toString("utf-8")
+      : ""),
+
   db: {
     host: process.env.DB_HOST || "localhost",
     port: Number(process.env.DB_PORT || 5432),

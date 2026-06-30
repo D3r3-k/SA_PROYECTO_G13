@@ -89,8 +89,6 @@ def accounts_from_env() -> list[TestAccount]:
     if os.path.exists(users_file):
         with open(users_file, "r", encoding="utf-8") as file:
             accounts = parse_csv_accounts(file.read())
-            # users.example.csv trae credenciales dummy. Solo se usan si el usuario decide mantenerlas.
-            accounts = [account for account in accounts if "example.com" not in account.email]
             if accounts:
                 return accounts
 
