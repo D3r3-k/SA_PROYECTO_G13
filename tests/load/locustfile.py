@@ -392,6 +392,7 @@ class QuetxalTvUser(HttpUser):
         if ROUTE_CHECK_MODE or not self.authenticated or not self.profile_id:
             return
 
+
         with self.client.get(
             "/api/recommendations",
             params={"limit": 10},
