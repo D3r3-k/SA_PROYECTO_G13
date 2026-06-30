@@ -46,7 +46,7 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event.pull_request.merged == true &&
-       contains(github.event.pull_request.labels.*.name, 'deploy:develop'))
+       contains(github.event.pull_request.labels.*.name, 'deploy'))
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -73,7 +73,7 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event.pull_request.merged == true &&
-       contains(github.event.pull_request.labels.*.name, 'deploy:develop'))
+       contains(github.event.pull_request.labels.*.name, 'deploy'))
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -100,7 +100,7 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event.pull_request.merged == true &&
-       contains(github.event.pull_request.labels.*.name, 'deploy:develop'))
+       contains(github.event.pull_request.labels.*.name, 'deploy'))
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -127,7 +127,7 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event.pull_request.merged == true &&
-       contains(github.event.pull_request.labels.*.name, 'deploy:develop'))
+       contains(github.event.pull_request.labels.*.name, 'deploy'))
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -150,7 +150,7 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event.pull_request.merged == true &&
-       contains(github.event.pull_request.labels.*.name, 'deploy:develop'))
+       contains(github.event.pull_request.labels.*.name, 'deploy'))
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -177,7 +177,7 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event.pull_request.merged == true &&
-       contains(github.event.pull_request.labels.*.name, 'deploy:develop'))
+       contains(github.event.pull_request.labels.*.name, 'deploy'))
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -204,7 +204,7 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event.pull_request.merged == true &&
-       contains(github.event.pull_request.labels.*.name, 'deploy:develop'))
+       contains(github.event.pull_request.labels.*.name, 'deploy'))
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -231,7 +231,7 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event.pull_request.merged == true &&
-       contains(github.event.pull_request.labels.*.name, 'deploy:develop'))
+       contains(github.event.pull_request.labels.*.name, 'deploy'))
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -258,7 +258,7 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event.pull_request.merged == true &&
-       contains(github.event.pull_request.labels.*.name, 'deploy:develop'))
+       contains(github.event.pull_request.labels.*.name, 'deploy'))
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -292,7 +292,7 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event.pull_request.merged == true &&
-       contains(github.event.pull_request.labels.*.name, 'deploy:develop'))
+       contains(github.event.pull_request.labels.*.name, 'deploy'))
     runs-on: ubuntu-latest
     defaults:
       run:

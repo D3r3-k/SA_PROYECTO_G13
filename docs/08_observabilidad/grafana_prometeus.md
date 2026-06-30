@@ -1,59 +1,34 @@
-[← Regresar](../../README.md)
+# Documentación: Stack Prometheus & Grafana
 
-# Guía de Observabilidad y Monitoreo de Métricas
+## ¿Qué es y Cómo funciona?
+La dupla **Prometheus y Grafana** conforma nuestro sistema principal de recolección activa de métricas (telemetría) y alertamiento. A diferencia del stack ELK (orientado a logs textuales e historiales), este stack está diseñado exclusivamente para manejar datos numéricos en forma de **Series Temporales** (Time Series).
 
-## 1. ¿Qué es y cómo funciona?
+### Componentes de la Arquitectura
+* **Prometheus (Motor de Series Temporales):** Es un sistema de monitoreo que recolecta métricas bajo un modelo *Pull* (recolección activa). A intervalos regulares (ej. cada 15 segundos), Prometheus visita puntos finales HTTP (endpoints `/metrics`) de nuestros servicios y servidores para "raspar" (scrape) su estado actual (ej: uso de CPU, cantidad de memoria, peticiones por segundo).
+* **Exporters (Traductores de Métricas):** Son pequeños agentes que se adhieren a los sistemas que queremos monitorear y exponen sus métricas internas en un formato que Prometheus pueda entender.
+* **Grafana (Visualización de Telemetría):** Es la plataforma analítica que se conecta a Prometheus mediante consultas en lenguaje **PromQL**. Transforma los millones de puntos de datos numéricos en tableros visuales vivos (Dashboards) que permiten interpretar la salud del sistema de un vistazo.
 
-### 1.1 Modelo de Monitoreo basado en Series Temporales (Prometheus)
-El modelo de monitoreo se basa en **series temporales por recolección activa (scraping)**. Prometheus actúa como el motor central que realiza peticiones HTTP a los endpoints expuestos (exporters) a intervalos regulares. En lugar de que los servicios envíen sus datos (push), Prometheus los extrae (pull) y los almacena localmente con marcas de tiempo. Esta arquitectura garantiza un bajo impacto en los microservicios y permite consultar el estado histórico de la red y el hardware.
+---
 
-### 1.2 Aprovisionamiento de Métricas en Tableros (Grafana)
-El aprovisionamiento de métricas en tableros se realiza a través de Grafana. Actúa como la capa de visualización interactiva conectándose al origen de datos de Prometheus. Mediante el uso del lenguaje PromQL, se transforman las series temporales brutas en paneles gráficos que facilitan el análisis en tiempo real de picos de CPU, consumo de memoria y cuellos de botella en la red.
+## Configuración Paso a Paso (Flujo de Métricas)
 
-## 2. Configuración Paso a Paso
+### 1. Despliegue de los Exporters
+Para obtener visibilidad de todas las capas de nuestra arquitectura, desplegamos varios tipos de exporters:
+* **Node Exporter:** Instalado en las Máquinas Virtuales subyacentes para extraer métricas del sistema operativo (uso de disco, CPU, memoria RAM disponible).
+* **Kube-State-Metrics:** Desplegado dentro de GKE para monitorear el estado interno de Kubernetes (cuántos pods están sanos, cuántos fallaron, uso de recursos por nodo).
+* **Microservicios (Instrumentación directa):** Los microservicios de nuestra arquitectura (Python/TypeScript) están instrumentados con librerías nativas que exponen el endpoint `/metrics` en el puerto principal, mostrando conteo de peticiones y latencias.
 
-### 2.1 Guía del despliegue de los exporters en el clúster y servidores externos
-La infraestructura de monitoreo se despliega utilizando manifiestos YAML estandarizados dentro del namespace `quetxal-tv-prod`.
+### 2. Configuración del Scraping (Prometheus)
+El servidor de Prometheus, desplegado en nuestro clúster de Kubernetes, se configuró a través de un `ConfigMap` (`prometheus-config`). En el archivo `prometheus.yml` definimos los `scrape_configs`:
+* Descubrimiento automático de pods en Kubernetes utilizando `kubernetes_sd_configs`.
+* Scraping estático (`static_configs`) apuntando a las IPs de las Máquinas Virtuales externas (como el API Gateway y el ELK server).
 
-1. **Despliegue de Exporters (Nodos y Pods):** 
-   - La recolección de hardware se realiza integrándose nativamente con `cAdvisor`, el cual actúa como exporter a nivel de Nodo en GKE, exponiendo métricas de CPU y Memoria sin necesidad de instalar agentes adicionales.
-   - Para habilitar la lectura de estos exporters, se implementó un `ServiceAccount`, `ClusterRole` y `ClusterRoleBinding` otorgando privilegios (`get`, `list`, `watch`) sobre la API de Kubernetes.
+### 3. Aprovisionamiento de Tableros (Grafana)
+Grafana fue desplegado en GKE (accesible vía Ingress/Service). Para evitar la configuración manual repetitiva:
+* Se configuró **Prometheus como Data Source predeterminado** de manera automática.
+* Se importaron Dashboards oficiales (como el Dashboard de Node Exporter) para visualizar la saturación de los nodos, uso de red y memoria de las VMs y pods.
 
-2. **ConfigMap de Prometheus (`prometheus.yml`):** Define las tareas de scraping centralizadas.
-   - `kubernetes-cadvisor`: Tarea que localiza dinámicamente los nodos del clúster y extrae las métricas de hardware directamente de sus proxies.
-   - `kubernetes-pods`: Tarea configurada para el auto-descubrimiento de métricas expuestas a nivel aplicativo.
+### 4. Evidencias de Telemetría (Grafana)
 
-3. **Despliegue de Motores:** 
-   - Se inicializó el contenedor de `prom/prometheus:v2.45.0` (puerto `9090`).
-   - Se inicializó el contenedor de `grafana/grafana:10.0.3` (puerto `3000`).
-
-### 2.2 Conexión Manual y Acceso Seguro
-El acceso a Grafana se realiza mediante un túnel seguro local (Port-Forwarding):
-```bash
-kubectl port-forward svc/grafana-service 3000:80 -n quetxal-tv-prod
-```
-El panel de control queda disponible en: `http://localhost:3000` (Credenciales por defecto).
-
-### 2.3 Configuración del Data Source
-Desde la interfaz gráfica de Grafana:
-1. Navegar a **Connections -> Data sources -> Add data source**.
-2. Seleccionar **Prometheus**.
-3. En el campo de URL, especificar la ruta interna del servicio: `http://prometheus-service:9090`.
-4. Seleccionar **Save & test** para confirmar la conectividad.
-
-### 2.4 Importación del Dashboard (Telemetría Viva)
-Se generó el archivo `grafana-dashboard-general.json` para la importación automática de las siguientes métricas críticas:
-- Uso de CPU por Pod.
-- Uso de Memoria por Pod.
-- Tráfico de Red Entrante (Receive) por Pod.
-- Tráfico de Red Saliente (Transmit) por Pod.
-
-El archivo JSON está preconfigurado para inyectar el código PromQL correspondiente a cada panel.
-
-## 3. Capturas de los Dashboards reflejando la telemetría viva del sistema
-
-### Captura 1: Dashboards Interactivos (Grafana)
-![Dashboard de Grafana](image.png)
-
-### Captura 2: Estado de los Pods de Observabilidad
-![Pods Observabilidad](image-1.png)
+![Dashboard Principal de Grafana](./image.png)
+![Dashboard Principal de Grafana](./image-1.png)

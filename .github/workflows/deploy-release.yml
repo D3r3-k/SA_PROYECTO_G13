@@ -47,7 +47,7 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event.pull_request.merged == true &&
-       contains(github.event.pull_request.labels.*.name, 'deploy:release'))
+       contains(github.event.pull_request.labels.*.name, 'deploy'))
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -74,7 +74,7 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event.pull_request.merged == true &&
-       contains(github.event.pull_request.labels.*.name, 'deploy:release'))
+       contains(github.event.pull_request.labels.*.name, 'deploy'))
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -101,7 +101,7 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event.pull_request.merged == true &&
-       contains(github.event.pull_request.labels.*.name, 'deploy:release'))
+       contains(github.event.pull_request.labels.*.name, 'deploy'))
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -128,7 +128,7 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event.pull_request.merged == true &&
-       contains(github.event.pull_request.labels.*.name, 'deploy:release'))
+       contains(github.event.pull_request.labels.*.name, 'deploy'))
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -151,7 +151,7 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event.pull_request.merged == true &&
-       contains(github.event.pull_request.labels.*.name, 'deploy:release'))
+       contains(github.event.pull_request.labels.*.name, 'deploy'))
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -178,7 +178,7 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event.pull_request.merged == true &&
-       contains(github.event.pull_request.labels.*.name, 'deploy:release'))
+       contains(github.event.pull_request.labels.*.name, 'deploy'))
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -205,7 +205,7 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event.pull_request.merged == true &&
-       contains(github.event.pull_request.labels.*.name, 'deploy:release'))
+       contains(github.event.pull_request.labels.*.name, 'deploy'))
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -232,7 +232,7 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event.pull_request.merged == true &&
-       contains(github.event.pull_request.labels.*.name, 'deploy:release'))
+       contains(github.event.pull_request.labels.*.name, 'deploy'))
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -259,7 +259,7 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event.pull_request.merged == true &&
-       contains(github.event.pull_request.labels.*.name, 'deploy:release'))
+       contains(github.event.pull_request.labels.*.name, 'deploy'))
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -293,7 +293,7 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event.pull_request.merged == true &&
-       contains(github.event.pull_request.labels.*.name, 'deploy:release'))
+       contains(github.event.pull_request.labels.*.name, 'deploy'))
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -728,7 +728,9 @@ jobs:
           kubectl apply -f deploy/release/k8s/services/
           kubectl apply -f deploy/release/k8s/deployments/
           kubectl apply -f deploy/release/k8s/cronjobs/
-          kubectl apply -f deploy/release/k8s/observability/
+          kubectl apply -f deploy/release/k8s/observability/prometheus.yml
+          kubectl apply -f deploy/release/k8s/observability/grafana.yml
+          kubectl apply -f deploy/release/k8s/observability/filebeat.yml
 
           if ! kubectl get ingress quetxal-tv-ingress --namespace="${GKE_NAMESPACE}" >/dev/null 2>&1; then
             kubectl apply -f deploy/release/k8s/ingress-bootstrap.yml
