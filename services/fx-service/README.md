@@ -1,3 +1,5 @@
+[← Regresar](../../README.md)
+
 # Servicio FX
 
 Microservicio gRPC que obtiene tipos de cambio desde el proveedor configurado y almacena resultados en Redis con TTL. El cliente externo no llama a este servicio directamente; las pruebas se hacen por el API Gateway.

@@ -1,3 +1,5 @@
+[← Regresar](../README.md)
+
 # Pruebas funcionales locales
 
 Estas pruebas validan el flujo completo con un único punto de entrada externo.

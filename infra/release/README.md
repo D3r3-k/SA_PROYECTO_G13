@@ -1,3 +1,5 @@
+[← Regresar](../../README.md)
+
 # Release con Terraform y Ansible
 
 > [!IMPORTANT]
@@ -350,7 +352,6 @@ kubectl get namespace quetxal-tv-prod
 terraform output gke_cluster_name
 ```
 
-```powershell
 terraform output gke_namespace
 ```
 
@@ -378,6 +379,23 @@ Validar que el namespace exista:
 kubectl get namespace quetxal-tv-prod
 ```
 
+## Paso 10. Desplegar Stack ELK (Observabilidad)
+
+Una vez que Terraform haya finalizado y la VM de ELK (`prod-elk-server`) esté disponible, se debe provisionar el entorno utilizando **Ansible**.
+
+Desde PowerShell (o WSL), asegúrese de agregar la IP pública del servidor al inventario en `infra/release/ansible/inventories/release/hosts.ini` bajo el grupo `[elk_server]`:
+```ini
+[elk_server]
+IP_PUBLICA_AQUI ansible_user=<tu_usuario> ansible_ssh_private_key_file=~/.ssh/google_compute_engine ansible_ssh_common_args='-o StrictHostKeyChecking=no'
+```
+
+Luego, ejecutar el playbook de instalación de Docker y ELK:
+
+```bash
+ansible-playbook -i infra/release/ansible/inventories/release/hosts.ini infra/release/ansible/playbooks/elk_playbook.yml
+```
+Esto configurará Elasticsearch, Logstash y Kibana en contenedores con límites estrictos de memoria. Kibana estará disponible en el puerto `5601`.
+
 > [!IMPORTANT]
 > Si los comandos `kubectl get pods`, `kubectl get services` o `kubectl get ingress` responden `No resources found in quetxal-tv-prod namespace`, no es un error de Terraform ni de Ansible. Significa que la infraestructura ya existe, pero todavia no hay workloads, services ni ingress creados dentro del namespace.
 
@@ -387,7 +405,7 @@ Validar estado de Terraform:
 terraform state list
 ```
 
-## Paso 10. Destruir release
+## Paso 11. Destruir release
 
 > [!WARNING]
 > Este comando elimina la infraestructura de produccion: GKE, Cloud SQL, Redis, bucket, VPC, subredes, NAT, IP estatica y Service Accounts.
@@ -422,11 +440,11 @@ Confirmar:
 yes
 ```
 
-## Paso 11. Validar uso de Terraform y Ansible
+## Paso 12. Validar uso de Terraform y Ansible
 
 Para demostrar que Terraform y Ansible estan gestionando correctamente el entorno, puedes ejecutar los siguientes comandos.
 
-### 11.1 Demostrar uso de Terraform
+### 12.1 Demostrar uso de Terraform
 
 Desde PowerShell en la carpeta `infra/release/terraform/environments/release`:
 
@@ -442,7 +460,7 @@ Detectar si alguien hizo modificaciones manuales en la consola de GCP:
 terraform plan -var-file="terraform.tfvars"
 ```
 
-### 11.2 Demostrar uso de Ansible
+### 12.2 Demostrar uso de Ansible
 
 En el entorno de `release`, Ansible se utiliza para validar las credenciales de GKE y preparar el namespace localmente.
 Desde Ubuntu/WSL en la carpeta `infra/release/ansible`:

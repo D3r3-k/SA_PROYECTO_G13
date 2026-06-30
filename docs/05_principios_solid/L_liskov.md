@@ -1,3 +1,5 @@
+[← Regresar](../../README.md)
+
 [Regresar](../../README.md)
 
 # Principio de Sustitución de Liskov (LSP)

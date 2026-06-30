@@ -1,3 +1,5 @@
+[← Regresar](../../README.md)
+
 # Mockups — Quetxal TV
 
 Representaciones visuales de las pantallas principales de la plataforma. El diseño sigue una identidad oscura inspirada en plataformas de streaming, con fondo negro espacial, tarjetas , acento primario rojo y acento de éxito verde.

@@ -1,3 +1,5 @@
+[← Regresar](../../README.md)
+
 # Configuración del Stack ELK (Elasticsearch, Logstash, Kibana)
 
 ## 1. Arquitectura de Observabilidad de Logs

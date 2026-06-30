@@ -1,3 +1,5 @@
+[← Regresar](../../README.md)
+
 # Requerimientos No Funcionales
 
 ## 1. Introducción

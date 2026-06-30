@@ -64,23 +64,9 @@ La solucion utiliza un API Gateway como punto unico de entrada, comunicacion int
   - [8.1 Configuración de Entorno Local y Cloud](docs/configuraciones.md)
   - [8.2 Entorno Kubernetes](docs/07_kubernetes/entorno_kubernetes.md)
   - [8.3 Observabilidad y Monitoreo (Métricas)](docs/08_observabilidad/grafana_prometeus.md)
-
-- [9. Contratos gRPC](proto)
-
-- [10. Microservicios (Backend)](services)
-  - [10.1 Identity Service](services/identity-service/README.md)
-  - [10.2 Catalog Service](services/catalog-service/README.md)
-  - [10.3 Subscription Service](services/subscription-service/README.md)
-  - [10.4 FX Service](services/fx-service/README.md)
-  - [10.5 Engagement Service](services/engagement-service/README.md)
-  - [10.6 Notification Service](services/notification-service/README.md)
-
-- [11. Aplicaciones (Gateway/Frontend)](apps)
-  - [11.1 API Gateway](apps/api-gateway/README.md)
-
-- [12. Guías de Flujo y Desarrollo]()
-  - [12.1 Flujo de Trabajo (Git Flow)](docs/instrucciones_flow_git.md)
-  - [12.2 Integración de Identity](docs/instrucciones_integracion_identity.md)
+  - [8.4 Observabilidad de Logs (ELK Stack)](docs/08_observabilidad/elk_stack.md)
+  - [8.5 Guía de Infraestructura y Despliegue - Release](infra/release/README.md)
+  - [8.6 Guía de Infraestructura y Despliegue - Develop](infra/develop/README.md)
 
 ## Conclusiones
 

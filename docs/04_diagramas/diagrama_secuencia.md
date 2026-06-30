@@ -1,3 +1,5 @@
+[← Regresar](../../README.md)
+
 [Regresar](../../README.md)
 
 # Diagrama de Secuencia
