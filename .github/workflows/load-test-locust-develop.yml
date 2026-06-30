@@ -179,17 +179,18 @@ jobs:
           echo "remote_dir=${REMOTE_DIR}" >> "$GITHUB_OUTPUT"
 
           gcloud compute ssh "${RUNNER_VM}" \
-            --zone="${GCP_ZONE}" \
-            --tunnel-through-iap \
-            --command="rm -rf '${REMOTE_DIR}' && mkdir -p '${REMOTE_DIR}/reports'"
-
-          gcloud compute scp runtime-locust/locust.env "${RUNNER_VM}:${REMOTE_DIR}/locust.env" \
-            --zone="${GCP_ZONE}" \
-            --tunnel-through-iap
+          --zone="${GCP_ZONE}" \
+          --tunnel-through-iap \
+          --command="sudo rm -rf '${REMOTE_DIR}' && sudo mkdir -p '${REMOTE_DIR}/reports' && sudo chmod -R 777 '${REMOTE_DIR}'"
 
           gcloud compute scp runtime-locust/users.csv "${RUNNER_VM}:${REMOTE_DIR}/users.csv" \
             --zone="${GCP_ZONE}" \
             --tunnel-through-iap
+
+          gcloud compute ssh "${RUNNER_VM}" \
+            --zone="${GCP_ZONE}" \
+            --tunnel-through-iap \
+            --command="sudo chmod -R 777 '${REMOTE_DIR}'"
 
           set +e
           gcloud compute ssh "${RUNNER_VM}" \
