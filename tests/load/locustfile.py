@@ -228,8 +228,9 @@ class QuetxalTvUser(HttpUser):
 
     def ensure_profile(self) -> None:
         assert self.account is not None
+
         if self.account.profile_id:
-            self.profile_id = self.account.profile_id
+            self.select_profile(self.account.profile_id)
             return
 
         with self.client.get("/api/auth/me", name="GET /api/auth/me", catch_response=True) as response:
@@ -390,7 +391,21 @@ class QuetxalTvUser(HttpUser):
     def recommendations(self) -> None:
         if ROUTE_CHECK_MODE or not self.authenticated or not self.profile_id:
             return
-        self.client.get("/api/recommendations", params={"limit": 10}, name="GET /api/recommendations")
+
+        with self.client.get(
+            "/api/recommendations",
+            params={"limit": 10},
+            name="GET /api/recommendations",
+            catch_response=True,
+        ) as response:
+            payload = response_json(response)
+
+            if response.status_code == 200 and payload.get("success", True):
+                response.success()
+                return
+
+            message = payload.get("message") or response.text[:200]
+            response.failure(f"recommendations failed: {response.status_code} {message}")
 
     @task(3)
     def save_progress(self) -> None:
