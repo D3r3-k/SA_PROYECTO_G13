@@ -63,6 +63,7 @@ La solucion utiliza un API Gateway como punto unico de entrada, comunicacion int
 - [8. Infraestructura](docs/07_kubernetes/entorno_kubernetes.md)
   - [8.1 Configuración de Entorno Local y Cloud](docs/configuraciones.md)
   - [8.2 Entorno Kubernetes](docs/07_kubernetes/entorno_kubernetes.md)
+  - [8.3 Observabilidad y Monitoreo (Métricas)](docs/08_observabilidad/grafana_prometeus.md)
 
 - [9. Contratos gRPC](proto)
 

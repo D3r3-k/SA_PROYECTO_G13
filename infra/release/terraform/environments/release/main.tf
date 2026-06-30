@@ -169,7 +169,7 @@ module "gke" {
   node_machine_type             = "e2-medium"
   initial_node_count            = 1
   min_node_count                = 1
-  max_node_count                = 2
+  max_node_count                = 4
   master_authorized_cidr_blocks = var.gke_master_authorized_cidr_blocks
 
   depends_on = [module.network]
