@@ -615,7 +615,7 @@ jobs:
             --from-literal=WEB_PORT=80 \
             --from-literal=API_GATEWAY_UPSTREAM=api-gateway:3000 \
             --from-literal=COOKIE_NAME=access_token \
-            --from-literal=COOKIE_SECURE=true \
+            --from-literal=COOKIE_SECURE=false \
             --from-literal=COOKIE_SAME_SITE=lax \
             --from-literal=JWT_EXPIRES_IN=1d \
             --from-literal=IDENTITY_GRPC_HOST=0.0.0.0 \
