@@ -5,6 +5,7 @@ import {
   authMiddleware
 } from "../middleware/auth.middleware";
 import { callIdentityMethod } from "../grpc/identity.client";
+import { logAudit } from "../auditLogger";
 
 export const authRoutes = Router();
 
@@ -84,10 +85,12 @@ authRoutes.post("/register", async (req, res) => {
     });
 
     if (!response.success) {
+      logAudit("register_failed", null, { email: req.body.email, reason: response.message });
       return res.status(getBusinessStatus(response.message)).json(response);
     }
 
     setAuthCookie(res, response.token);
+    logAudit("register_success", response.user_id, { email: req.body.email });
 
     return res.status(201).json({
       success: true,
@@ -121,10 +124,12 @@ authRoutes.post("/login", async (req, res) => {
     });
 
     if (!response.success) {
+      logAudit("login_failed", null, { email: req.body.email, reason: response.message });
       return res.status(getBusinessStatus(response.message)).json(response);
     }
 
     setAuthCookie(res, response.token);
+    logAudit("login_success", response.user_id, { email: req.body.email });
 
     return res.json({
       success: true,

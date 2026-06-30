@@ -2,6 +2,7 @@ import { NextFunction, Request, Response } from "express";
 import { env } from "../config/env";
 import { callIdentityMethod } from "../grpc/identity.client";
 import type { ActiveSubscription } from "./subscription-policy";
+import { logAudit } from "../auditLogger";
 
 export interface AuthenticatedRequest extends Request {
   user?: {
@@ -75,6 +76,7 @@ export async function authMiddleware(
     return next();
   } catch (error) {
     console.error("Failed to validate token with Identity Service", error);
+    logAudit("auth_middleware_identity_error", null, { error: String(error) });
 
     return res.status(503).json({
       success: false,
@@ -82,3 +84,4 @@ export async function authMiddleware(
     });
   }
 }
+
