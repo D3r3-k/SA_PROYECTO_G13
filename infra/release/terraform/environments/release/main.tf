@@ -190,3 +190,12 @@ module "firewall" {
     }
   }
 }
+
+resource "local_file" "ansible_vars" {
+  filename = "${path.module}/../../../ansible/inventories/release/group_vars/all.yml"
+  content  = <<-EOT
+db_host: "${module.cloud_sql.private_ip_address}"
+db_password: "${var.subscription_db_password}"
+EOT
+}
+

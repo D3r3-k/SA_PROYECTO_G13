@@ -47,9 +47,3 @@ spec:
             port: 50052
           initialDelaySeconds: 30
           periodSeconds: 20
-        env:
-        - name: REDIS_URL
-          valueFrom:
-            secretKeyRef:
-              name: connection-secrets
-              key: REDIS_URL

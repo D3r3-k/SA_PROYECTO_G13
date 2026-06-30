@@ -1,40 +1,36 @@
-[← Regresar](../../README.md)
+# Documentación: Stack ELK (Elasticsearch, Logstash, Kibana)
 
-# Configuración del Stack ELK (Elasticsearch, Logstash, Kibana)
+## ¿Qué es y Cómo funciona?
+El **Stack ELK** es el corazón de nuestra arquitectura de observabilidad centralizada, diseñado para ingerir, procesar, almacenar y visualizar registros (logs) provenientes de diversas fuentes en tiempo real. 
 
-## 1. Arquitectura de Observabilidad de Logs
-Como parte de los requisitos de observabilidad, se implementó un Stack ELK en una máquina virtual externa (`prod-elk-server`) aprovisionada en Google Cloud Platform mediante Terraform. 
+Nuestra arquitectura utiliza un enfoque dual para capturar dos dimensiones críticas de la aplicación:
+1. **Logs del Sistema (Observabilidad Pura):** Capturan el tráfico de red, errores HTTP (500, 404), reinicios de pods y el flujo estándar `stdout/stderr` de los contenedores para entender la salud del sistema.
+2. **Logs Transaccionales (Auditoría de Seguridad):** Capturan el rastro exacto de quién alteró información crítica en la base de datos (Ej: `old_state` vs `new_state`).
 
-El flujo de los logs de auditoría es el siguiente:
-1. **Generación:** Los microservicios de la aplicación generan eventos de auditoría y los envían a una cola en **Redis** (`log_audit_queue`), el cual actúa como Message Broker.
-2. **Ingesta:** **Logstash** lee continuamente la cola de Redis, parsea los mensajes JSON y los envía hacia el motor de búsqueda.
-3. **Almacenamiento:** **Elasticsearch** indexa los documentos recibidos bajo el patrón `audit-logs-*`.
-4. **Visualización:** **Kibana** expone los datos de Elasticsearch de manera gráfica mediante Data Views, permitiendo la búsqueda y filtrado en tiempo real.
+### Componentes de la Arquitectura
+* **Elasticsearch (Almacenamiento y Búsqueda):** Actúa como el motor de base de datos NoSQL orientado a documentos. Almacena todos los logs indexados permitiendo consultas ultrarrápidas. Recibe los logs desde Logstash en dos índices separados: `system-logs-*` y `audit-transactional-*`.
+* **Logstash (Filtrado y Transformación):** Es el pipeline de procesamiento de datos central. Se configuró con dos flujos de entrada (Inputs):
+    * *Beats Input (Puerto 5044):* Escucha los logs del sistema empujados por Filebeat desde el clúster de Kubernetes.
+    * *JDBC Input (Database Polling):* Utiliza el driver de PostgreSQL para conectarse a Cloud SQL, consultando cada minuto la tabla `audit_log` generada por los Triggers, asegurando una recolección exacta y no repudiable de transacciones.
+* **Kibana (Visualización):** Es la interfaz gráfica que lee desde Elasticsearch. Permite a los administradores crear Data Views y Dashboards dinámicos para buscar, filtrar y analizar anomalias en tiempo real.
 
-## 2. Automatización del Despliegue (Ansible + Docker Compose)
-El despliegue se automatizó **100% mediante Ansible** utilizando la abstracción de contenedores **Docker Compose**. Esto permitió definir límites estrictos de memoria ("JVM Heap Limits") y configuraciones seguras.
+---
 
-### 2.1 Archivo de Inventario (`infra/release/ansible/inventories/release/hosts.ini`)
-El inventario define la IP pública de la VM aprovisionada por Terraform y la llave privada SSH de Google Cloud:
-```ini
-[elk_server]
-35.255.183.222 ansible_user=<usuario_gcp> ansible_ssh_private_key_file=~/.ssh/google_compute_engine ansible_ssh_common_args='-o StrictHostKeyChecking=no'
-```
+## Configuración Paso a Paso (Flujo de Logs)
 
-### 2.2 Tareas del Playbook (`infra/release/ansible/playbooks/elk_playbook.yml`)
-El playbook realiza los siguientes pasos de forma idempotente:
-1. Instala las dependencias y el motor de **Docker**.
-2. Crea el directorio `/opt/elk/` en el servidor remoto.
-3. Inyecta el archivo de configuración `logstash.conf` para conectarse a la IP interna de Redis (`10.42.32.3`).
-4. Inyecta el archivo `docker-compose.yml` utilizando imágenes oficiales de Elastic versión `8.10.2`.
-5. Limita la memoria RAM a nivel contenedor (`ES_JAVA_OPTS=-Xms1g -Xmx1g` y `LS_JAVA_OPTS=-Xms512m -Xmx512m`).
-6. Desactiva XPack Security en entorno de desarrollo.
-7. Levanta el stack usando `docker compose up -d`.
+### 1. Inyección de Agentes (Logs del Sistema)
+Para recolectar la telemetría viva de los microservicios, desplegamos **Filebeat** como un agente recolector dentro del clúster de GKE:
+* **DaemonSet:** Filebeat corre en cada nodo del clúster.
+* **Recolección:** Está configurado para escuchar el directorio `/var/log/containers/*.log`, capturando automáticamente las salidas de cada microservicio sin tener que modificar su código fuente.
+* **Enriquecimiento:** A través de procesadores de Kubernetes, inyecta metadatos (nombre del pod, namespace, nodo) para facilitar el filtrado.
+* **Redirección:** Filebeat empuja estos logs a la máquina virtual central (ELK) por el puerto 5044 apuntando directamente al contenedor de Logstash.
 
-## 3. Acceso y Verificación
-El panel de control es accesible a través de la IP del servidor en el puerto expuesto por el Firewall de GCP:
-- **Kibana URL:** `http://35.255.183.222:5601`
+### 2. Extracción de Auditoría (Logs Transaccionales)
+En lugar de depender de los microservicios para enviar historiales de cambios (lo cual introduce riesgos de seguridad y latencia), utilizamos una extracción activa:
+* **DB Triggers:** Cada base de datos (Identity, Subscription, etc.) cuenta con triggers que, ante cada `INSERT`, `UPDATE` o `DELETE`, generan un registro detallado en una tabla interna `audit_log`.
+* **Plugin JDBC:** Logstash se configuró con el plugin JDBC para autenticarse contra la instancia de Cloud SQL en su red privada, realizando un `SELECT` sobre esta tabla e ingiriendo únicamente los registros nuevos (basado en el tracking de la columna `created_at`).
 
-![alt text](image-2.png)
+### 3. Evidencias de Indexación (Kibana)
 
-![alt text](image-3.png)
+![Indexación de Logs Transaccionales y de Auditoría del Sistema](./image-2.png)
+![Indexación de Logs Transaccionales y de Auditoría del Sistema](./image-3.png)

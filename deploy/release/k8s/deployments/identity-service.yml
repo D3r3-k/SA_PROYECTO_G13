@@ -38,11 +38,6 @@ spec:
             secretKeyRef:
               name: app-secrets
               key: IDENTITY_DB_PASSWORD
-        - name: REDIS_URL
-          valueFrom:
-            secretKeyRef:
-              name: connection-secrets
-              key: REDIS_URL
         envFrom:
         - configMapRef:
             name: app-config

@@ -33,33 +33,60 @@
         state: present
         update_cache: yes
 
-    - name: Ensure ELK directory exists
+    - name: Ensure ELK directories exist
       file:
-        path: /opt/elk/logstash/pipeline
+        path: "{{ item }}"
         state: directory
         mode: '0755'
+      loop:
+        - /opt/elk/logstash/pipeline
+        - /opt/elk/logstash/jdbc
+
+    - name: Download PostgreSQL JDBC Driver
+      get_url:
+        url: https://jdbc.postgresql.org/download/postgresql-42.7.3.jar
+        dest: /opt/elk/logstash/jdbc/postgresql.jar
 
     - name: Copy Logstash configuration
       copy:
         dest: /opt/elk/logstash/pipeline/logstash.conf
         content: |
           input {
-            redis {
-              host => "10.42.32.3"
-              port => 6379
-              data_type => "list"
-              key => "log_audit_queue"
+            beats {
+              port => 5044
+            }
+            jdbc {
+              jdbc_driver_library => "/usr/share/logstash/jdbc/postgresql.jar"
+              jdbc_driver_class => "org.postgresql.Driver"
+              jdbc_connection_string => "jdbc:postgresql://{{ db_host }}:5432/subscription_db"
+              jdbc_user => "subscription_user"
+              jdbc_password => "{{ db_password }}"
+              schedule => "* * * * *"
+              statement => "SELECT * FROM audit_log WHERE created_at > :sql_last_value"
+              use_column_value => true
+              tracking_column => "created_at"
+              tracking_column_type => "timestamp"
+              type => "transactional_audit"
             }
           }
           filter {
-            json {
-              source => "message"
+            if [type] == "transactional_audit" {
+              mutate {
+                remove_field => ["@version"]
+              }
             }
           }
           output {
-            elasticsearch {
-              hosts => ["http://elasticsearch:9200"]
-              index => "audit-logs-%{+YYYY.MM.dd}"
+            if [type] == "transactional_audit" {
+              elasticsearch {
+                hosts => ["http://elasticsearch:9200"]
+                index => "audit-transactional-%{+YYYY.MM.dd}"
+              }
+            } else {
+              elasticsearch {
+                hosts => ["http://elasticsearch:9200"]
+                index => "system-logs-%{+YYYY.MM.dd}"
+              }
             }
           }
 
@@ -104,6 +131,9 @@
                 - "LS_JAVA_OPTS=-Xms512m -Xmx512m"
               volumes:
                 - ./logstash/pipeline:/usr/share/logstash/pipeline
+                - ./logstash/jdbc:/usr/share/logstash/jdbc
+              ports:
+                - "5044:5044"
               depends_on:
                 - elasticsearch
               networks:
