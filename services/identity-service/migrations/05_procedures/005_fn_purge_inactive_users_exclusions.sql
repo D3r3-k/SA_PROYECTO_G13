@@ -3,6 +3,7 @@ BEGIN;
 -- Version usada por el cronjob cuando existen usuarios protegidos de pruebas de carga.
 -- No elimina usuarios admin ni usuarios cuyo correo venga en p_excluded_emails.
 -- Se mantiene la funcion anterior de 1 parametro para no romper llamadas existentes.
+--
 CREATE OR REPLACE FUNCTION fn_purge_inactive_users(
     p_threshold_interval TEXT,
     p_excluded_emails TEXT[]
