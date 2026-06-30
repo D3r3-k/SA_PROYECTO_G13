@@ -1,0 +1,12 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: quetxal-tv-ip
+  namespace: quetxal-tv-prod
+spec:
+  secretName: quetxal-tv-tls
+  issuerRef:
+    name: selfsigned-issuer
+    kind: ClusterIssuer
+  dnsNames:
+    - __INGRESS_IP__.nip.io

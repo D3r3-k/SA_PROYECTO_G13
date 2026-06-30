@@ -1,0 +1,12 @@
+---
+- name: Preparar VMs de desarrollo
+  hosts: develop
+  become: true
+  gather_facts: true
+
+  roles:
+    - role: ../roles/docker
+    - role: ../roles/deploy-user
+    - role: ../roles/app-directories
+    - role: ../roles/tls-frontend
+    - role: ../roles/validations

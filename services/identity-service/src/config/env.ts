@@ -19,6 +19,8 @@ export const env = {
     .map((email: string) => email.trim().toLowerCase())
     .filter(Boolean),
 
+  inactiveThresholdInterval: process.env.INACTIVE_THRESHOLD_INTERVAL || "5 minutes",
+
   db: {
     host: process.env.DB_HOST || "localhost",
     port: Number(process.env.DB_PORT || 5432),

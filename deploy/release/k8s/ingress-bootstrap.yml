@@ -1,0 +1,19 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: quetxal-tv-ingress
+  namespace: quetxal-tv-prod
+  annotations:
+    kubernetes.io/ingress.global-static-ip-name: prod-release-ingress-ip
+    kubernetes.io/ingress.class: gce
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /*
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: web
+                port:
+                  number: 80

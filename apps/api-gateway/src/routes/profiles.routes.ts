@@ -15,6 +15,9 @@ type ProfileResponse = {
   user_id: string;
   name: string;
   avatar_url: string;
+  is_child?: boolean;
+  parental_pin?: string;
+  parental_pin_configured?: boolean;
 };
 
 type SelectProfileResponse = ProfileResponse & {
@@ -72,12 +75,16 @@ profileRoutes.post(
           user_id: string;
           name: string;
           avatar_url: string;
+          is_child: boolean;
+          parental_pin: string;
         },
         ProfileResponse
       >("CreateProfile", {
         user_id: req.user?.user_id || "",
         name: req.body.name,
-        avatar_url: req.body.avatar_url || ""
+        avatar_url: req.body.avatar_url || "",
+        is_child: Boolean(req.body.is_child),
+        parental_pin: req.body.parental_pin || ""
       });
 
       if (!response.success) {
@@ -170,7 +177,9 @@ profileRoutes.post(
         profile_id: response.profile_id,
         user_id: response.user_id,
         name: response.name,
-        avatar_url: response.avatar_url
+        avatar_url: response.avatar_url,
+        is_child: Boolean(response.is_child),
+        parental_pin_configured: Boolean(response.parental_pin_configured)
       });
     } catch (error) {
       console.error("Select profile failed", error);
@@ -203,13 +212,17 @@ profileRoutes.put(
           profile_id: string;
           name: string;
           avatar_url: string;
+          is_child: boolean;
+          parental_pin: string;
         },
         ProfileResponse
       >("UpdateProfile", {
         user_id: req.user?.user_id || "",
         profile_id: profileId,
         name: req.body.name,
-        avatar_url: req.body.avatar_url || ""
+        avatar_url: req.body.avatar_url || "",
+        is_child: Boolean(req.body.is_child),
+        parental_pin: req.body.parental_pin || ""
       });
 
       if (!response.success) {

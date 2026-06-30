@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AppLayout from '../layouts/AppLayout'
 import { catalogService, type ContentCard } from '../services/catalog.service'
+import RecommendedRow from '../components/RecommendedRow'
 import styles from './CatalogPage.module.css'
 
 type TypeFilter = 'all' | 'movie' | 'series'
@@ -26,7 +27,12 @@ export default function CatalogPage() {
     catalogService
       .list()
       .then((res) => setItems(res.data.items ?? []))
-      .catch(() => setError('El servicio de catálogo no está disponible.'))
+      .catch((err) => {
+        const code = err?.response?.data?.code
+        setError(code === 'ACTIVE_SUBSCRIPTION_REQUIRED'
+          ? 'Necesitas una suscripción activa para ver el catálogo.'
+          : 'No pudimos cargar el catálogo en este momento.')
+      })
       .finally(() => setLoading(false))
   }, [])
 
@@ -67,6 +73,8 @@ export default function CatalogPage() {
           </div>
         </div>
       </div>
+
+      <RecommendedRow />
 
       <div className="container section">
         <div className={styles.filters}>
@@ -112,21 +120,27 @@ export default function CatalogPage() {
         {!loading && error && (
           <div className={styles.empty}>
             <p>{error}</p>
-            <button
-              className="btn btn-primary btn-sm"
-              style={{ marginTop: '1rem' }}
-              onClick={() => {
-                setLoading(true)
-                setError('')
-                catalogService
-                  .list()
-                  .then((res) => setItems(res.data.items ?? []))
-                  .catch(() => setError('El servicio de catálogo no está disponible.'))
-                  .finally(() => setLoading(false))
-              }}
-            >
-              Reintentar
-            </button>
+            {error.includes('suscripción') ? (
+              <button className="btn btn-primary btn-sm" style={{ marginTop: '1rem' }} onClick={() => navigate('/subscriptions')}>
+                Ver planes
+              </button>
+            ) : (
+              <button
+                className="btn btn-primary btn-sm"
+                style={{ marginTop: '1rem' }}
+                onClick={() => {
+                  setLoading(true)
+                  setError('')
+                  catalogService
+                    .list()
+                    .then((res) => setItems(res.data.items ?? []))
+                    .catch(() => setError('No pudimos cargar el catálogo en este momento.'))
+                    .finally(() => setLoading(false))
+                }}
+              >
+                Reintentar
+              </button>
+            )}
           </div>
         )}
 
@@ -134,7 +148,7 @@ export default function CatalogPage() {
           <div className={styles.empty}>
             <p>
               {items.length === 0
-                ? 'El catálogo está vacío. Un administrador debe sincronizar el contenido.'
+                ? 'Aún no hay contenido disponible.'
                 : 'No se encontraron resultados para tu búsqueda.'}
             </p>
           </div>
@@ -176,6 +190,9 @@ export default function CatalogPage() {
                     </div>
                     <span className={`badge badge-info ${styles.typeBadge}`}>
                       {item.type === 'movie' ? 'Película' : 'Serie'}
+                    </span>
+                    <span className="badge badge-info" style={{ position: 'absolute', right: 12, bottom: 12 }}>
+                      {item.maturity_rating || 'ALL'}
                     </span>
                   </div>
                   <div className={styles.info}>

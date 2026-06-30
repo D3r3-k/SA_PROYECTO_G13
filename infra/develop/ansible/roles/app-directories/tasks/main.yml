@@ -1,0 +1,8 @@
+---
+- name: Crear directorios base de la aplicacion
+  ansible.builtin.file:
+    path: "{{ item.value }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    mode: "0755"
+  loop: "{{ app_directories | dict2items }}"

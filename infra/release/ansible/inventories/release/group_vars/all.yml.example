@@ -1,0 +1,6 @@
+---
+gcp_project_id: sa-proyecto-derek
+gcp_region: us-central1
+gke_cluster_name: prod-gke-release
+gke_namespace: quetxal-tv-prod
+ingress_ip_name: prod-release-ingress-ip

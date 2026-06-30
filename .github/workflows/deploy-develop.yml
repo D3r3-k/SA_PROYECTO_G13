@@ -1,16 +1,23 @@
 name: Deploy develop to Compute Engine
 
 on:
-  push:
+  pull_request:
+    types: [closed]
     branches:
       - develop
-    # paths-ignore:
-    #   - '**.md'
-    #   - 'LICENSE'
-    #   - '.gitignore'
-    #   - '.gitattributes'
-    #   - 'docs/**'
+    paths:
+      - 'apps/**'
+      - 'services/**'
+      - 'proto/**'
+      - 'scripts/**'
+      - 'deploy/develop/**'
+      - '!**/*.md'
+      - '!**/docs/**'
   workflow_dispatch:
+
+concurrency:
+  group: deploy-develop
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -36,6 +43,10 @@ jobs:
 
   test-payment-gateway:
     name: "payment-gateway-service (Python)"
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.merged == true &&
+       contains(github.event.pull_request.labels.*.name, 'deploy:develop'))
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -59,6 +70,10 @@ jobs:
 
   test-fx-service:
     name: "fx-service (Python)"
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.merged == true &&
+       contains(github.event.pull_request.labels.*.name, 'deploy:develop'))
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -82,6 +97,10 @@ jobs:
 
   test-engagement-service:
     name: "engagement-service (Python)"
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.merged == true &&
+       contains(github.event.pull_request.labels.*.name, 'deploy:develop'))
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -103,8 +122,35 @@ jobs:
           name: coverage-engagement-service
           path: services/engagement-service/coverage.xml
 
+  validate-recommendation-service:
+    name: "recommendation-service (Python)"
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.merged == true &&
+       contains(github.event.pull_request.labels.*.name, 'deploy:develop'))
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/recommendation-service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: services/recommendation-service/requirements.txt
+      - name: Instalar dependencias y validar codigo
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          python -m compileall src
+
   test-subscription-service:
     name: "subscription-service (Python)"
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.merged == true &&
+       contains(github.event.pull_request.labels.*.name, 'deploy:develop'))
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -128,6 +174,10 @@ jobs:
 
   test-notification-service:
     name: "notification-service (Python)"
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.merged == true &&
+       contains(github.event.pull_request.labels.*.name, 'deploy:develop'))
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -151,6 +201,10 @@ jobs:
 
   test-identity-service:
     name: "identity-service (TypeScript)"
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.merged == true &&
+       contains(github.event.pull_request.labels.*.name, 'deploy:develop'))
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -174,6 +228,10 @@ jobs:
 
   test-api-gateway:
     name: "api-gateway (TypeScript)"
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.merged == true &&
+       contains(github.event.pull_request.labels.*.name, 'deploy:develop'))
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -197,6 +255,10 @@ jobs:
 
   test-catalog-service:
     name: "catalog-service (Go)"
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.merged == true &&
+       contains(github.event.pull_request.labels.*.name, 'deploy:develop'))
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -227,6 +289,10 @@ jobs:
 
   build-web:
     name: "web (build)"
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.merged == true &&
+       contains(github.event.pull_request.labels.*.name, 'deploy:develop'))
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -255,6 +321,7 @@ jobs:
       - test-payment-gateway
       - test-fx-service
       - test-engagement-service
+      - validate-recommendation-service
       - test-subscription-service
       - test-notification-service
       - test-identity-service
@@ -322,6 +389,9 @@ jobs:
           - image: engagement-service
             context: .
             dockerfile: ./services/engagement-service/Dockerfile
+          - image: recommendation-service
+            context: .
+            dockerfile: ./services/recommendation-service/Dockerfile
           - image: payment-gateway-service
             context: .
             dockerfile: ./services/payment-gateway-service/Dockerfile
@@ -504,6 +574,18 @@ jobs:
           CATALOG_DATABASE_URL=postgresql://catalog_user:${{ secrets.CATALOG_DB_PASSWORD }}@${CLOUD_SQL_PRIVATE_IP}:5432/catalog_db
           ENGAGEMENT_DATABASE_URL=postgresql://engagement_user:${{ secrets.ENGAGEMENT_DB_PASSWORD }}@${CLOUD_SQL_PRIVATE_IP}:5432/engagement_db
 
+          RECOMMENDATION_GRPC_PORT=50058
+          ENGAGEMENT_DB_HOST=${CLOUD_SQL_PRIVATE_IP}
+          ENGAGEMENT_DB_PORT=5432
+          ENGAGEMENT_DB_NAME=engagement_db
+          ENGAGEMENT_DB_USER=engagement_user
+          ENGAGEMENT_DB_PASSWORD=${{ secrets.ENGAGEMENT_DB_PASSWORD }}
+          CATALOG_DB_HOST=${CLOUD_SQL_PRIVATE_IP}
+          CATALOG_DB_PORT=5432
+          CATALOG_DB_NAME=catalog_db
+          CATALOG_DB_USER=catalog_user
+          CATALOG_DB_PASSWORD=${{ secrets.CATALOG_DB_PASSWORD }}
+
           REDIS_URL=redis://${REDIS_HOST}:${REDIS_PORT}/0
           NOTIFICATION_QUEUE_NAME=notification:queue
           FX_CACHE_TTL=3600
@@ -534,10 +616,10 @@ jobs:
           cat > runtime-envs/gateway.env <<EOF
           NODE_ENV=production
           API_GATEWAY_PORT=3000
-          FRONTEND_URL=http://${FRONTEND_PUBLIC_IP}
+          FRONTEND_URL=https://${FRONTEND_PUBLIC_IP}
           JWT_SECRET=${{ secrets.JWT_SECRET }}
           COOKIE_NAME=access_token
-          COOKIE_SECURE=false
+          COOKIE_SECURE=true
           COOKIE_SAME_SITE=lax
 
           IDENTITY_GRPC_URL=${SERVICES_PRIVATE_IP}:50051
@@ -547,11 +629,13 @@ jobs:
           CATALOG_GRPC_URL=${SERVICES_PRIVATE_IP}:50055
           ENGAGEMENT_GRPC_URL=${SERVICES_PRIVATE_IP}:50056
           PAYMENT_GRPC_URL=${SERVICES_PRIVATE_IP}:50057
+          RECOMMENDATION_GRPC_URL=${SERVICES_PRIVATE_IP}:50058
           EOF
 
           cat > runtime-envs/frontend.env <<EOF
           WEB_PORT=80
           API_GATEWAY_UPSTREAM=${GATEWAY_PRIVATE_IP}:3000
+          ENFORCE_HTTPS=true
           EOF
 
       - name: Deploy docker compose files
@@ -559,6 +643,8 @@ jobs:
         env:
           GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
           GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+          ACME_EMAIL: ${{ vars.ACME_EMAIL }}
+          ACME_ENVIRONMENT: ${{ vars.ACME_ENVIRONMENT || 'staging' }}
         run: |
           set -euo pipefail
 
@@ -610,6 +696,34 @@ jobs:
           deploy_role "${VM_GATEWAY_NAME}" "gateway"
           deploy_role "${VM_FRONTEND_NAME}" "frontend"
 
+          if [ -z "${ACME_EMAIL}" ]; then
+            echo "[deploy-develop.yml] Error: falta la variable ACME_EMAIL del environment develop" >&2
+            exit 1
+          fi
+
+          FRONTEND_PUBLIC_IP="$(gcloud compute instances describe "${VM_FRONTEND_NAME}" --zone="${GCP_ZONE}" --format='value(networkInterfaces[0].accessConfigs[0].natIP)')"
+          FRONTEND_STATIC_IP="$(gcloud compute addresses describe dev-frontend-ip --region="${GCP_REGION}" --format='value(address)')"
+          if [ "${FRONTEND_PUBLIC_IP}" != "${FRONTEND_STATIC_IP}" ]; then
+            echo "[deploy-develop.yml] Error: aplique Terraform; la VM no utiliza dev-frontend-ip" >&2
+            exit 1
+          fi
+          TLS_REMOTE_DIR="~/quetxal-tv/frontend/tls"
+          gcloud compute ssh "${VM_FRONTEND_NAME}" \
+            --zone="${GCP_ZONE}" \
+            --tunnel-through-iap \
+            --command="mkdir -p ${TLS_REMOTE_DIR}"
+
+          for tls_file in bootstrap-tls.sh nginx-http.conf.template nginx-https.conf.template certbot-renew.service certbot-renew.timer; do
+            gcloud compute scp "deploy/develop/frontend/${tls_file}" "${VM_FRONTEND_NAME}:${TLS_REMOTE_DIR}/${tls_file}" \
+              --zone="${GCP_ZONE}" \
+              --tunnel-through-iap
+          done
+
+          gcloud compute ssh "${VM_FRONTEND_NAME}" \
+            --zone="${GCP_ZONE}" \
+            --tunnel-through-iap \
+            --command="chmod +x ${TLS_REMOTE_DIR}/bootstrap-tls.sh && sudo ${TLS_REMOTE_DIR}/bootstrap-tls.sh '${FRONTEND_PUBLIC_IP}' '${ACME_EMAIL}' '${ACME_ENVIRONMENT}'"
+
   validation:
     name: Validación
     runs-on: ubuntu-latest
@@ -631,6 +745,8 @@ jobs:
 
       - name: Validate containers and frontend
         shell: bash
+        env:
+          ACME_ENVIRONMENT: ${{ vars.ACME_ENVIRONMENT || 'staging' }}
         run: |
           set -euo pipefail
 
@@ -639,7 +755,7 @@ jobs:
           gcloud compute ssh "${VM_SERVICES_NAME}" \
             --zone="${GCP_ZONE}" \
             --tunnel-through-iap \
-            --command="cd ~/quetxal-tv/services && sudo docker compose ps && for port in 50051 50052 50053 50054 50055 50056 50057; do timeout 5 bash -lc \"cat < /dev/null > /dev/tcp/127.0.0.1/\${port}\"; done"
+            --command="cd ~/quetxal-tv/services && sudo docker compose ps && for port in 50051 50052 50053 50054 50055 50056 50057 50058; do timeout 5 bash -lc \"cat < /dev/null > /dev/tcp/127.0.0.1/\${port}\"; done"
 
           gcloud compute ssh "${VM_GATEWAY_NAME}" \
             --zone="${GCP_ZONE}" \
@@ -652,4 +768,15 @@ jobs:
             --command="cd ~/quetxal-tv/frontend && sudo docker compose ps"
 
           FRONTEND_PUBLIC_IP="$(gcloud compute instances describe "${VM_FRONTEND_NAME}" --zone="${GCP_ZONE}" --format='value(networkInterfaces[0].accessConfigs[0].natIP)')"
-          curl -fsS "http://${FRONTEND_PUBLIC_IP}" >/dev/null
+          gcloud compute ssh "${VM_FRONTEND_NAME}" \
+            --zone="${GCP_ZONE}" \
+            --tunnel-through-iap \
+            --command="sudo nginx -t && systemctl is-active nginx"
+
+          if [ "${ACME_ENVIRONMENT}" = "production" ]; then
+            curl -fsS "https://${FRONTEND_PUBLIC_IP}/healthz" >/dev/null
+          else
+            curl -kfsS "https://${FRONTEND_PUBLIC_IP}/healthz" >/dev/null
+          fi
+
+          test "$(curl -sS -o /dev/null -w '%{http_code}' "http://${FRONTEND_PUBLIC_IP}/")" = "301"

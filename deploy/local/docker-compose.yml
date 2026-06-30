@@ -228,6 +228,32 @@ services:
     networks:
       - sa_net
 
+  recommendation-service:
+    build:
+      context: ../..
+      dockerfile: services/recommendation-service/Dockerfile
+    container_name: recommendation-service
+    environment:
+      ENGAGEMENT_DB_HOST: engagement-db
+      ENGAGEMENT_DB_PORT: "5432"
+      ENGAGEMENT_DB_NAME: ${ENGAGEMENT_DB_NAME}
+      ENGAGEMENT_DB_USER: ${ENGAGEMENT_DB_USER}
+      ENGAGEMENT_DB_PASSWORD: ${ENGAGEMENT_DB_PASSWORD}
+      CATALOG_DB_HOST: catalog-db
+      CATALOG_DB_PORT: "5432"
+      CATALOG_DB_NAME: ${CATALOG_DB_NAME}
+      CATALOG_DB_USER: ${CATALOG_DB_USER}
+      CATALOG_DB_PASSWORD: ${CATALOG_DB_PASSWORD}
+    expose:
+      - "50058"
+    depends_on:
+      engagement-db:
+        condition: service_healthy
+      catalog-db:
+        condition: service_healthy
+    networks:
+      - sa_net
+
   notification-service:
     build:
       context: ../..
@@ -269,6 +295,7 @@ services:
       CATALOG_GRPC_URL: ${CATALOG_GRPC_URL}
       ENGAGEMENT_GRPC_URL: ${ENGAGEMENT_GRPC_URL}
       PAYMENT_GRPC_URL: ${PAYMENT_GRPC_URL}
+      RECOMMENDATION_GRPC_URL: ${RECOMMENDATION_GRPC_URL}
     ports:
       - "${API_GATEWAY_PORT}:${API_GATEWAY_PORT}"
     depends_on:

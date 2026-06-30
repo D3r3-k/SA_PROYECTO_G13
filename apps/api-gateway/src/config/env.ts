@@ -44,5 +44,6 @@ export const env = {
     "notification-service:50054"
   ),
   catalogGrpcUrl: requiredEnv("CATALOG_GRPC_URL", "catalog-service:50055"),
-  engagementGrpcUrl: requiredEnv("ENGAGEMENT_GRPC_URL", "engagement-service:50056")
+  engagementGrpcUrl: requiredEnv("ENGAGEMENT_GRPC_URL", "engagement-service:50056"),
+  recommendationGrpcUrl: requiredEnv("RECOMMENDATION_GRPC_URL", "recommendation-service:50058")
 };

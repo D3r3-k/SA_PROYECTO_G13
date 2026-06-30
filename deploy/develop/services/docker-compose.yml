@@ -19,6 +19,23 @@ services:
     networks:
       - sa_net
 
+  purge-inactive-users-cron:
+    image: ghcr.io/d3r3-k/sa_proyecto_g13/identity-service:latest
+    container_name: purge-inactive-users-cron
+    restart: unless-stopped
+    command: ["sh", "-c", "while true; do node dist/jobs/purge-inactive-users.js; sleep 300; done"]
+    env_file:
+      - .env
+    environment:
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      INACTIVE_THRESHOLD_INTERVAL: "5 minutes"
+    networks:
+      - sa_net
+
   fx-service:
     image: ghcr.io/d3r3-k/sa_proyecto_g13/fx-service:latest
     container_name: sa_fx_service
@@ -88,6 +105,17 @@ services:
       - .env
     environment:
       DATABASE_URL: ${ENGAGEMENT_DATABASE_URL}
+    networks:
+      - sa_net
+
+  recommendation-service:
+    image: ghcr.io/d3r3-k/sa_proyecto_g13/recommendation-service:latest
+    container_name: recommendation-service
+    restart: unless-stopped
+    ports:
+      - "${RECOMMENDATION_GRPC_PORT:-50058}:50058"
+    env_file:
+      - .env
     networks:
       - sa_net
 

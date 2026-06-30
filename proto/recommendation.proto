@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+package recommendation;
+
+service RecommendationService {
+  rpc Health(RecommendationHealthRequest) returns (RecommendationHealthResponse);
+  rpc GetRecommendations(GetRecommendationsRequest) returns (GetRecommendationsResponse);
+}
+
+message RecommendationHealthRequest {}
+
+message RecommendationHealthResponse {
+  bool success = 1;
+  string status = 2;
+}
+
+message GetRecommendationsRequest {
+  string profile_id = 1;
+  int32 limit = 2;
+}
+
+message RecommendedContent {
+  string content_id = 1;
+  string title = 2;
+  repeated string genres = 3;
+}
+
+message GetRecommendationsResponse {
+  bool success = 1;
+  string message = 2;
+  repeated RecommendedContent items = 3;
+}

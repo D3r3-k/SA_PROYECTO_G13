@@ -9,8 +9,8 @@ export default function AuthLayout({ children }: Props) {
   return (
     <div className={styles.root}>
       <div className={styles.brand}>
-        <span className={styles.logo}>Q</span>
-        <span className={styles.logoText}>uetxal TV</span>
+        <span className={styles.logo}>C</span>
+        <span className={styles.logoText}>alificacion</span>
       </div>
       <div className={styles.card}>{children}</div>
     </div>

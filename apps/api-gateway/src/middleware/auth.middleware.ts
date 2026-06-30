@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from "express";
 import { env } from "../config/env";
 import { callIdentityMethod } from "../grpc/identity.client";
+import type { ActiveSubscription } from "./subscription-policy";
 
 export interface AuthenticatedRequest extends Request {
   user?: {
@@ -10,7 +11,10 @@ export interface AuthenticatedRequest extends Request {
     roles: string[];
     permissions: string[];
     is_admin: boolean;
+    profile_is_child: boolean;
+    parental_pin_configured: boolean;
   };
+  activeSubscription?: ActiveSubscription;
 }
 
 type ValidateTokenResponse = {
@@ -21,6 +25,8 @@ type ValidateTokenResponse = {
   roles?: string[];
   permissions?: string[];
   is_admin?: boolean;
+  profile_is_child?: boolean;
+  parental_pin_configured?: boolean;
 };
 
 export async function authMiddleware(
@@ -61,7 +67,9 @@ export async function authMiddleware(
       profile_id: response.profile_id || "",
       roles,
       permissions,
-      is_admin: Boolean(response.is_admin || roles.includes("admin"))
+      is_admin: Boolean(response.is_admin || roles.includes("admin")),
+      profile_is_child: Boolean(response.profile_is_child),
+      parental_pin_configured: Boolean(response.parental_pin_configured)
     };
 
     return next();

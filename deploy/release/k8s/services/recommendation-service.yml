@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: recommendation-service
+  namespace: quetxal-tv-prod
+spec:
+  type: ClusterIP
+  selector:
+    app: recommendation-service
+  ports:
+    - name: grpc
+      port: 50058
+      targetPort: 50058

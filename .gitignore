@@ -31,6 +31,9 @@ id_rsa.pub
 secrets/
 credentials/
 service-account*.json
+*service-account*.json
+*github-actions-key.json
+*backend-service-account.json
 
 # =========================================================
 # Logs
@@ -138,6 +141,31 @@ target/
 docker-compose.override.yml
 
 # =========================================================
+# Terraform
+# =========================================================
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# =========================================================
+# Ansible
+# =========================================================
+infra/ansible/inventories/**/hosts.ini
+infra/ansible/inventories/**/group_vars/*.yml
+!infra/ansible/inventories/**/group_vars/*.yml.example
+infra/**/ansible/inventories/**/hosts.ini
+infra/**/ansible/inventories/**/group_vars/*.yml
+!infra/**/ansible/inventories/**/group_vars/*.yml.example
+
+# =========================================================
 # Databases / local persistence
 # =========================================================
 *.db
@@ -164,3 +192,5 @@ volumes/
 reports/
 test-results/
 playwright-report/
+**/gcp-github-actions*-key.json
+**/*service-account*.json

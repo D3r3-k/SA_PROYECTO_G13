@@ -1,0 +1,19 @@
+---
+gcp_project_id: sa-proyecto-derek
+gcp_zone: us-central1-a
+
+remote_base_dir: "/home/{{ ansible_user }}/quetxal-tv"
+
+app_directories:
+  frontend: "{{ remote_base_dir }}/frontend"
+  gateway: "{{ remote_base_dir }}/gateway"
+  services: "{{ remote_base_dir }}/services"
+  services_secrets: "{{ remote_base_dir }}/services/secrets"
+
+docker_users:
+  - "{{ ansible_user }}"
+
+tls_enabled: false
+frontend_public_ip: "CAMBIAR_IP_ESTATICA"
+acme_email: "CAMBIAR_CORREO_ACME"
+acme_environment: staging

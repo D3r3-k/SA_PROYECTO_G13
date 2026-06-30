@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS contents (
     external_id TEXT NOT NULL,
     provider TEXT NOT NULL DEFAULT 'archive.org',
     type TEXT NOT NULL CHECK (type IN ('movie', 'series')),
+    maturity_rating TEXT NOT NULL DEFAULT 'ALL' CHECK (maturity_rating IN ('ALL', 'PG_13', 'R')),
     title TEXT NOT NULL,
     overview TEXT NOT NULL DEFAULT '',
     poster_path TEXT NOT NULL DEFAULT '',
@@ -84,6 +85,14 @@ CREATE INDEX IF NOT EXISTS idx_catalog_audit_log_actor_user_id ON audit_log(acto
 ALTER TABLE contents ADD COLUMN IF NOT EXISTS media_url TEXT NOT NULL DEFAULT '';
 ALTER TABLE contents ADD COLUMN IF NOT EXISTS media_mime_type TEXT NOT NULL DEFAULT '';
 ALTER TABLE contents ADD COLUMN IF NOT EXISTS source_page_url TEXT NOT NULL DEFAULT '';
+ALTER TABLE contents ADD COLUMN IF NOT EXISTS maturity_rating TEXT NOT NULL DEFAULT 'ALL';
+UPDATE contents SET maturity_rating = 'ALL' WHERE maturity_rating IS NULL OR TRIM(maturity_rating) = '';
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_contents_maturity_rating') THEN
+        ALTER TABLE contents ADD CONSTRAINT chk_contents_maturity_rating CHECK (maturity_rating IN ('ALL', 'PG_13', 'R'));
+    END IF;
+END $$;
 ALTER TABLE contents ADD COLUMN IF NOT EXISTS available_from TIMESTAMPTZ NOT NULL DEFAULT NOW();
 ALTER TABLE contents ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
 ALTER TABLE episodes ADD COLUMN IF NOT EXISTS media_url TEXT NOT NULL DEFAULT '';
@@ -94,6 +103,25 @@ CREATE OR REPLACE FUNCTION fn_normalize_search_text(value TEXT)
 RETURNS TEXT AS $$
 BEGIN
     RETURN LOWER(TRIM(COALESCE(value, '')));
+END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+
+CREATE OR REPLACE FUNCTION fn_normalize_maturity_rating(value TEXT)
+RETURNS TEXT AS $$
+DECLARE
+    v TEXT;
+BEGIN
+    v := UPPER(REPLACE(TRIM(COALESCE(value, 'ALL')), '-', '_'));
+    IF v IN ('', 'ALL', 'G', 'ATP', 'APTA_PARA_TODO_PUBLICO') THEN
+        RETURN 'ALL';
+    END IF;
+    IF v IN ('PG13', 'PG_13') THEN
+        RETURN 'PG_13';
+    END IF;
+    IF v = 'R' THEN
+        RETURN 'R';
+    END IF;
+    RAISE EXCEPTION 'maturity_rating must be ALL, PG_13 or R';
 END;
 $$ LANGUAGE plpgsql IMMUTABLE;
 
@@ -119,6 +147,7 @@ SELECT
     c.id::TEXT AS content_id,
     c.external_id,
     c.type,
+    c.maturity_rating,
     c.title,
     c.overview,
     c.poster_path,
@@ -270,6 +299,7 @@ CREATE OR REPLACE PROCEDURE sp_create_admin_content(
     IN p_genres JSONB,
     IN p_cast JSONB,
     IN p_episodes JSONB,
+    IN p_maturity_rating TEXT,
     IN p_actor_user_id TEXT,
     IN p_actor_email TEXT,
     INOUT p_content_id UUID DEFAULT NULL
@@ -291,7 +321,8 @@ BEGIN
     );
 
     UPDATE contents
-    SET available_from = COALESCE(NULLIF(p_available_from, '')::TIMESTAMPTZ, NOW())
+    SET available_from = COALESCE(NULLIF(p_available_from, '')::TIMESTAMPTZ, NOW()),
+        maturity_rating = fn_normalize_maturity_rating(p_maturity_rating)
     WHERE id = p_content_id;
 END;
 $$;
@@ -305,6 +336,7 @@ CREATE OR REPLACE PROCEDURE sp_update_admin_content(
     IN p_genres JSONB,
     IN p_cast JSONB,
     IN p_episodes JSONB,
+    IN p_maturity_rating TEXT,
     IN p_actor_user_id TEXT,
     IN p_actor_email TEXT
 )
@@ -324,6 +356,7 @@ BEGIN
         overview = COALESCE(p_overview, ''),
         release_date = COALESCE(p_release_date, ''),
         available_from = COALESCE(NULLIF(p_available_from, '')::TIMESTAMPTZ, available_from),
+        maturity_rating = fn_normalize_maturity_rating(p_maturity_rating),
         updated_at = NOW()
     WHERE id = p_content_id
       AND deleted_at IS NULL;
@@ -525,6 +558,8 @@ END;
 $$;
 
 DROP FUNCTION IF EXISTS fn_catalog_list(text,text,text,integer,integer);
+DROP FUNCTION IF EXISTS fn_catalog_admin_list(text,text,text,integer,integer);
+DROP FUNCTION IF EXISTS fn_catalog_detail(uuid);
 CREATE OR REPLACE FUNCTION fn_catalog_list(
     p_type TEXT,
     p_genre TEXT,
@@ -536,6 +571,7 @@ RETURNS TABLE (
     content_id TEXT,
     external_id TEXT,
     type TEXT,
+    maturity_rating TEXT,
     title TEXT,
     overview TEXT,
     poster_path TEXT,
@@ -552,7 +588,7 @@ RETURNS TABLE (
 BEGIN
     RETURN QUERY
     SELECT
-        v.content_id, v.external_id, v.type, v.title, v.overview,
+        v.content_id, v.external_id, v.type, v.maturity_rating, v.title, v.overview,
         v.poster_path, v.release_date, v.media_url, v.media_mime_type,
         v.source_page_url, v.genres, v.seasons_count, v.episodes_count,
         v.available_from, v.deleted_at
@@ -583,6 +619,7 @@ RETURNS TABLE (
     content_id TEXT,
     external_id TEXT,
     type TEXT,
+    maturity_rating TEXT,
     title TEXT,
     overview TEXT,
     poster_path TEXT,
@@ -599,7 +636,7 @@ RETURNS TABLE (
 BEGIN
     RETURN QUERY
     SELECT
-        v.content_id, v.external_id, v.type, v.title, v.overview,
+        v.content_id, v.external_id, v.type, v.maturity_rating, v.title, v.overview,
         v.poster_path, v.release_date, v.media_url, v.media_mime_type,
         v.source_page_url, v.genres, v.seasons_count, v.episodes_count,
         v.available_from, v.deleted_at
@@ -627,6 +664,7 @@ RETURNS TABLE (
     content_id TEXT,
     external_id TEXT,
     type TEXT,
+    maturity_rating TEXT,
     title TEXT,
     overview TEXT,
     poster_path TEXT,
@@ -643,7 +681,7 @@ RETURNS TABLE (
 BEGIN
     RETURN QUERY
     SELECT
-        v.content_id, v.external_id, v.type, v.title, v.overview,
+        v.content_id, v.external_id, v.type, v.maturity_rating, v.title, v.overview,
         v.poster_path, v.release_date, v.media_url, v.media_mime_type,
         v.source_page_url, v.genres, v.seasons_count, v.episodes_count,
         v.available_from, v.deleted_at

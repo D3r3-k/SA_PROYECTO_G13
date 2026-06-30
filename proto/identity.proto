@@ -16,6 +16,8 @@ service IdentityService {
 
   rpc UpdateProfile(UpdateProfileRequest) returns (ProfileResponse);
   rpc DeleteProfile(DeleteProfileRequest) returns (BasicResponse);
+  
+  rpc VerifyParentalPin(VerifyParentalPinRequest) returns (BasicResponse);
 
   rpc ListAuditLogs(ListAuditLogsRequest) returns (ListAuditLogsResponse);
 }
@@ -68,12 +70,16 @@ message ValidateTokenResponse {
   repeated string roles = 5;
   repeated string permissions = 6;
   bool is_admin = 7;
+  bool profile_is_child = 8;
+  bool parental_pin_configured = 9;
 }
 
 message CreateProfileRequest {
   string user_id = 1;
   string name = 2;
   string avatar_url = 3;
+  bool is_child = 4;
+  string parental_pin = 5;
 }
 
 message ListProfilesRequest {
@@ -96,6 +102,8 @@ message ProfileResponse {
   string user_id = 4;
   string name = 5;
   string avatar_url = 6;
+  bool is_child = 7;
+  bool parental_pin_configured = 8;
 }
 
 message SelectProfileResponse {
@@ -109,6 +117,8 @@ message SelectProfileResponse {
   repeated string roles = 8;
   repeated string permissions = 9;
   bool is_admin = 10;
+  bool profile_is_child = 11;
+  bool parental_pin_configured = 12;
 }
 
 message UpdateProfileRequest {
@@ -116,11 +126,19 @@ message UpdateProfileRequest {
   string profile_id = 2;
   string name = 3;
   string avatar_url = 4;
+  bool is_child = 5;
+  string parental_pin = 6;
 }
 
 message DeleteProfileRequest {
   string user_id = 1;
   string profile_id = 2;
+}
+
+message VerifyParentalPinRequest {
+  string user_id = 1;
+  string profile_id = 2;
+  string pin = 3;
 }
 
 message UpdateCredentialsRequest {

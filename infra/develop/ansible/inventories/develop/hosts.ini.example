@@ -1,0 +1,19 @@
+[frontend]
+dev-vm-frontend ansible_host=dev-vm-frontend vm_role=frontend
+
+[gateway]
+dev-vm-gateway ansible_host=dev-vm-gateway vm_role=gateway
+
+[services]
+dev-vm-services ansible_host=dev-vm-services vm_role=services
+
+[develop:children]
+frontend
+gateway
+services
+
+[develop:vars]
+ansible_user=CAMBIAR_USUARIO_LINUX
+ansible_python_interpreter=/usr/bin/python3
+ansible_ssh_private_key_file=~/.ssh/google_compute_engine
+ansible_ssh_common_args=-o ProxyCommand="gcloud compute start-iap-tunnel %h 22 --listen-on-stdin --project=sa-proyecto-derek --zone=us-central1-a"
