@@ -100,12 +100,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+
           if [ -n "${{ github.event.inputs.target_host }}" ]; then
             HOST="${{ github.event.inputs.target_host }}"
           else
             FRONTEND_PUBLIC_IP="$(gcloud compute instances describe "${VM_FRONTEND_NAME}" --zone="${GCP_ZONE}" --format='value(networkInterfaces[0].accessConfigs[0].natIP)')"
             HOST="http://${FRONTEND_PUBLIC_IP}"
           fi
+
           echo "host=${HOST}" >> "$GITHUB_OUTPUT"
           echo "Resolved develop host: ${HOST}"
 
@@ -123,6 +125,7 @@ jobs:
           LOCUST_ADMIN_PASSWORD: ${{ secrets.LOCUST_ADMIN_PASSWORD }}
         run: |
           set -euo pipefail
+
           mkdir -p runtime-locust reports/locust
 
           if [ -n "${LOCUST_USERS_CSV_SECRET:-}" ]; then
@@ -174,9 +177,11 @@ jobs:
           GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
         run: |
           set -euo pipefail
+
           RUNNER_VM="${VM_LOCUST_RUNNER_NAME:-${VM_GATEWAY_NAME}}"
           REMOTE_DIR="/tmp/quetxal-locust-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           IMAGE="${{ needs.build-locust-image.outputs.image }}"
+
           echo "runner_vm=${RUNNER_VM}" >> "$GITHUB_OUTPUT"
           echo "remote_dir=${REMOTE_DIR}" >> "$GITHUB_OUTPUT"
 
@@ -211,7 +216,7 @@ jobs:
             --zone="${GCP_ZONE}" \
             --tunnel-through-iap \
             --quiet \
-            --command="cd '${REMOTE_DIR}' && echo '${GHCR_TOKEN}' | sudo docker login ghcr.io -u '${GHCR_USERNAME}' --password-stdin && sudo docker pull '${IMAGE}' && sudo docker run --rm --user 0:0 --name 'locust-develop-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}' --env-file '${REMOTE_DIR}/locust.env' -v '${REMOTE_DIR}/reports:/reports' -v '${REMOTE_DIR}/users.csv:/runtime/users.csv:ro' --entrypoint sh '${IMAGE}' -c 'locust -f /mnt/locust/locustfile.py --host=\"\$LOCUST_HOST\" --headless -u \"\${LOCUST_USERS:-20}\" -r \"\${LOCUST_SPAWN_RATE:-2}\" --run-time \"\${LOCUST_RUN_TIME:-3m}\" --html /reports/locust-report.html --csv /reports/locust --exit-code-on-error 1'" \
+            --command="cd '${REMOTE_DIR}' && echo '${GHCR_TOKEN}' | sudo docker login ghcr.io -u '${GHCR_USERNAME}' --password-stdin && sudo docker pull '${IMAGE}' && sudo docker run --rm --user 0:0 --name 'locust-develop-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}' --env-file '${REMOTE_DIR}/locust.env' -v '${REMOTE_DIR}/reports:/reports' -v '${REMOTE_DIR}/users.csv:/runtime/users.csv:ro' --entrypoint sh '${IMAGE}' -c 'locust -f /mnt/locust/locustfile.py --host="\$LOCUST_HOST" --headless -u "\${LOCUST_USERS:-20}" -r "\${LOCUST_SPAWN_RATE:-2}" --run-time "\${LOCUST_RUN_TIME:-3m}" --html /reports/locust-report.html --csv /reports/locust --exit-code-on-error 1'" \
             2>&1 | tee reports/locust/locust-develop-run.log
           RUN_STATUS=${PIPESTATUS[0]}
           set -e
@@ -227,6 +232,35 @@ jobs:
             echo "La prueba Locust develop no finalizo correctamente. Revisar reports/locust/locust-develop-run.log" >&2
             exit "${RUN_STATUS}"
           fi
+
+      - name: Generate Spanish executive Locust report
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          STATS_PATH="reports/locust/develop/reports/locust_stats.csv"
+          FAILURES_PATH="reports/locust/develop/reports/locust_failures.csv"
+          OUTPUT_PATH="reports/locust/develop/reporte-ejecutivo-locust.html"
+
+          if [ ! -f "${STATS_PATH}" ]; then
+            echo "No se encontro ${STATS_PATH}. Archivos disponibles:"
+            find reports/locust -maxdepth 5 -type f -print || true
+            exit 0
+          fi
+
+          python scripts/load/generate_locust_executive_report.py \
+            --stats "${STATS_PATH}" \
+            --failures "${FAILURES_PATH}" \
+            --output "${OUTPUT_PATH}" \
+            --environment "develop" \
+            --mode "${{ github.event.inputs.mode }}" \
+            --users "${{ github.event.inputs.users }}" \
+            --spawn-rate "${{ github.event.inputs.spawn_rate }}" \
+            --run-time "${{ github.event.inputs.run_time }}" \
+            --target "${{ steps.target.outputs.host }}"
+
+          echo "Reporte ejecutivo generado en ${OUTPUT_PATH}"
 
       - name: Cleanup remote Locust files
         if: always()
