@@ -1,0 +1,220 @@
+<mxGraphModel dx="2287" dy="1324" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+  <root>
+    <mxCell id="0" />
+    <mxCell id="1" parent="0" />
+    <mxCell id="title" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="&lt;font style=&quot;font-size: 16px;&quot;&gt;&lt;b&gt;Proceso: Control Parental&lt;/b&gt;&lt;/font&gt;" vertex="1">
+      <mxGeometry height="30" width="730" x="50" y="30" as="geometry" />
+    </mxCell>
+
+    <!-- SWIMLANES -->
+    <mxCell id="sw-user" parent="1" style="swimlane;whiteSpace=wrap;html=1;" value="Usuario" vertex="1">
+      <mxGeometry height="1390" width="160" x="50" y="75" as="geometry" />
+    </mxCell>
+    <mxCell id="sw-gw" parent="1" style="swimlane;whiteSpace=wrap;html=1;" value="API Gateway / parental-control.ts" vertex="1">
+      <mxGeometry height="1390" width="230" x="210" y="75" as="geometry" />
+    </mxCell>
+    <mxCell id="sw-id" parent="1" style="swimlane;whiteSpace=wrap;html=1;" value="Identity Service" vertex="1">
+      <mxGeometry height="1390" width="210" x="440" y="75" as="geometry" />
+    </mxCell>
+    <mxCell id="sw-db" parent="1" style="swimlane;whiteSpace=wrap;html=1;" value="identity_db" vertex="1">
+      <mxGeometry height="1390" width="180" x="650" y="75" as="geometry" />
+    </mxCell>
+
+    <!-- === SECCIÓN A: Configurar PIN === -->
+    <!-- Nodes sw-user -->
+    <mxCell id="u-start" parent="sw-user" style="ellipse;html=1;shape=startState;fillColor=#000000;strokeColor=#000000;" value="" vertex="1">
+      <mxGeometry height="30" width="30" x="65" y="40" as="geometry" />
+    </mxCell>
+    <mxCell id="u1" parent="sw-user" style="rounded=1;whiteSpace=wrap;html=1;" value="Solicitar configuración de PIN parental" vertex="1">
+      <mxGeometry height="60" width="120" x="20" y="110" as="geometry" />
+    </mxCell>
+    <mxCell id="u2" parent="sw-user" style="rounded=1;whiteSpace=wrap;html=1;" value="PIN configurado correctamente ✓" vertex="1">
+      <mxGeometry height="60" width="120" x="20" y="380" as="geometry" />
+    </mxCell>
+    <mxCell id="e-start-u1" edge="1" parent="sw-user" source="u-start" target="u1" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=classic;endSize=8;rounded=0;endFill=1;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- Nodes sw-gw section A -->
+    <mxCell id="gw1" parent="sw-gw" style="rounded=1;whiteSpace=wrap;html=1;" value="Recibir solicitud y encaminar al módulo parental" vertex="1">
+      <mxGeometry height="60" width="180" x="25" y="110" as="geometry" />
+    </mxCell>
+    <mxCell id="gw2" parent="sw-gw" style="rounded=1;whiteSpace=wrap;html=1;" value="Confirmar configuración exitosa al usuario" vertex="1">
+      <mxGeometry height="60" width="180" x="25" y="380" as="geometry" />
+    </mxCell>
+
+    <!-- Nodes sw-id section A -->
+    <mxCell id="id1" parent="sw-id" style="rounded=1;whiteSpace=wrap;html=1;" value="Cifrar PIN con bcrypt y enviar a base de datos" vertex="1">
+      <mxGeometry height="60" width="170" x="20" y="110" as="geometry" />
+    </mxCell>
+    <mxCell id="id-r1" parent="sw-id" style="rounded=1;whiteSpace=wrap;html=1;" value="PIN registrado — confirmar al módulo parental" vertex="1">
+      <mxGeometry height="60" width="170" x="20" y="270" as="geometry" />
+    </mxCell>
+    <mxCell id="e-id1-idr1" edge="1" parent="sw-id" source="id1" target="id-r1" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=classic;endSize=8;rounded=0;endFill=1;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- Nodes sw-db section A -->
+    <mxCell id="db1" parent="sw-db" style="rounded=1;whiteSpace=wrap;html=1;" value="Almacenar PIN cifrado del perfil" vertex="1">
+      <mxGeometry height="60" width="140" x="20" y="110" as="geometry" />
+    </mxCell>
+    <mxCell id="db-r1" parent="sw-db" style="rounded=1;whiteSpace=wrap;html=1;" value="PIN almacenado ✓" vertex="1">
+      <mxGeometry height="60" width="140" x="20" y="200" as="geometry" />
+    </mxCell>
+    <mxCell id="e-db1-dbr1" edge="1" parent="sw-db" source="db1" target="db-r1" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=classic;endSize=8;rounded=0;endFill=1;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- === SECCIÓN B: Verificar restricción al reproducir === -->
+    <!-- Nodes sw-user section B -->
+    <mxCell id="u3" parent="sw-user" style="rounded=1;whiteSpace=wrap;html=1;" value="Solicitar reproducción de contenido" vertex="1">
+      <mxGeometry height="60" width="120" x="20" y="520" as="geometry" />
+    </mxCell>
+    <mxCell id="u4" parent="sw-user" style="rounded=1;whiteSpace=wrap;html=1;" value="Ingresar PIN parental en modal" vertex="1">
+      <mxGeometry height="60" width="120" x="20" y="930" as="geometry" />
+    </mxCell>
+    <mxCell id="u-ok" parent="sw-user" style="rounded=1;whiteSpace=wrap;html=1;" value="Reproducción del contenido iniciada ✓" vertex="1">
+      <mxGeometry height="60" width="120" x="20" y="1190" as="geometry" />
+    </mxCell>
+    <mxCell id="u-err" parent="sw-user" style="rounded=1;whiteSpace=wrap;html=1;" value="Acceso denegado — PIN incorrecto" vertex="1">
+      <mxGeometry height="60" width="120" x="20" y="1290" as="geometry" />
+    </mxCell>
+    <mxCell id="u-end" parent="sw-user" style="ellipse;html=1;shape=endState;fillColor=#000000;strokeColor=#000000;" value="" vertex="1">
+      <mxGeometry height="30" width="30" x="65" y="1355" as="geometry" />
+    </mxCell>
+
+    <!-- Nodes sw-gw section B -->
+    <mxCell id="gw3" parent="sw-gw" style="rounded=1;whiteSpace=wrap;html=1;" value="Interceptar petición y solicitar clasificación del contenido" vertex="1">
+      <mxGeometry height="60" width="180" x="25" y="520" as="geometry" />
+    </mxCell>
+    <mxCell id="gw-dec" parent="sw-gw" style="strokeWidth=2;html=1;shape=mxgraph.flowchart.decision;whiteSpace=wrap;" value="¿Contenido con restricción de edad?" vertex="1">
+      <mxGeometry height="80" width="190" x="20" y="700" as="geometry" />
+    </mxCell>
+    <mxCell id="gw-direct" parent="sw-gw" style="rounded=1;whiteSpace=wrap;html=1;" value="Autorizar reproducción directa" vertex="1">
+      <mxGeometry height="60" width="180" x="25" y="850" as="geometry" />
+    </mxCell>
+    <mxCell id="gw-pin" parent="sw-gw" style="rounded=1;whiteSpace=wrap;html=1;" value="Bloquear acceso y solicitar PIN al usuario" vertex="1">
+      <mxGeometry height="60" width="180" x="25" y="930" as="geometry" />
+    </mxCell>
+    <mxCell id="gw-verify" parent="sw-gw" style="rounded=1;whiteSpace=wrap;html=1;" value="Reenviar PIN al servicio de identidad para validación" vertex="1">
+      <mxGeometry height="60" width="180" x="25" y="1060" as="geometry" />
+    </mxCell>
+    <mxCell id="gw-ok" parent="sw-gw" style="rounded=1;whiteSpace=wrap;html=1;" value="Conceder acceso y redirigir al reproductor" vertex="1">
+      <mxGeometry height="60" width="180" x="25" y="1190" as="geometry" />
+    </mxCell>
+    <mxCell id="gw-block" parent="sw-gw" style="rounded=1;whiteSpace=wrap;html=1;" value="Mantener bloqueo y notificar error al usuario" vertex="1">
+      <mxGeometry height="60" width="180" x="25" y="1290" as="geometry" />
+    </mxCell>
+    <mxCell id="e-dec-no" edge="1" parent="sw-gw" source="gw-dec" target="gw-direct" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=classic;endSize=8;rounded=0;endFill=1;" value="No">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="e-dec-si" edge="1" parent="sw-gw" source="gw-dec" target="gw-pin" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=classic;endSize=8;rounded=0;endFill=1;" value="Sí">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="e-gwverify-gwok-ref" edge="1" parent="sw-gw" source="gw-verify" target="gw-ok" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=classic;endSize=8;rounded=0;endFill=1;dashed=1;" value="(si válido)">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- Nodes sw-id section B -->
+    <mxCell id="id2" parent="sw-id" style="rounded=1;whiteSpace=wrap;html=1;" value="Consultar clasificación del contenido solicitado" vertex="1">
+      <mxGeometry height="60" width="170" x="20" y="520" as="geometry" />
+    </mxCell>
+    <mxCell id="id2-ret" parent="sw-id" style="rounded=1;whiteSpace=wrap;html=1;" value="Devolver clasificación del contenido" vertex="1">
+      <mxGeometry height="60" width="170" x="20" y="620" as="geometry" />
+    </mxCell>
+    <mxCell id="e-id2-idr2" edge="1" parent="sw-id" source="id2" target="id2-ret" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=classic;endSize=8;rounded=0;endFill=1;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="id3" parent="sw-id" style="rounded=1;whiteSpace=wrap;html=1;" value="Verificar PIN contra el registro cifrado del perfil" vertex="1">
+      <mxGeometry height="60" width="170" x="20" y="1060" as="geometry" />
+    </mxCell>
+    <mxCell id="id-dec" parent="sw-id" style="strokeWidth=2;html=1;shape=mxgraph.flowchart.decision;whiteSpace=wrap;" value="¿PIN válido?" vertex="1">
+      <mxGeometry height="80" width="150" x="30" y="1180" as="geometry" />
+    </mxCell>
+    <mxCell id="e-id3-dec" edge="1" parent="sw-id" source="id3" target="id-dec" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=classic;endSize=8;rounded=0;endFill=1;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- Nodes sw-db section B -->
+    <mxCell id="db2" parent="sw-db" style="rounded=1;whiteSpace=wrap;html=1;" value="Consultar registro del perfil y comparar PIN" vertex="1">
+      <mxGeometry height="60" width="140" x="20" y="1060" as="geometry" />
+    </mxCell>
+    <mxCell id="db-r2" parent="sw-db" style="rounded=1;whiteSpace=wrap;html=1;" value="Resultado de verificación retornado" vertex="1">
+      <mxGeometry height="60" width="140" x="20" y="1160" as="geometry" />
+    </mxCell>
+    <mxCell id="e-db2-dbr2" edge="1" parent="sw-db" source="db2" target="db-r2" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=classic;endSize=8;rounded=0;endFill=1;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- === CROSS-LANE EDGES (all in parent "1") === -->
+    <!-- Section A -->
+    <mxCell id="e-u1-gw1" edge="1" parent="1" source="u1" target="gw1" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=classic;endSize=8;rounded=0;endFill=1;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="e-gw1-id1" edge="1" parent="1" source="gw1" target="id1" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=classic;endSize=8;rounded=0;endFill=1;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="e-id1-db1" edge="1" parent="1" source="id1" target="db1" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=classic;endSize=8;rounded=0;endFill=1;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="e-dbr1-idr1" edge="1" parent="1" source="db-r1" target="id-r1" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=classic;endSize=8;rounded=0;endFill=1;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="e-idr1-gw2" edge="1" parent="1" source="id-r1" target="gw2" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=classic;endSize=8;rounded=0;endFill=1;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="e-gw2-u2" edge="1" parent="1" source="gw2" target="u2" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=classic;endSize=8;rounded=0;endFill=1;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <!-- A → B transition -->
+    <mxCell id="e-u2-u3" edge="1" parent="1" source="u2" target="u3" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=classic;endSize=8;rounded=0;endFill=1;dashed=1;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <!-- Section B -->
+    <mxCell id="e-u3-gw3" edge="1" parent="1" source="u3" target="gw3" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=classic;endSize=8;rounded=0;endFill=1;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="e-gw3-id2" edge="1" parent="1" source="gw3" target="id2" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=classic;endSize=8;rounded=0;endFill=1;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="e-idr2-gwdec" edge="1" parent="1" source="id2-ret" target="gw-dec" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=classic;endSize=8;rounded=0;endFill=1;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="e-gwdirect-uok" edge="1" parent="1" source="gw-direct" target="u-ok" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=classic;endSize=8;rounded=0;endFill=1;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="e-gwpin-u4" edge="1" parent="1" source="gw-pin" target="u4" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=classic;endSize=8;rounded=0;endFill=1;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="e-u4-gwverify" edge="1" parent="1" source="u4" target="gw-verify" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=classic;endSize=8;rounded=0;endFill=1;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="e-gwverify-id3" edge="1" parent="1" source="gw-verify" target="id3" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=classic;endSize=8;rounded=0;endFill=1;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="e-id3-db2" edge="1" parent="1" source="id3" target="db2" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=classic;endSize=8;rounded=0;endFill=1;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="e-dbr2-iddec" edge="1" parent="1" source="db-r2" target="id-dec" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=classic;endSize=8;rounded=0;endFill=1;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="e-iddec-si" edge="1" parent="1" source="id-dec" target="gw-ok" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=classic;endSize=8;rounded=0;endFill=1;" value="Sí">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="e-iddec-no" edge="1" parent="1" source="id-dec" target="gw-block" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=classic;endSize=8;rounded=0;endFill=1;" value="No">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="e-gwok-uok" edge="1" parent="1" source="gw-ok" target="u-ok" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=classic;endSize=8;rounded=0;endFill=1;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="e-gwblock-uerr" edge="1" parent="1" source="gw-block" target="u-err" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=classic;endSize=8;rounded=0;endFill=1;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="e-uok-end" edge="1" parent="1" source="u-ok" target="u-end" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=open;endSize=8;rounded=0;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="e-uerr-end" edge="1" parent="1" source="u-err" target="u-end" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=open;endSize=8;rounded=0;">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+  </root>
+</mxGraphModel>
