@@ -52,3 +52,4 @@ output "media_service_account_email" {
   description = "Service Account para firmar URLs de Catalog."
   value       = module.service_accounts.media_service_account_email
 }
+

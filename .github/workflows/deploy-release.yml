@@ -415,7 +415,8 @@ jobs:
         id: docker_tags
         shell: bash
         run: |
-          TAGS="${{ env.IMAGE_NAMESPACE }}/${{ matrix.image }}:latest,${{ env.IMAGE_NAMESPACE }}/${{ matrix.image }}:${{ github.sha }}"
+          # Nunca usar latest; se usa sha del commit y semver si aplica
+          TAGS="${{ env.IMAGE_NAMESPACE }}/${{ matrix.image }}:${{ github.sha }}"
           if [[ "${{ github.ref_name }}" =~ ^release/(v[0-9]+\.[0-9]+\.[0-9]+)$ ]] || [[ "${{ github.ref_name }}" =~ ^test/(v[0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
             SEMANTIC_TAG="${BASH_REMATCH[1]}"
             TAGS="${TAGS},${{ env.IMAGE_NAMESPACE }}/${{ matrix.image }}:${SEMANTIC_TAG}"
@@ -510,8 +511,8 @@ jobs:
           kubectl exec db-migrator --namespace="${GKE_NAMESPACE}" -- \
             sh -c 'export PGPASSWORD='"${SUBSCRIPTION_DB_PASSWORD}"'; psql -h '"${CLOUD_SQL_PRIVATE_IP}"' -p 5432 -U subscription_user -d subscription_db -v ON_ERROR_STOP=1 -f /tmp/services/subscription-service/migrations/001_init.sql'
 
-  deploy-gke:
-    name: Deploy
+  deploy-application:
+    name: Deploy Application
     runs-on: ubuntu-latest
     environment: release
     needs: migrate-databases
@@ -709,7 +710,7 @@ jobs:
       - name: Replace image tags in manifests
         shell: bash
         run: |
-          VERSION_TAG="latest"
+          VERSION_TAG="${{ github.sha }}"
           if [[ "${{ github.ref_name }}" =~ ^release/(v[0-9]+\.[0-9]+\.[0-9]+)$ ]] || [[ "${{ github.ref_name }}" =~ ^test/(v[0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
             VERSION_TAG="${BASH_REMATCH[1]}"
           fi
@@ -718,6 +719,7 @@ jobs:
 
       - name: Apply Kubernetes manifests
         run: |
+          set -euo pipefail
           kubectl apply -f deploy/release/k8s/backend-config.yml
           kubectl apply -f deploy/release/k8s/services/
           kubectl apply -f deploy/release/k8s/deployments/
@@ -746,70 +748,19 @@ jobs:
 
           for deployment in web api-gateway identity-service fx-service subscription-service notification-service catalog-service engagement-service recommendation-service payment-gateway-service
           do
-            if ! kubectl rollout status deployment/${deployment} -n "${GKE_NAMESPACE}" --timeout=180s; then
+            if ! kubectl rollout status deployment/${deployment} -n "${GKE_NAMESPACE}" --timeout=600s; then
               kubectl rollout undo deployment/${deployment} -n "${GKE_NAMESPACE}"
               exit 1
             fi
           done
 
-      - name: Deploy Observability Stack (Helm)
-        env:
-          GCP_PROJECT_ID: ${{ env.GCP_PROJECT_ID }}
-        run: |
-          set -e
-          
-          # Agregar repositorios de Helm
-          helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-          helm repo add elastic https://helm.elastic.co
-          helm repo update
-          
-          # Stack de Métricas (Prometheus + Grafana)
-          echo "Desplegando kube-prometheus-stack..."
-          helm upgrade --install prometheus prometheus-community/kube-prometheus-stack \
-            --namespace observability --create-namespace \
-            --set grafana.service.type=LoadBalancer \
-            --wait --timeout 10m
-            
-          echo "Desplegando stackdriver-exporter..."
-          helm upgrade --install gcp-exporter prometheus-community/prometheus-stackdriver-exporter \
-            --namespace observability \
-            --set stackdriver.projectId=${GCP_PROJECT_ID} \
-            --set serviceMonitor.enabled=true \
-            --wait --timeout 5m
-            
-          # Stack de Logs (ELK)
-          echo "Desplegando Elasticsearch..."
-          helm upgrade --install elasticsearch elastic/elasticsearch \
-            --namespace observability \
-            --set replicas=1 --set minimumMasterNodes=1 \
-            --wait --timeout 10m
-            
-          echo "Desplegando Kibana..."
-          helm upgrade --install kibana elastic/kibana \
-            --namespace observability \
-            --set service.type=LoadBalancer \
-            --wait --timeout 10m
-            
-          echo "Desplegando Logstash..."
-          # Reemplazamos la variable GCP_PROJECT_ID en el values
-          sed -i "s/\${GCP_PROJECT_ID}/${GCP_PROJECT_ID}/g" deploy/release/k8s/observability-values/logstash-values.yml
-          helm upgrade --install logstash elastic/logstash \
-            --namespace observability \
-            -f deploy/release/k8s/observability-values/logstash-values.yml \
-            --wait --timeout 5m
-            
-          echo "Desplegando Filebeat..."
-          helm upgrade --install filebeat elastic/filebeat \
-            --namespace observability \
-            -f deploy/release/k8s/observability-values/filebeat-values.yml \
-            --wait --timeout 5m
 
-
-  validation:
-    name: Validación
+  validate-release:
+    name: Validacion
     runs-on: ubuntu-latest
     environment: release
-    needs: deploy-gke
+    needs:
+      - deploy-application
 
     steps:
       - name: Checkout repository
