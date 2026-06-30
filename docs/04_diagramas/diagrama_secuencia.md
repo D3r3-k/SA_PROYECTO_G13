@@ -250,3 +250,16 @@ El flujo inicia cuando el usuario accede al catálogo con un perfil activo en se
 El recommendation-service realiza dos consultas en secuencia: primero consulta catalog_db obteniendo todos los contenidos disponibles con sus géneros mediante ARRAY_AGG, y luego consulta engagement_db obteniendo el historial de visualización del perfil con LEFT JOIN sobre la tabla de calificaciones. Con ambos resultados construye en memoria el historial enriquecido, cruzan los registros de engagement con los géneros del catálogo por content_id.
 
 Finalmente el servicio ejecuta el algoritmo Content-Based Filtering: construye el vocabulario de géneros, genera vectores binarios, calcula el perfil de preferencias del usuario ponderando THUMBS_UP como +1 y THUMBS_DOWN como -1, aplica similitud del coseno con NumPy y retorna los K contenidos con mayor puntuación. La respuesta sube por la cadena hasta que el Frontend renderiza la sección "Recomendados para ti" entre el hero y los filtros del catálogo.
+
+### Secuencia Control Parental — Fase 3
+
+![Secuencia Control Parental](../00_assets/diagrams/04_diagramas/secuencia/s_controlp.drawio.png)
+
+### Secuencia Descarga de Contenido — Fase 3
+
+![Secuencia Watch Party](../00_assets/diagrams/04_diagramas/secuencia/s_descarga.drawio.png)
+
+
+### Secuencia Watch Party — Fase 3
+
+![Secuencia Watch Party](../00_assets/diagrams/04_diagramas/secuencia/s_watch.drawio.png)
