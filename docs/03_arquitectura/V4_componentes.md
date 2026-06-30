@@ -1,3 +1,5 @@
+[← Regresar](../../README.md)
+
 ## V4 — Vista de Componentes
 
 ![alt text](../00_assets/diagrams/04_diagramas/componentes4+1.jpg)

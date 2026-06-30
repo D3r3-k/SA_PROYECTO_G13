@@ -1,3 +1,5 @@
+[← Regresar](../../README.md)
+
 ## Vista de Escenarios (V1)
 
 La vista de escenarios es el eje central del modelo 4+1. Define los casos de uso

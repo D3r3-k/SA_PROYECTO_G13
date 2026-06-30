@@ -1,3 +1,5 @@
+[← Regresar](../../README.md)
+
 # Arquitectura general
 
 ## Diagrama
