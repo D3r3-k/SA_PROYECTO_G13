@@ -595,7 +595,7 @@ jobs:
             -e "s|__INGRESS_IP__|${INGRESS_IP}|g" \
             deploy/release/k8s/tls/certificate.yml > runtime-k8s/certificate.yml
           sed \
-            -e "s|__TLS_SECRET_NAME__|quetxal-tv-tls|g" \
+            -e "s|__TLS_SECRET_NAME__|quetxal-tv-tls-production|g" \
             deploy/release/k8s/ingress.yml > runtime-k8s/ingress.yml
 
 

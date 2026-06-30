@@ -5,6 +5,7 @@ import grpc
 
 import subscription_pb2
 import subscription_pb2_grpc
+from src.audit_logger import push_audit_log
 
 from src.db import get_connection
 from src.notification_publisher import publish_notification_event
@@ -204,6 +205,7 @@ class SubscriptionServiceServicer(subscription_pb2_grpc.SubscriptionServiceServi
                     "could not publish subscription creation notification",
                     exc_info=True
                 )
+            push_audit_log("subscription-service", "create_subscription", request.user_id, {"plan_id": request.plan_id})
 
             return subscription_pb2.SubscriptionResponse(
                 success=True,
