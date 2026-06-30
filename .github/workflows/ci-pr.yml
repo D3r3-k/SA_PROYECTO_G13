@@ -2,7 +2,7 @@ name: CI selectivo por label
 
 on:
   pull_request:
-    types: [labeled, unlabeled, synchronize, reopened]
+    types: [opened, synchronize, reopened]
     branches:
       - develop
       - 'release/**'
@@ -32,11 +32,6 @@ env:
 jobs:
   detect-changes:
     name: Detectar componentes modificados
-    if: >-
-      (github.base_ref == 'develop' &&
-       contains(github.event.pull_request.labels.*.name, 'deploy:develop')) ||
-      ((startsWith(github.base_ref, 'release/') || startsWith(github.base_ref, 'test/')) &&
-       contains(github.event.pull_request.labels.*.name, 'deploy:release'))
     runs-on: ubuntu-latest
     outputs:
       payment_gateway: ${{ steps.changes.outputs.payment_gateway }}
