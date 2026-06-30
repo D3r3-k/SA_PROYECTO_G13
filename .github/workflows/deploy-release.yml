@@ -60,7 +60,7 @@ jobs:
       - name: Instalar dependencias de prueba
         run: |
           pip install --upgrade pip
-          pip install pytest pytest-asyncio>=0.21 pytest-cov grpcio python-dotenv
+          pip install pytest pytest-asyncio>=0.21 pytest-cov grpcio python-dotenv "redis>=5.0.0"
       - name: Ejecutar pruebas
         run: pytest tests/ --cov=src --cov-report=term-missing --cov-report=xml --cov-fail-under=75 -v
       - uses: actions/upload-artifact@v4
@@ -114,7 +114,7 @@ jobs:
       - name: Instalar dependencias de prueba
         run: |
           pip install --upgrade pip
-          pip install pytest pytest-asyncio>=0.21 pytest-cov grpcio psycopg2-binary python-dotenv protobuf
+          pip install pytest pytest-asyncio>=0.21 pytest-cov grpcio psycopg2-binary python-dotenv protobuf "redis>=5.0.0"
       - name: Ejecutar pruebas
         run: pytest tests/ --cov=src --cov-report=term-missing --cov-report=xml --cov-fail-under=75 -v
       - uses: actions/upload-artifact@v4
@@ -595,7 +595,7 @@ jobs:
             -e "s|__INGRESS_IP__|${INGRESS_IP}|g" \
             deploy/release/k8s/tls/certificate.yml > runtime-k8s/certificate.yml
           sed \
-            -e "s|__TLS_SECRET_NAME__|quetxal-tv-tls|g" \
+            -e "s|__TLS_SECRET_NAME__|quetxal-tv-tls-production|g" \
             deploy/release/k8s/ingress.yml > runtime-k8s/ingress.yml
 
 
