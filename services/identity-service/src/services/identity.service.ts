@@ -24,6 +24,7 @@ import {
 
 import { publishNotificationEvent } from "../events/notification.publisher";
 import { env } from "../config/env";
+import { logAudit } from "../auditLogger";
 
 import {
   createProfile,
@@ -182,6 +183,8 @@ export const identityService = {
       await ensureAdminRoleForEmail(userId, email, env.adminEmails);
       const authz = await getUserAuthorization(userId);
 
+      logAudit("register_user", userId, { email, full_name: fullName });
+
       try {
         await publishNotificationEvent({
           type: "registration",
@@ -259,6 +262,8 @@ export const identityService = {
       const authz = await getUserAuthorization(user.id);
 
       await updateLastLogin(user.id);
+      
+      logAudit("login", user.id, { email });
 
       const token = signIdentityToken({
         user_id: user.id,
@@ -707,6 +712,8 @@ export const identityService = {
         userId,
         passwordHash: newPasswordHash
       });
+
+      logAudit("update_credentials", userId, { success: true });
 
       return callback(null, {
         success: true,
