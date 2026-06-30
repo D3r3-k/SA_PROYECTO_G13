@@ -33,6 +33,7 @@ services:
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
       INACTIVE_THRESHOLD_INTERVAL: "5 minutes"
+      LOCUST_USERS_CSV_B64: ${LOCUST_USERS_CSV_B64:-}
     networks:
       - sa_net
 

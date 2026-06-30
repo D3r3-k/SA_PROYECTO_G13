@@ -542,6 +542,12 @@ jobs:
           GATEWAY_PRIVATE_IP="$(gcloud compute instances describe "${VM_GATEWAY_NAME}" --zone="${GCP_ZONE}" --format='value(networkInterfaces[0].networkIP)')"
           FRONTEND_PUBLIC_IP="$(gcloud compute instances describe "${VM_FRONTEND_NAME}" --zone="${GCP_ZONE}" --format='value(networkInterfaces[0].accessConfigs[0].natIP)')"
 
+          cat > runtime-envs/locust-users.csv <<'EOF_LOCUST_USERS'
+          ${{ secrets.LOCUST_USERS_CSV }}
+          EOF_LOCUST_USERS
+          sed -i 's/^          //' runtime-envs/locust-users.csv
+          LOCUST_USERS_CSV_B64="$(base64 -w 0 runtime-envs/locust-users.csv)"
+
           cat > runtime-envs/services.env <<EOF
           NODE_ENV=production
           RUN_MIGRATIONS=false
@@ -557,6 +563,7 @@ jobs:
           ENGAGEMENT_GRPC_PORT=50056
           PAYMENT_GRPC_PORT=50057
           ADMIN_EMAILS=${{ vars.ADMIN_EMAILS }}
+          LOCUST_USERS_CSV_B64=${LOCUST_USERS_CSV_B64}
 
           IDENTITY_DB_HOST=${CLOUD_SQL_PRIVATE_IP}
           IDENTITY_DB_PORT=5432
