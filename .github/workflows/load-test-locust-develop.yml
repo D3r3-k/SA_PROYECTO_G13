@@ -161,8 +161,10 @@ jobs:
           LOCUST_ADMIN_PASSWORD=${LOCUST_ADMIN_PASSWORD:-}
           EOF
 
-          # Quitar espacios de indentacion del heredoc para que docker --env-file lo lea correctamente.
           sed -i 's/^          //' runtime-locust/locust.env
+
+          echo "Runtime files created:"
+          ls -la runtime-locust
 
       - name: Run Locust from develop Compute Engine VM
         id: locust_run
@@ -178,32 +180,48 @@ jobs:
           echo "runner_vm=${RUNNER_VM}" >> "$GITHUB_OUTPUT"
           echo "remote_dir=${REMOTE_DIR}" >> "$GITHUB_OUTPUT"
 
-          gcloud compute ssh "${RUNNER_VM}" \
-          --zone="${GCP_ZONE}" \
-          --tunnel-through-iap \
-          --command="sudo rm -rf '${REMOTE_DIR}' && sudo mkdir -p '${REMOTE_DIR}/reports' && sudo chmod -R 777 '${REMOTE_DIR}'"
-
-          gcloud compute scp runtime-locust/users.csv "${RUNNER_VM}:${REMOTE_DIR}/users.csv" \
-            --zone="${GCP_ZONE}" \
-            --tunnel-through-iap
-
+          echo "Preparing remote directory: ${REMOTE_DIR}"
           gcloud compute ssh "${RUNNER_VM}" \
             --zone="${GCP_ZONE}" \
             --tunnel-through-iap \
-            --command="sudo chmod -R 777 '${REMOTE_DIR}'"
+            --quiet \
+            --command="sudo rm -rf '${REMOTE_DIR}' && sudo mkdir -p '${REMOTE_DIR}/reports' && sudo chmod -R 777 '${REMOTE_DIR}'"
+
+          echo "Copying locust.env to VM"
+          gcloud compute scp runtime-locust/locust.env "${RUNNER_VM}:${REMOTE_DIR}/locust.env" \
+            --zone="${GCP_ZONE}" \
+            --tunnel-through-iap \
+            --quiet
+
+          echo "Copying users.csv to VM"
+          gcloud compute scp runtime-locust/users.csv "${RUNNER_VM}:${REMOTE_DIR}/users.csv" \
+            --zone="${GCP_ZONE}" \
+            --tunnel-through-iap \
+            --quiet
+
+          echo "Validating remote runtime files"
+          gcloud compute ssh "${RUNNER_VM}" \
+            --zone="${GCP_ZONE}" \
+            --tunnel-through-iap \
+            --quiet \
+            --command="sudo chmod -R 777 '${REMOTE_DIR}' && ls -la '${REMOTE_DIR}' && test -f '${REMOTE_DIR}/locust.env' && test -f '${REMOTE_DIR}/users.csv'"
 
           set +e
           gcloud compute ssh "${RUNNER_VM}" \
             --zone="${GCP_ZONE}" \
             --tunnel-through-iap \
-            --command="cd '${REMOTE_DIR}' && echo '${GHCR_TOKEN}' | sudo docker login ghcr.io -u '${GHCR_USERNAME}' --password-stdin && sudo docker pull '${IMAGE}' && sudo docker run --rm --name 'locust-develop-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}' --env-file '${REMOTE_DIR}/locust.env' -v '${REMOTE_DIR}/reports:/reports' -v '${REMOTE_DIR}/users.csv:/runtime/users.csv:ro' --entrypoint sh '${IMAGE}' -c 'locust -f /mnt/locust/locustfile.py --host=\"\$LOCUST_HOST\" --headless -u \"\${LOCUST_USERS:-20}\" -r \"\${LOCUST_SPAWN_RATE:-2}\" --run-time \"\${LOCUST_RUN_TIME:-3m}\" --html /reports/locust-report.html --csv /reports/locust --exit-code-on-error 1'" \
+            --quiet \
+            --command="cd '${REMOTE_DIR}' && echo '${GHCR_TOKEN}' | sudo docker login ghcr.io -u '${GHCR_USERNAME}' --password-stdin && sudo docker pull '${IMAGE}' && sudo docker run --rm --user 0:0 --name 'locust-develop-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}' --env-file '${REMOTE_DIR}/locust.env' -v '${REMOTE_DIR}/reports:/reports' -v '${REMOTE_DIR}/users.csv:/runtime/users.csv:ro' --entrypoint sh '${IMAGE}' -c 'locust -f /mnt/locust/locustfile.py --host=\"\$LOCUST_HOST\" --headless -u \"\${LOCUST_USERS:-20}\" -r \"\${LOCUST_SPAWN_RATE:-2}\" --run-time \"\${LOCUST_RUN_TIME:-3m}\" --html /reports/locust-report.html --csv /reports/locust --exit-code-on-error 1'" \
             2>&1 | tee reports/locust/locust-develop-run.log
           RUN_STATUS=${PIPESTATUS[0]}
           set -e
 
+          echo "Copying Locust reports from VM"
+          mkdir -p reports/locust/develop
           gcloud compute scp --recurse "${RUNNER_VM}:${REMOTE_DIR}/reports" reports/locust/develop \
             --zone="${GCP_ZONE}" \
-            --tunnel-through-iap || true
+            --tunnel-through-iap \
+            --quiet || true
 
           if [ "${RUN_STATUS}" != "0" ]; then
             echo "La prueba Locust develop no finalizo correctamente. Revisar reports/locust/locust-develop-run.log" >&2
@@ -215,12 +233,15 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+
           RUNNER_VM="${VM_LOCUST_RUNNER_NAME:-${VM_GATEWAY_NAME}}"
           REMOTE_DIR="/tmp/quetxal-locust-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+
           gcloud compute ssh "${RUNNER_VM}" \
             --zone="${GCP_ZONE}" \
             --tunnel-through-iap \
-            --command="rm -rf '${REMOTE_DIR}'" || true
+            --quiet \
+            --command="sudo rm -rf '${REMOTE_DIR}'" || true
 
       - name: Upload Locust develop report
         uses: actions/upload-artifact@v4
