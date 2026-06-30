@@ -590,9 +590,13 @@ jobs:
           echo "TLS_SECRET_NAME=quetxal-tv-tls" >> "${GITHUB_ENV}"
 
           mkdir -p runtime-k8s
-          cp deploy/release/k8s/tls/cluster-issuers.yml runtime-k8s/cluster-issuers.yml
+          sed \
+            -e "s|__ACME_EMAIL__|${ACME_EMAIL}|g" \
+            deploy/release/k8s/tls/cluster-issuers.yml > runtime-k8s/cluster-issuers.yml
+          
           sed \
             -e "s|__INGRESS_IP__|${INGRESS_IP}|g" \
+            -e "s|__ACME_ENVIRONMENT__|${ACME_ENVIRONMENT}|g" \
             deploy/release/k8s/tls/certificate.yml > runtime-k8s/certificate.yml
           sed \
             -e "s|__TLS_SECRET_NAME__|quetxal-tv-tls-production|g" \
@@ -724,6 +728,7 @@ jobs:
           kubectl apply -f deploy/release/k8s/services/
           kubectl apply -f deploy/release/k8s/deployments/
           kubectl apply -f deploy/release/k8s/cronjobs/
+          kubectl apply -f deploy/release/k8s/observability/
 
           if ! kubectl get ingress quetxal-tv-ingress --namespace="${GKE_NAMESPACE}" >/dev/null 2>&1; then
             kubectl apply -f deploy/release/k8s/ingress-bootstrap.yml
