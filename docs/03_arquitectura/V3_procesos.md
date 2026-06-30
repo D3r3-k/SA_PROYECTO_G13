@@ -75,8 +75,8 @@ el algoritmo de recomendaciones por filtrado de contenido (CBF).
 | WebSocket (ws://) | Bidireccional / Persistente | Cliente Web ↔ API Gateway (`rooms.ts`) — canal de sincronización Watch Party |
 | gRPC (HTTP/2) — recommendation | Síncrono | API Gateway → recommendation-service (`GetRecommendations`) |
 | Kubernetes CronJob → GKE | Asíncrono programado | K8s Scheduler → CronJob Pod → `identity_db` |
-| Filebeat → Logstash → Elasticsearch | Asíncrono | Pods GKE → ELK Stack (logs de todos los servicios) |
-| Prometheus Pull → Node/Kube Exporters | Asíncrono periódico | Prometheus → endpoints `/metrics` de exporters (métricas de nodos y Pods) |
+| audit_logger → Redis → Logstash → Elasticsearch | Asíncrono | Microservicios publican eventos en `log_audit_queue` → ELK Stack en VM externa (`prod-elk-server`) |
+| Prometheus Pull → cAdvisor (GKE nativo) | Asíncrono periódico | Prometheus → cAdvisor en nodos GKE (CPU, RAM, red por Pod) |
 
 ---
 
@@ -224,6 +224,6 @@ expresión cron configurada en `k8s/cronjobs/purge-inactive-users.yml`.
 | 4 | CronJob Pod | Excluye cuentas con suscripción activa |
 | 5 | `identity_db` | Ejecuta `sp_purge_inactive_users`: soft delete (`deleted_at = NOW()`, `status = 'purged'`) |
 | 6 | `trg_audit_account_purge` | Registra automáticamente cada cuenta purgada en la tabla de auditoría |
-| 7 | CronJob Pod | Escribe resultado en stdout (capturado por Filebeat → ELK) |
+| 7 | CronJob Pod | Publica evento de resultado en `log_audit_queue` (Redis) → procesado por ELK externo |
 | 8 | Kubernetes | Destruye el Pod efímero al terminar |
 | 9 (error) | Kubernetes | Si falla: reintento hasta `backoffLimit: 3`; tras agotar reintentos, alerta en Prometheus |

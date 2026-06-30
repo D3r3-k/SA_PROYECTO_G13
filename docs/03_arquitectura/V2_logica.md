@@ -92,26 +92,27 @@ El proceso de depuración de cuentas se ejecuta como un **Kubernetes CronJob** (
 
 ### Capa de Observabilidad — Fase 3
 
-La plataforma incorpora en Fase 3 una capa transversal de observabilidad desplegada en el namespace `observability` de GKE. No pertenece a ningún microservicio de negocio; actúa como infraestructura de soporte que recolecta, procesa y visualiza tanto logs como métricas de todos los componentes.
+La plataforma incorpora en Fase 3 dos stacks de observabilidad con responsabilidades distintas: **Prometheus + Grafana** dentro del clúster para métricas, y **ELK** en una VM externa para logs de auditoría.
 
-#### Stack ELK — Logs
+#### Stack ELK — Logs de Auditoría (VM externa `prod-elk-server`)
 
-| Componente | Rol | Módulo clave |
-| :--------- | :-- | :----------- |
-| **Filebeat** | Agente recolector (DaemonSet en cada nodo GKE) | Lee `/var/log/containers/*.log` (stdout/stderr de todos los Pods) y los envía al puerto 5044 de Logstash |
-| **Logstash** | Pipeline de procesamiento | Filtra, transforma y enruta logs; consume eventos de Cloud Pub/Sub para logs de servicios administrados (Cloud SQL, Memorystore) via plugin `logstash-input-google_pubsub` |
-| **Elasticsearch** | Motor de almacenamiento e indexación | Almacena todos los logs indexados para búsqueda y análisis |
-| **Kibana** | Interfaz de visualización | Dashboards para explorar logs transaccionales y de auditoría del sistema |
+El stack ELK no corre dentro de GKE. Vive en una VM externa aprovisionada con Terraform y desplegada con Ansible + Docker Compose. Los microservicios generan eventos de auditoría mediante un módulo `audit_logger` y los publican en la cola Redis `log_audit_queue`, que actúa como message broker.
 
-#### Stack Prometheus + Grafana — Métricas
+| Componente | Rol | Detalle |
+| :--------- | :-- | :------- |
+| **`audit_logger`** | Módulo transversal en cada microservicio | Publica eventos de auditoría JSON en `log_audit_queue` vía Redis |
+| **Logstash** | Pipeline de procesamiento (Docker) | Lee continuamente `log_audit_queue`, parsea los mensajes JSON y los entrega a Elasticsearch |
+| **Elasticsearch** | Motor de almacenamiento e indexación (Docker) | Indexa los eventos bajo el patrón `audit-logs-*`; expone búsqueda full-text |
+| **Kibana** | Interfaz de visualización (Docker) | Dashboards en `:5601` para explorar y filtrar logs de auditoría en tiempo real |
+
+#### Stack Prometheus + Grafana — Métricas (namespace `quetxal-tv-prod`)
+
+Prometheus y Grafana corren como Pods dentro del mismo namespace `quetxal-tv-prod`. Prometheus recolecta métricas mediante scraping activo (modelo pull) sobre **cAdvisor**, que es nativo en GKE y no requiere agentes adicionales.
 
 | Componente | Rol | Detalle |
 | :--------- | :-- | :------ |
-| **Prometheus** | Motor de scraping y almacenamiento de métricas | Modelo Pull — consulta el endpoint `/metrics` de cada exporter periódicamente |
-| **Node Exporter** | Métricas de nodos GKE | CPU, RAM, disco y red de las máquinas del clúster |
-| **Kube-State-Metrics** | Métricas de Kubernetes | Estado de Pods, Deployments, ReplicaSets, CronJobs |
-| **Stackdriver Exporter** | Métricas de servicios administrados GCP | Traduce métricas de Cloud SQL y Memorystore (Redis) al formato Prometheus; requiere permiso IAM `roles/monitoring.viewer` en el nodo |
-| **Grafana** | Dashboards interactivos | Lee series temporales de Prometheus y visualiza telemetría en tiempo real de toda la plataforma |
+| **Prometheus** | Motor de scraping y almacenamiento de métricas | Tarea `kubernetes-cadvisor`: scrape de CPU/RAM/red por Pod vía cAdvisor nativo de GKE |
+| **Grafana** | Dashboards interactivos | Lee de Prometheus en `http://prometheus-service:9090`; dashboard importado desde `grafana-dashboard-general.json` |
 
 ---
 
