@@ -1,3 +1,5 @@
+[← Regresar](../README.md)
+
 # Documentación técnica - API Gateway, autenticación y perfiles
 
 ## Índice

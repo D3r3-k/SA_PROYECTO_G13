@@ -160,12 +160,25 @@ export type InactiveUserRecord = {
   last_login_at: Date | null;
 };
 
-export async function listInactiveUsers(thresholdInterval: string): Promise<InactiveUserRecord[]> {
+export async function listInactiveUsers(
+  thresholdInterval: string,
+  excludedEmails: string[] = []
+): Promise<InactiveUserRecord[]> {
   const result = await pool.query<InactiveUserRecord>(
     `
+    WITH protected_emails AS (
+      SELECT LOWER(TRIM(email)) AS email
+      FROM UNNEST($2::text[]) AS email
+      WHERE TRIM(email) <> ''
+    )
     SELECT u.id::text, u.email, u.last_login_at
     FROM users u
     WHERE u.deleted_at IS NULL
+      AND NOT EXISTS (
+          SELECT 1
+          FROM protected_emails pe
+          WHERE pe.email = LOWER(TRIM(u.email))
+      )
       AND u.id NOT IN (
           SELECT ur.user_id
           FROM user_roles ur
@@ -178,17 +191,39 @@ export async function listInactiveUsers(thresholdInterval: string): Promise<Inac
           (u.last_login_at IS NOT NULL AND u.last_login_at < NOW() - $1::INTERVAL)
       )
     `,
-    [thresholdInterval]
+    [thresholdInterval, excludedEmails]
   );
   return result.rows;
 }
 
-export async function purgeInactiveUsers(thresholdInterval: string): Promise<number> {
+export async function purgeInactiveUsers(
+  thresholdInterval: string,
+  excludedEmails: string[] = []
+): Promise<number> {
   const result = await pool.query<{ fn_purge_inactive_users: number }>(
-    `SELECT fn_purge_inactive_users($1::text)`,
-    [thresholdInterval]
+    `SELECT fn_purge_inactive_users($1::text, $2::text[])`,
+    [thresholdInterval, excludedEmails]
   );
   return result.rows[0].fn_purge_inactive_users;
+}
+
+export async function restoreLoadTestUser(params: {
+  email: string;
+  passwordHash?: string;
+}): Promise<boolean> {
+  const result = await pool.query<{ id: string; email: string }>(
+    `
+    UPDATE users
+    SET deleted_at = NULL,
+        password_hash = COALESCE($2::text, password_hash),
+        updated_at = CURRENT_TIMESTAMP
+    WHERE email = LOWER(TRIM($1::varchar))
+    RETURNING id::text, email
+    `,
+    [params.email, params.passwordHash || null]
+  );
+
+  return (result.rowCount || 0) > 0;
 }
 
 export async function listAuditLogs(params: {

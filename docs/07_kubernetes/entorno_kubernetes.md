@@ -1,3 +1,5 @@
+[← Regresar](../../README.md)
+
 [Regresar](../../README.md)
 
 # Documentación del Entorno de Kubernetes
@@ -342,5 +344,164 @@ livenessProbe:
 | `catalog-service` | TCP Socket | TCP Socket | 50055 |
 | `engagement-service` | TCP Socket | TCP Socket | 50056 |
 | `payment-gateway-service` | TCP Socket | TCP Socket | 50057 |
+
+---
+
+## 6. CronJobs de Mantenimiento
+
+### Qué es un CronJob en Kubernetes
+
+Un `CronJob` es un objeto de Kubernetes que ejecuta Jobs de forma periódica según una expresión cron estándar de Linux. A diferencia de un `Deployment` (proceso continuo), un CronJob lanza un Pod que hace su trabajo y termina. Kubernetes se encarga de crearlo en el momento programado, de reiniciarlo si falla y de limpiar el historial de ejecuciones antiguas.
+
+Casos de uso típicos: limpieza de datos, backups, generación de reportes, auditoría de base de datos.
+
+---
+
+### 6.1 CronJob: `purge-inactive-users`
+
+#### Propósito
+
+Auditar periódicamente la base de datos del `identity-service` y eliminar lógicamente (soft delete) las cuentas de usuarios que hayan permanecido inactivas más de un tiempo configurable. El proceso registra en los logs cada cuenta afectada antes de proceder a la purga, dejando trazabilidad completa de la ejecución.
+
+#### Criterio de inactividad
+
+Un usuario se considera inactivo si cumple **alguna** de estas condiciones:
+
+- Nunca inició sesión (`last_login_at IS NULL`) y su cuenta fue creada hace más de `INACTIVE_THRESHOLD_INTERVAL`.
+- Inició sesión alguna vez, pero su último login fue hace más de `INACTIVE_THRESHOLD_INTERVAL`.
+
+#### Exclusión de administradores
+
+Los usuarios con rol `admin` en la tabla `user_roles` quedan **excluidos** explícitamente del proceso. Esto garantiza que ninguna cuenta administrativa sea eliminada accidentalmente por el job, independientemente de su actividad.
+
+#### Eliminación lógica (soft delete)
+
+El proceso no elimina físicamente los registros de la base de datos. En su lugar actualiza el campo `deleted_at = CURRENT_TIMESTAMP` en la tabla `users`. Los procedimientos de autenticación (`sp_find_user_by_email`, `sp_find_user_by_id`) ya filtran `WHERE deleted_at IS NULL`, por lo que un usuario con `deleted_at` poblado no puede iniciar sesión.
+
+---
+
+#### Manifiesto YAML
+
+```yaml
+# deploy/release/k8s/cronjobs/purge-inactive-users.yml
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: purge-inactive-users
+  namespace: quetxal-tv-prod
+spec:
+  schedule: "*/2 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          restartPolicy: OnFailure
+          imagePullSecrets:
+            - name: ghcr-pull-secret
+          containers:
+            - name: purge-inactive-users
+              image: ghcr.io/d3r3-k/sa_proyecto_g13/identity-service:latest
+              command: ["node", "dist/jobs/purge-inactive-users.js"]
+              env:
+                - name: INACTIVE_THRESHOLD_INTERVAL
+                  value: "5 minutes"
+              envFrom:
+                - configMapRef:
+                    name: app-config
+                - secretRef:
+                    name: app-secrets
+                - secretRef:
+                    name: connection-secrets
+              resources:
+                requests:
+                  cpu: "50m"
+                  memory: "64Mi"
+                limits:
+                  cpu: "200m"
+                  memory: "128Mi"
+```
+
+---
+
+#### Parámetros del manifiesto
+
+| Campo | Valor | Descripción |
+| :---- | :---- | :---------- |
+| `schedule` | `*/2 * * * *` | Se ejecuta cada 2 minutos |
+| `concurrencyPolicy` | `Forbid` | Si una ejecución anterior aún está en curso, la siguiente se omite para evitar purgas concurrentes |
+| `restartPolicy` | `OnFailure` | Si el contenedor termina con código de error, Kubernetes lo reintenta |
+| `backoffLimit` | `2` | Máximo 2 reintentos antes de marcar el Job como fallido |
+| `successfulJobsHistoryLimit` | `3` | Conserva los logs de las últimas 3 ejecuciones exitosas |
+| `failedJobsHistoryLimit` | `3` | Conserva los logs de las últimas 3 ejecuciones fallidas |
+| `INACTIVE_THRESHOLD_INTERVAL` | `5 minutes` | Umbral de inactividad configurable como variable de entorno, pasado directamente a la función SQL via `::INTERVAL` cast |
+
+#### Justificación de `concurrencyPolicy: Forbid`
+
+Sin esta política, si una ejecución tardara más de 2 minutos (por ejemplo por lentitud de la BD), Kubernetes lanzaría una segunda instancia del Job simultáneamente. Dos procesos ejecutando `UPDATE ... SET deleted_at` sobre el mismo conjunto de filas generaría condiciones de carrera. `Forbid` garantiza que solo existe una instancia del job activa a la vez.
+
+#### Justificación de recursos reducidos
+
+El job no sirve tráfico HTTP ni gRPC: conecta a la BD, ejecuta una query y termina. No necesita las mismas reservas que un microservicio de larga duración. Con `50m` CPU y `64Mi` memoria el scheduler puede ubicarlo en cualquier nodo sin afectar los Pods de producción.
+
+---
+
+#### Flujo de ejecución
+
+```
+Kubernetes dispara el Job (cada 2 min)
+        │
+        ▼
+[CronJob] purge-inactive-users iniciando
+[CronJob] threshold de inactividad: 5 minutes
+[CronJob] timestamp: 2026-06-28T03:00:00.000Z
+        │
+        ▼
+SELECT usuarios inactivos (excluye admins)
+        │
+        ├── Sin inactivos → log "no se encontraron usuarios inactivos"
+        │
+        └── Con inactivos → log de cada usuario:
+                [CronJob]   → id=... email=... last_login_at=...
+        │
+        ▼
+UPDATE users SET deleted_at = NOW()
+WHERE criterio de inactividad AND NOT admin
+        │
+        ▼
+[CronJob] purge completado — N usuario(s) eliminado(s) lógicamente
+[CronJob] duración: Xms
+        │
+        ▼
+process.exit(0)  ← Pod termina limpiamente
+```
+
+#### Ejemplo de log real de ejecución exitosa
+
+```
+[CronJob] purge-inactive-users iniciando
+[CronJob] threshold de inactividad: 5 minutes
+[CronJob] timestamp: 2026-06-28T03:00:02.341Z
+[CronJob] usuarios inactivos encontrados: 2
+[CronJob]   → id=a1b2c3d4 email=test@example.com last_login_at=nunca
+[CronJob]   → id=e5f6g7h8 email=otro@example.com last_login_at=2026-06-28T02:54:00.000Z
+[CronJob] purge completado — 2 usuario(s) eliminado(s) lógicamente
+[CronJob] duración: 47ms
+```
+
+---
+
+#### Relación con el identity-service
+
+El CronJob **no es un microservicio nuevo**. Reutiliza la misma imagen Docker del `identity-service` (`ghcr.io/.../identity-service:latest`) y ejecuta un entrypoint alternativo: `node dist/jobs/purge-inactive-users.js` en lugar del servidor gRPC. Esto evita mantener una imagen separada y garantiza que el job siempre usa el mismo código de repositorio y las mismas migraciones de base de datos que el servicio principal.
+
+El job importa directamente las funciones del repositorio de `identity-service`:
+- `listInactiveUsers(threshold)` — SELECT de auditoría para logging
+- `purgeInactiveUsers(threshold)` — llama a `fn_purge_inactive_users(p_threshold_interval TEXT)` en PostgreSQL
+
+La función SQL `fn_purge_inactive_users` vive en `services/identity-service/migrations/05_procedures/004_fn_purge_inactive_users_v2.sql` y fue diseñada con `CREATE OR REPLACE FUNCTION` para ser idempotente en cada migración.
 
 ---

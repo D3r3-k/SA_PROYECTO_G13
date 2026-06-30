@@ -86,7 +86,7 @@ export default function ContentDetailPage() {
       const code = err?.response?.data?.code
       setError(code === 'ACTIVE_SUBSCRIPTION_REQUIRED'
         ? 'Necesitas una suscripción activa para reproducir contenido.'
-        : 'No se pudo cargar el contenido. El servicio puede no estar disponible.')
+        : 'No pudimos cargar este contenido en este momento.')
     } finally {
       setLoading(false)
     }
@@ -156,7 +156,7 @@ export default function ContentDetailPage() {
       console.error(`[ContentDetailPage.tsx] Error: ${err instanceof Error ? err.message : String(err)}`)
       const code = err?.response?.data?.code
       setDownloadError(code === 'STANDARD_PLAN_REQUIRED'
-        ? 'La descarga solo está disponible para Plan Estándar. Básico y Premium están bloqueados por la regla del proyecto.'
+        ? 'La descarga solo está disponible para Plan Estándar.'
         : code === 'PARENTAL_PIN_REQUIRED'
           ? 'Ingresa el PIN parental correcto antes de descargar.'
           : code === 'DOWNLOAD_MEDIA_NOT_AVAILABLE'
@@ -356,7 +356,7 @@ export default function ContentDetailPage() {
 
               {isSeries && selectedEpisode && <p className={styles.playerTitle}>T{selectedEpisode.season_number} E{selectedEpisode.episode_number} — {selectedEpisode.title}</p>}
 
-              {videoDuration !== null && <p className={styles.videoDuration}>Duración real: {formatVideoDuration(videoDuration)}</p>}
+              {videoDuration !== null && <p className={styles.videoDuration}>Duración: {formatVideoDuration(videoDuration)}</p>}
 
               {currentVideoUrl ? (
                 <div className={styles.videoWrapper}>

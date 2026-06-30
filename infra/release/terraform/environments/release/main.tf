@@ -166,10 +166,10 @@ module "gke" {
   services_range_name           = "prod-gke-services"
   services_range_cidr           = "10.20.0.0/20"
   master_ipv4_cidr_block        = "172.16.0.0/28"
-  node_machine_type             = "e2-small"
+  node_machine_type             = "e2-medium"
   initial_node_count            = 1
   min_node_count                = 1
-  max_node_count                = 3
+  max_node_count                = 4
   master_authorized_cidr_blocks = var.gke_master_authorized_cidr_blocks
 
   depends_on = [module.network]

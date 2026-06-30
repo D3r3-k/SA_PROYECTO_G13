@@ -1,3 +1,5 @@
+[← Regresar](../../README.md)
+
 # Requerimientos Funcionales
 
 ## 1. Introducción
@@ -246,7 +248,25 @@ Este documento especifica los requerimientos funcionales de **Quetxal TV**, una 
 
 ---
 
-## 16. Trazabilidad de Requerimientos
+## 16. RF-REC — Motor de Recomendaciones
+
+**Servicio responsable:** `recommendation-service` + `api-gateway` + `apps/web`  
+**Tecnología:** Python, gRPC, NumPy (Content-Based Filtering), React  
+**Contrato definido en:** `proto/recommendation.proto`
+
+| Código | Requerimiento Funcional | Criterio de Aceptación | Prioridad | Estado |
+|--------|------------------------|----------------------|-----------|--------|
+| RF-REC-01 | El sistema debe ofrecer recomendaciones personalizadas de contenido basadas en el historial de visualización y calificaciones del perfil activo. | `GET /api/recommendations` retorna al menos 1 ítem con `content_id`, `title` y `genres[]` cuando el perfil tiene historial. | Alta | Implementado |
+| RF-REC-02 | El motor de recomendación debe utilizar Content-Based Filtering (CBF) con similitud del coseno sobre vectores binarios de géneros. | La respuesta excluye contenidos ya vistos por el perfil. Los ítems retornados tienen similitud del coseno > 0 respecto al perfil del usuario. | Alta | Implementado |
+| RF-REC-03 | El sistema debe ponderar positivamente los contenidos calificados con THUMBS_UP y negativamente los calificados con THUMBS_DOWN al construir el perfil del usuario. | Un contenido con THUMBS_DOWN reduce la afinidad hacia sus géneros en el vector de perfil. Un contenido visto sin calificación se trata como señal positiva implícita (peso +1). | Alta | Implementado |
+| RF-REC-04 | El endpoint de recomendaciones debe requerir un perfil activo en sesión. | Sin `profile_id` en el JWT, `GET /api/recommendations` retorna HTTP 400. | Alta | Implementado |
+| RF-REC-05 | El endpoint debe permitir parametrizar el número máximo de recomendaciones retornadas. | El parámetro `limit` en `GET /api/recommendations?limit=N` acota el resultado. Si se omite, el valor por defecto es 10. | Media | Implementado |
+| RF-REC-06 | Si el servicio de recomendaciones no está disponible, el API Gateway debe retornar HTTP 503 sin afectar la disponibilidad de otras rutas. | Una caída del `recommendation-service` no produce errores en el catálogo, historial ni autenticación. | Alta | Implementado |
+| RF-REC-07 | El frontend debe mostrar una sección "Recomendados para ti" en la página de catálogo cuando existan recomendaciones disponibles para el perfil activo. | El componente `RecommendedRow` se renderiza entre el hero y los filtros del catálogo. Si el perfil no tiene historial o hay error de red, el componente retorna `null` sin mostrar sección vacía ni mensaje de error. | Alta | Implementado |
+
+---
+
+## 17. Trazabilidad de Requerimientos
 
 | Módulo | Códigos RF | Servicio Responsable |
 |--------|-----------|----------------------|
@@ -264,5 +284,6 @@ Este documento especifica los requerimientos funcionales de **Quetxal TV**, una 
 | Calificaciones | RF-RATE-01 al RF-RATE-04 | engagement-service (pendiente) |
 | Historial | RF-HIST-01 al RF-HIST-05 | engagement-service (pendiente) |
 | Objetos de BD | RF-DB-01 al RF-DB-10 | identity-service, subscription-service, catalog-service |
+| Motor de recomendaciones | RF-REC-01 al RF-REC-07 | recommendation-service, api-gateway, frontend |
 
 ---

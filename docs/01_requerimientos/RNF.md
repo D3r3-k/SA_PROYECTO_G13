@@ -1,3 +1,5 @@
+[← Regresar](../../README.md)
+
 # Requerimientos No Funcionales
 
 ## 1. Introducción
@@ -127,7 +129,17 @@ Este documento especifica los requerimientos no funcionales de **Quetxal TV**, d
 
 ---
 
-## 14. RNF de Documentación
+## 14. RNF de Motor de Recomendación
+
+| Código | Requerimiento No Funcional | Prioridad | Criterio de aceptación |
+|--------|---------------------------|:---------:|------------------------|
+| RNF-REC-01 | El algoritmo CBF debe completar el cómputo de recomendaciones en menos de 500 ms para catálogos de hasta 1 000 títulos. | Alta | Una solicitud `GetRecommendations` sobre un catálogo de 1 000 ítems y un historial de 50 contenidos retorna respuesta en menos de 500 ms, medidos desde la recepción del mensaje gRPC hasta el envío de la respuesta. |
+| RNF-REC-02 | El `recommendation-service` no debe tener base de datos propia; debe operar como servicio sin estado, computando las recomendaciones en memoria en cada solicitud. | Alta | No existe ningún servicio de PostgreSQL propio para `recommendation-service` en `docker-compose.yml`. Todo dato se obtiene leyendo `engagement_db` y `catalog_db` mediante conexiones directas por solicitud. |
+| RNF-REC-03 | El `recommendation-service` debe desplegarse de forma independiente y su indisponibilidad no debe propagarse a ningún otro microservicio. | Alta | Al detener el contenedor `recommendation-service`, el catálogo, el historial, la autenticación y la reproducción siguen funcionando. El API Gateway absorbe el fallo retornando HTTP 503 únicamente en `GET /api/recommendations`. |
+
+---
+
+## 15. RNF de Documentación
 
 | Código | Requerimiento No Funcional | Prioridad | Criterio de aceptación |
 |--------|---------------------------|:---------:|------------------------|

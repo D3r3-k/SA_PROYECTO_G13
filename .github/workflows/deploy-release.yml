@@ -60,7 +60,7 @@ jobs:
       - name: Instalar dependencias de prueba
         run: |
           pip install --upgrade pip
-          pip install pytest pytest-asyncio>=0.21 pytest-cov grpcio python-dotenv
+          pip install pytest pytest-asyncio>=0.21 pytest-cov grpcio python-dotenv "redis>=5.0.0"
       - name: Ejecutar pruebas
         run: pytest tests/ --cov=src --cov-report=term-missing --cov-report=xml --cov-fail-under=75 -v
       - uses: actions/upload-artifact@v4
@@ -114,7 +114,7 @@ jobs:
       - name: Instalar dependencias de prueba
         run: |
           pip install --upgrade pip
-          pip install pytest pytest-asyncio>=0.21 pytest-cov grpcio psycopg2-binary python-dotenv protobuf
+          pip install pytest pytest-asyncio>=0.21 pytest-cov grpcio psycopg2-binary python-dotenv protobuf "redis>=5.0.0"
       - name: Ejecutar pruebas
         run: pytest tests/ --cov=src --cov-report=term-missing --cov-report=xml --cov-fail-under=75 -v
       - uses: actions/upload-artifact@v4
@@ -415,7 +415,8 @@ jobs:
         id: docker_tags
         shell: bash
         run: |
-          TAGS="${{ env.IMAGE_NAMESPACE }}/${{ matrix.image }}:latest,${{ env.IMAGE_NAMESPACE }}/${{ matrix.image }}:${{ github.sha }}"
+          # Nunca usar latest; se usa sha del commit y semver si aplica
+          TAGS="${{ env.IMAGE_NAMESPACE }}/${{ matrix.image }}:${{ github.sha }}"
           if [[ "${{ github.ref_name }}" =~ ^release/(v[0-9]+\.[0-9]+\.[0-9]+)$ ]] || [[ "${{ github.ref_name }}" =~ ^test/(v[0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
             SEMANTIC_TAG="${BASH_REMATCH[1]}"
             TAGS="${TAGS},${{ env.IMAGE_NAMESPACE }}/${{ matrix.image }}:${SEMANTIC_TAG}"
@@ -510,8 +511,8 @@ jobs:
           kubectl exec db-migrator --namespace="${GKE_NAMESPACE}" -- \
             sh -c 'export PGPASSWORD='"${SUBSCRIPTION_DB_PASSWORD}"'; psql -h '"${CLOUD_SQL_PRIVATE_IP}"' -p 5432 -U subscription_user -d subscription_db -v ON_ERROR_STOP=1 -f /tmp/services/subscription-service/migrations/001_init.sql'
 
-  deploy-gke:
-    name: Deploy
+  deploy-application:
+    name: Deploy Application
     runs-on: ubuntu-latest
     environment: release
     needs: migrate-databases
@@ -594,7 +595,7 @@ jobs:
             -e "s|__INGRESS_IP__|${INGRESS_IP}|g" \
             deploy/release/k8s/tls/certificate.yml > runtime-k8s/certificate.yml
           sed \
-            -e "s|__TLS_SECRET_NAME__|quetxal-tv-tls|g" \
+            -e "s|__TLS_SECRET_NAME__|quetxal-tv-tls-production|g" \
             deploy/release/k8s/ingress.yml > runtime-k8s/ingress.yml
 
 
@@ -709,7 +710,7 @@ jobs:
       - name: Replace image tags in manifests
         shell: bash
         run: |
-          VERSION_TAG="latest"
+          VERSION_TAG="${{ github.sha }}"
           if [[ "${{ github.ref_name }}" =~ ^release/(v[0-9]+\.[0-9]+\.[0-9]+)$ ]] || [[ "${{ github.ref_name }}" =~ ^test/(v[0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
             VERSION_TAG="${BASH_REMATCH[1]}"
           fi
@@ -718,6 +719,7 @@ jobs:
 
       - name: Apply Kubernetes manifests
         run: |
+          set -euo pipefail
           kubectl apply -f deploy/release/k8s/backend-config.yml
           kubectl apply -f deploy/release/k8s/services/
           kubectl apply -f deploy/release/k8s/deployments/
@@ -746,17 +748,19 @@ jobs:
 
           for deployment in web api-gateway identity-service fx-service subscription-service notification-service catalog-service engagement-service recommendation-service payment-gateway-service
           do
-            if ! kubectl rollout status deployment/${deployment} -n "${GKE_NAMESPACE}" --timeout=180s; then
+            if ! kubectl rollout status deployment/${deployment} -n "${GKE_NAMESPACE}" --timeout=600s; then
               kubectl rollout undo deployment/${deployment} -n "${GKE_NAMESPACE}"
               exit 1
             fi
           done
 
-  validation:
-    name: Validación
+
+  validate-release:
+    name: Validacion
     runs-on: ubuntu-latest
     environment: release
-    needs: deploy-gke
+    needs:
+      - deploy-application
 
     steps:
       - name: Checkout repository

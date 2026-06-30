@@ -1,3 +1,5 @@
+[← Regresar](../../README.md)
+
 # Casos de Uso
 
 ## Core
@@ -424,3 +426,43 @@ Quetxal TV es una plataforma de streaming de video bajo demanda diseñada para u
 | **Flujo de Excepción** | Si el Liveness Probe de un pod retorna error de forma persistente, Kubernetes destruye el pod y aprovisiona una nueva instancia automáticamente. |
 | **Flujo de Excepción** | Si el Readiness Probe falla, Kubernetes no enruta tráfico hacia ese pod hasta que el probe retorne éxito, evitando que el API Gateway reciba errores. |
 | **Flujo de Excepción** | Queda estrictamente prohibido cualquier despliegue manual mediante CLI. Todo cambio estructural en el clúster debe realizarse exclusivamente a través del pipeline de CD. |
+
+### Recomendacion de contenido
+
+![alt text](recomendacionesCasoUso.jpg)
+
+
+| Campo | Detalle |
+| :------------ | :------------------------------------------------------------------------------------- |
+| **Nombre** | Motor de Recomendación |
+| **Actores** | Usuario, Sistema |
+| **Propósito** | Generar y presentar recomendaciones personalizadas de contenido al perfil activo, analizando su historial de visualización y calificaciones mediante Content-Based Filtering con similitud del coseno sobre vectores binarios de géneros. |
+| **Resumen** | El caso de uso inicia cuando el frontend solicita recomendaciones para el perfil activo. El API Gateway valida que exista un profile_id en el JWT de sesión y delega la solicitud al recommendation-service vía gRPC. El servicio consulta el catálogo completo desde catalog_db y el historial de visualización con calificaciones desde engagement_db. Construye el perfil de preferencias del usuario ponderando positivamente los contenidos vistos y calificados con THUMBS_UP, y negativamente los calificados con THUMBS_DOWN. Aplica similitud del coseno sobre vectores binarios de géneros para calcular la afinidad entre el perfil y cada contenido no visto. Retorna los K contenidos con mayor puntuación. El frontend renderiza la sección "Recomendados para ti" en el catálogo. Finaliza cuando el usuario visualiza las recomendaciones personalizadas. |
+
+#### Curso Normal de Eventos
+
+| # | Acción del Actor | Respuesta del Sistema |
+| :-- | :--------------- | :-------------------- |
+| 1 | El usuario accede al catálogo con un perfil activo en sesión. | El frontend ejecuta `GET /api/recommendations?limit=10` adjuntando la cookie de sesión. |
+| 2 | | El API Gateway valida el JWT y extrae el `profile_id` del perfil activo. |
+| 3 | | El API Gateway invoca `GetRecommendations(profile_id, limit)` en el `recommendation-service` vía gRPC. |
+| 4 | | El `recommendation-service` consulta `catalog_db` obteniendo todos los contenidos disponibles con sus géneros mediante `ARRAY_AGG`. |
+| 5 | | El `recommendation-service` consulta `engagement_db` obteniendo el historial de visualización del perfil con `LEFT JOIN` sobre la tabla de calificaciones. |
+| 6 | | El servicio enriquece cada registro del historial con los géneros obtenidos del catálogo (join en memoria por `content_id`). |
+| 7 | | El servicio construye el vocabulario de géneros, genera vectores binarios para cada contenido y calcula el perfil de preferencias del usuario ponderando THUMBS_UP como +1, THUMBS_DOWN como -1 y visto sin calificación como +1. |
+| 8 | | El servicio calcula la similitud del coseno entre el vector de perfil del usuario y cada contenido no visto del catálogo usando NumPy. |
+| 9 | | El servicio filtra los contenidos con puntuación mayor a cero, ordena por similitud descendente y retorna los K más relevantes. |
+| 10 | | El API Gateway serializa la respuesta y retorna HTTP 200 con la lista de `RecommendedContent[]`. |
+| 11 | | El frontend renderiza el componente `RecommendedRow` con la sección "Recomendados para ti" entre el hero y los filtros del catálogo. |
+
+#### Flujos Alternativos y de Excepción
+
+| Tipo | Descripción |
+| :--- | :---------- |
+| **Flujo Alternativo** | Si el perfil no tiene historial de visualización, el vector de perfil es cero y no se generan recomendaciones. El componente `RecommendedRow` retorna `null` sin mostrar sección vacía ni mensaje de error. |
+| **Flujo Alternativo** | Si el parámetro `limit` es omitido, el sistema aplica el valor por defecto de 10 recomendaciones. |
+| **Flujo Alternativo** | Si todos los contenidos del catálogo ya fueron vistos por el perfil, el servicio retorna lista vacía con `success=true`. |
+| **Flujo de Excepción** | Si el JWT no contiene `profile_id`, el API Gateway retorna HTTP 400 sin invocar el `recommendation-service`. |
+| **Flujo de Excepción** | Si la consulta a `catalog_db` falla, el servicio retorna `success=false` con mensaje "could not fetch catalog" sin consultar `engagement_db`. |
+| **Flujo de Excepción** | Si la consulta a `engagement_db` falla, el servicio retorna `success=false` con mensaje "could not fetch watch history". |
+| **Flujo de Excepción** | Si el `recommendation-service` no está disponible, el API Gateway absorbe el fallo retornando HTTP 503 únicamente en `GET /api/recommendations` sin afectar ninguna otra ruta del sistema. |

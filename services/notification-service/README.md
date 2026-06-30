@@ -1,3 +1,5 @@
+[← Regresar](../../README.md)
+
 # Servicio de Notificaciones
 
 Microservicio de notificaciones por correo. En el flujo productivo consume eventos desde Redis y envía correos mediante SMTP o Mailhog.

@@ -1,0 +1,55 @@
+# apiVersion: batch/v1
+# kind: Job
+# metadata:
+#   name: locust-light-load
+#   namespace: quetxal-tv-prod
+#   labels:
+#     app: locust-light-load
+#     component: testing
+# spec:
+#   backoffLimit: 0
+#   ttlSecondsAfterFinished: 3600
+#   template:
+#     metadata:
+#       labels:
+#         app: locust-light-load
+#         component: testing
+#     spec:
+#       restartPolicy: Never
+#       imagePullSecrets:
+#         - name: ghcr-pull-secret
+#       containers:
+#         - name: locust
+#           image: __LOCUST_IMAGE__
+#           imagePullPolicy: Always
+#           command: ["sh", "-c"]
+#           args:
+#             - >-
+#               mkdir -p /reports &&
+#               locust -f /mnt/locust/locustfile.py
+#               --host="${LOCUST_HOST}"
+#               --headless
+#               -u "${LOCUST_USERS:-20}"
+#               -r "${LOCUST_SPAWN_RATE:-2}"
+#               --run-time "${LOCUST_RUN_TIME:-3m}"
+#               --html /reports/locust-report.html
+#               --csv /reports/locust
+#               --exit-code-on-error 1
+#           envFrom:
+#             - configMapRef:
+#                 name: locust-load-config
+#             - secretRef:
+#                 name: locust-load-secrets
+#           volumeMounts:
+#             - name: locust-reports
+#               mountPath: /reports
+#           resources:
+#             requests:
+#               cpu: "250m"
+#               memory: "256Mi"
+#             limits:
+#               cpu: "1000m"
+#               memory: "1Gi"
+#       volumes:
+#         - name: locust-reports
+#           emptyDir: {}
