@@ -6,7 +6,7 @@ metadata:
 spec:
   secretName: quetxal-tv-tls
   issuerRef:
-    name: letsencrypt-__ACME_ENVIRONMENT__
+    name: selfsigned-issuer
     kind: ClusterIssuer
   ipAddresses:
     - __INGRESS_IP__
