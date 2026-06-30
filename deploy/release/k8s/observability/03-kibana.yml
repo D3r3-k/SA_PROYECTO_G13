@@ -1,0 +1,36 @@
+---
+apiVersion: kibana.k8s.elastic.co/v1
+kind: Kibana
+metadata:
+  name: quetxal
+  namespace: observability
+spec:
+  version: 9.4.2
+  count: 1
+  elasticsearchRef:
+    name: quetxal
+  http:
+    # ClusterIP — acceso via kubectl port-forward solamente
+    service:
+      spec:
+        type: ClusterIP
+    tls:
+      selfSignedCertificate:
+        disabled: true
+  podTemplate:
+    spec:
+      nodeSelector:
+        workload: observability
+      tolerations:
+        - key: workload
+          value: observability
+          effect: NoSchedule
+      containers:
+        - name: kibana
+          resources:
+            requests:
+              memory: 512Mi
+              cpu: "250m"
+            limits:
+              memory: 1Gi
+              cpu: "1"

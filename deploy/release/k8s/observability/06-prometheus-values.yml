@@ -1,0 +1,81 @@
+# kube-prometheus-stack 87.3.0
+# Valores para despliegue academico de observabilidad en GKE
+# Componentes centrales asignados al pool de observabilidad
+
+# ── Prometheus ──────────────────────────────────────────────────────────────
+prometheus:
+  prometheusSpec:
+    retention: 3d
+    nodeSelector:
+      workload: observability
+    tolerations:
+      - key: workload
+        value: observability
+        effect: NoSchedule
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: standard-rwo
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 10Gi
+    # Recolectar todos los ServiceMonitors del cluster
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+
+# ── Grafana ──────────────────────────────────────────────────────────────────
+grafana:
+  adminPassword: "${GRAFANA_ADMIN_PASSWORD}"
+  service:
+    type: ClusterIP
+  persistence:
+    enabled: true
+    storageClassName: standard-rwo
+    accessModes:
+      - ReadWriteOnce
+    size: 2Gi
+  nodeSelector:
+    workload: observability
+  tolerations:
+    - key: workload
+      value: observability
+      effect: NoSchedule
+  # Dashboards aprovisionados desde ConfigMaps en namespace observability
+  sidecar:
+    dashboards:
+      enabled: true
+      searchNamespace: observability
+
+# ── Alertmanager — deshabilitado ─────────────────────────────────────────────
+alertmanager:
+  enabled: false
+
+# ── node-exporter — todos los nodos ──────────────────────────────────────────
+prometheus-node-exporter:
+  tolerations:
+    - operator: Exists
+      effect: NoSchedule
+    - operator: Exists
+      effect: NoExecute
+
+# ── kube-state-metrics ────────────────────────────────────────────────────────
+kube-state-metrics:
+  enabled: true
+  nodeSelector:
+    workload: observability
+  tolerations:
+    - key: workload
+      value: observability
+      effect: NoSchedule
+
+# ── Prometheus operator ───────────────────────────────────────────────────────
+prometheusOperator:
+  nodeSelector:
+    workload: observability
+  tolerations:
+    - key: workload
+      value: observability
+      effect: NoSchedule
