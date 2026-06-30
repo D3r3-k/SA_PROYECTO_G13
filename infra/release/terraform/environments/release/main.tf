@@ -175,38 +175,6 @@ module "gke" {
   depends_on = [module.network]
 }
 
-resource "google_container_node_pool" "observability" {
-  project        = var.project_id
-  name           = "prod-observability-pool"
-  location       = var.region
-  cluster        = module.gke.cluster_name
-  node_locations = [var.zone]
-
-  node_count = 1
-
-  node_config {
-    machine_type = "e2-standard-4"
-    disk_size_gb = 50
-    disk_type    = "pd-standard"
-
-    oauth_scopes = [
-      "https://www.googleapis.com/auth/cloud-platform"
-    ]
-
-    labels = {
-      workload = "observability"
-    }
-
-    taint {
-      key    = "workload"
-      value  = "observability"
-      effect = "NO_SCHEDULE"
-    }
-  }
-
-  depends_on = [module.gke]
-}
-
 module "firewall" {
   source = "../../modules/firewall"
 
@@ -222,12 +190,3 @@ module "firewall" {
     }
   }
 }
-
-data "google_project" "project" {}
-
-resource "google_project_iam_member" "gke_monitoring_viewer" {
-  project = var.project_id
-  role    = "roles/monitoring.viewer"
-  member  = "serviceAccount:${data.google_project.project.number}-compute@developer.gserviceaccount.com"
-}
-

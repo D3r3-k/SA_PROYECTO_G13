@@ -53,7 +53,3 @@ output "media_service_account_email" {
   value       = module.service_accounts.media_service_account_email
 }
 
-output "observability_node_pool_name" {
-  description = "Nombre del node pool dedicado para observabilidad."
-  value       = google_container_node_pool.observability.name
-}
