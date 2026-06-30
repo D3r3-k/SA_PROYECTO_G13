@@ -1,6 +1,6 @@
 <mxfile host="app.diagrams.net">
   <diagram id="3VkK42SlKqcI_LbK1qAS" name="VistaFisicaGKE">
-    <mxGraphModel dx="2046" dy="1140" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2339" pageHeight="2200" math="0" shadow="0">
+    <mxGraphModel dx="2046" dy="1140" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2339" pageHeight="1800" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -14,10 +14,10 @@
           <mxGeometry height="55" width="240" x="880" y="135" as="geometry" />
         </mxCell>
         <mxCell id="n-gcp" parent="1" style="shape=cube;whiteSpace=wrap;html=1;size=20;direction=south;fillColor=#F5F5F5;strokeColor=#4285F4;fontStyle=0;fontSize=13;verticalAlign=top;align=center;spacingTop=5;strokeWidth=2;" value="&lt;div&gt;&lt;br&gt;&lt;/div&gt;&amp;lt;&amp;lt;cloud&amp;gt;&amp;gt;&lt;br&gt;&lt;b&gt;Google Cloud Platform (GCP)&lt;/b&gt;" vertex="1">
-          <mxGeometry height="1700" width="1960" x="60" y="290" as="geometry" />
+          <mxGeometry height="1390" width="1960" x="60" y="290" as="geometry" />
         </mxCell>
         <mxCell id="n-gke" parent="1" style="shape=cube;whiteSpace=wrap;html=1;size=18;direction=south;fillColor=#E3F2FD;strokeColor=#1565C0;fontStyle=0;fontSize=12;verticalAlign=top;align=center;spacingTop=5;strokeWidth=1;" value="&lt;div&gt;&lt;br&gt;&lt;/div&gt;&amp;lt;&amp;lt;execution environment&amp;gt;&amp;gt;&lt;br&gt;&lt;b&gt;GKE Cluster&lt;/b&gt;" vertex="1">
-          <mxGeometry height="1600" width="1450" x="90" y="360" as="geometry" />
+          <mxGeometry height="1060" width="1450" x="90" y="360" as="geometry" />
         </mxCell>
         <mxCell id="n-ns" parent="1" style="shape=cube;whiteSpace=wrap;html=1;size=15;direction=south;fillColor=#FFFFFF;strokeColor=#1976D2;fontStyle=0;fontSize=11;verticalAlign=top;align=center;spacingTop=5;dashed=1;dashPattern=8 8;" value="&lt;div&gt;&lt;br&gt;&lt;/div&gt;&amp;lt;&amp;lt;namespace&amp;gt;&amp;gt;&lt;br&gt;&lt;b&gt;quetxal-tv-prod&lt;/b&gt;" vertex="1">
           <mxGeometry height="960" width="1390" x="120" y="440" as="geometry" />
@@ -83,10 +83,10 @@
           <mxGeometry height="80" width="260" x="1630" y="1310" as="geometry" />
         </mxCell>
         <mxCell id="n-github" parent="1" style="shape=cube;whiteSpace=wrap;html=1;size=12;direction=south;fillColor=#F5F5F5;strokeColor=#424242;fontStyle=0;fontSize=10;verticalAlign=top;align=center;spacingTop=3;" value="&lt;div&gt;&lt;br&gt;&lt;/div&gt;&amp;lt;&amp;lt;external system&amp;gt;&amp;gt;&lt;br&gt;&lt;b&gt;GitHub Actions&lt;/b&gt;&lt;br&gt;CI/CD Pipeline" vertex="1">
-          <mxGeometry height="80" width="300" x="260" y="2030" as="geometry" />
+          <mxGeometry height="80" width="300" x="260" y="1490" as="geometry" />
         </mxCell>
         <mxCell id="n-ghcr" parent="1" style="shape=cube;whiteSpace=wrap;html=1;size=12;direction=south;fillColor=#F5F5F5;strokeColor=#424242;fontStyle=0;fontSize=10;verticalAlign=top;align=center;spacingTop=3;" value="&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&amp;lt;&amp;lt;image registry&amp;gt;&amp;gt;&lt;br&gt;&lt;b&gt;GHCR&lt;/b&gt;" vertex="1">
-          <mxGeometry height="80" width="330" x="650" y="2030" as="geometry" />
+          <mxGeometry height="80" width="330" x="650" y="1490" as="geometry" />
         </mxCell>
         <mxCell id="e-client-ingress" edge="1" parent="1" source="n-client" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#333333;" target="n-ingress">
           <mxGeometry relative="1" as="geometry">
@@ -280,40 +280,46 @@
         <mxCell id="n-cronjob" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#E8EAF6;strokeColor=#283593;verticalAlign=middle;align=center;fontSize=10;fontStyle=0;dashed=1;dashPattern=5 5;" value="&amp;lt;&amp;lt;CronJob&amp;gt;&amp;gt;&lt;br&gt;&lt;b&gt;purge-inactive-users&lt;/b&gt;&lt;br&gt;Pod efímero · backoffLimit=3" vertex="1">
           <mxGeometry height="65" width="250" x="430" y="920" as="geometry" />
         </mxCell>
-        <!-- ===== FASE 3: Namespace observability ===== -->
-        <mxCell id="n-obs" parent="1" style="shape=cube;whiteSpace=wrap;html=1;size=15;direction=south;fillColor=#FFF8E1;strokeColor=#E65100;fontStyle=0;fontSize=11;verticalAlign=top;align=center;spacingTop=5;dashed=1;dashPattern=8 8;strokeWidth=1;" value="&lt;div&gt;&lt;br&gt;&lt;/div&gt;&amp;lt;&amp;lt;namespace&amp;gt;&amp;gt;&lt;br&gt;&lt;b&gt;observability&lt;/b&gt;" vertex="1">
-          <mxGeometry height="500" width="1390" x="120" y="1430" as="geometry" />
+        <!-- ===== FASE 3: Prometheus + Grafana en quetxal-tv-prod ===== -->
+        <mxCell id="n-prometheus" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#FCE4EC;strokeColor=#C62828;verticalAlign=middle;align=center;fontSize=10;fontStyle=0;" value="&amp;lt;&amp;lt;Pod&amp;gt;&amp;gt;&lt;br&gt;&lt;b&gt;Prometheus&lt;/b&gt;&lt;br&gt;v2.45.0 &amp;middot; :9090&lt;br&gt;scrape cAdvisor + pods" vertex="1">
+          <mxGeometry height="65" width="220" x="160" y="1030" as="geometry" />
         </mxCell>
-        <!-- ELK Stack -->
-        <mxCell id="n-filebeat" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#FFF9C4;strokeColor=#F9A825;verticalAlign=middle;align=center;fontSize=10;fontStyle=0;" value="&amp;lt;&amp;lt;DaemonSet&amp;gt;&amp;gt;&lt;br&gt;&lt;b&gt;Filebeat&lt;/b&gt;&lt;br&gt;Lee logs de contenedores" vertex="1">
-          <mxGeometry height="65" width="220" x="140" y="1510" as="geometry" />
+        <mxCell id="n-grafana" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#FCE4EC;strokeColor=#C62828;verticalAlign=middle;align=center;fontSize=10;fontStyle=0;" value="&amp;lt;&amp;lt;Pod&amp;gt;&amp;gt;&lt;br&gt;&lt;b&gt;Grafana&lt;/b&gt;&lt;br&gt;v10.0.3 &amp;middot; :3000&lt;br&gt;port-forward access" vertex="1">
+          <mxGeometry height="65" width="220" x="420" y="1030" as="geometry" />
         </mxCell>
-        <mxCell id="n-logstash" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#FFF9C4;strokeColor=#F9A825;verticalAlign=middle;align=center;fontSize=10;fontStyle=0;" value="&amp;lt;&amp;lt;Pod&amp;gt;&amp;gt;&lt;br&gt;&lt;b&gt;Logstash&lt;/b&gt;&lt;br&gt;Procesamiento de logs" vertex="1">
-          <mxGeometry height="65" width="200" x="390" y="1510" as="geometry" />
+        <mxCell id="e-grafana-prom" edge="1" parent="1" source="n-grafana" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#C62828;dashed=1;dashPattern=4 4;" target="n-prometheus">
+          <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="n-elasticsearch" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#FFF9C4;strokeColor=#F9A825;verticalAlign=middle;align=center;fontSize=10;fontStyle=0;" value="&amp;lt;&amp;lt;Pod&amp;gt;&amp;gt;&lt;br&gt;&lt;b&gt;Elasticsearch&lt;/b&gt;&lt;br&gt;Indexación y búsqueda de logs" vertex="1">
-          <mxGeometry height="65" width="220" x="620" y="1510" as="geometry" />
+        <mxCell id="l-grafana-prom" connectable="0" parent="e-grafana-prom" style="edgeLabel;html=1;align=center;verticalAlign=middle;fontSize=8;fontColor=#C62828;" value="TCP/9090" vertex="1">
+          <mxGeometry relative="1" as="geometry"><mxPoint as="offset" /></mxGeometry>
         </mxCell>
-        <mxCell id="n-kibana" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#FFF9C4;strokeColor=#F9A825;verticalAlign=middle;align=center;fontSize=10;fontStyle=0;" value="&amp;lt;&amp;lt;Pod&amp;gt;&amp;gt;&lt;br&gt;&lt;b&gt;Kibana&lt;/b&gt;&lt;br&gt;Dashboards de logs" vertex="1">
-          <mxGeometry height="65" width="190" x="870" y="1510" as="geometry" />
+        <!-- ===== FASE 3: VM externa prod-elk-server (ELK) en GCP fuera de GKE ===== -->
+        <mxCell id="n-elk-vm" parent="1" style="shape=cube;whiteSpace=wrap;html=1;size=12;direction=south;fillColor=#FFF8E1;strokeColor=#E65100;fontStyle=0;fontSize=10;verticalAlign=top;align=center;spacingTop=3;strokeWidth=2;" value="&lt;div&gt;&lt;br&gt;&lt;/div&gt;&amp;lt;&amp;lt;VM externa&amp;gt;&amp;gt;&lt;br&gt;&lt;b&gt;prod-elk-server&lt;/b&gt;&lt;br&gt;Terraform + Ansible + Docker" vertex="1">
+          <mxGeometry height="230" width="280" x="1600" y="1420" as="geometry" />
         </mxCell>
-        <!-- Prometheus / Grafana Stack -->
-        <mxCell id="n-prometheus" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#FCE4EC;strokeColor=#C62828;verticalAlign=middle;align=center;fontSize=10;fontStyle=0;" value="&amp;lt;&amp;lt;Pod&amp;gt;&amp;gt;&lt;br&gt;&lt;b&gt;Prometheus&lt;/b&gt;&lt;br&gt;Scraping de métricas" vertex="1">
-          <mxGeometry height="65" width="190" x="140" y="1680" as="geometry" />
+        <mxCell id="n-logstash" parent="1" style="html=1;whiteSpace=wrap;fillColor=#FFF9C4;strokeColor=#F9A825;verticalAlign=middle;align=center;fontSize=9;rounded=1;arcSize=8;" value="&lt;b&gt;Logstash&lt;/b&gt; (Docker)&lt;br&gt;Lee log_audit_queue de Redis" vertex="1">
+          <mxGeometry height="45" width="240" x="1615" y="1465" as="geometry" />
         </mxCell>
-        <mxCell id="n-node-exporter" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#FCE4EC;strokeColor=#C62828;verticalAlign=middle;align=center;fontSize=10;fontStyle=0;" value="&amp;lt;&amp;lt;DaemonSet&amp;gt;&amp;gt;&lt;br&gt;&lt;b&gt;Node Exporter&lt;/b&gt;&lt;br&gt;CPU / RAM / Disco" vertex="1">
-          <mxGeometry height="65" width="200" x="360" y="1680" as="geometry" />
+        <mxCell id="n-elasticsearch" parent="1" style="html=1;whiteSpace=wrap;fillColor=#FFF9C4;strokeColor=#F9A825;verticalAlign=middle;align=center;fontSize=9;rounded=1;arcSize=8;" value="&lt;b&gt;Elasticsearch&lt;/b&gt; (Docker)&lt;br&gt;Indexa audit-logs-*" vertex="1">
+          <mxGeometry height="45" width="240" x="1615" y="1522" as="geometry" />
         </mxCell>
-        <mxCell id="n-kube-state" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#FCE4EC;strokeColor=#C62828;verticalAlign=middle;align=center;fontSize=10;fontStyle=0;" value="&amp;lt;&amp;lt;Pod&amp;gt;&amp;gt;&lt;br&gt;&lt;b&gt;Kube-State-Metrics&lt;/b&gt;&lt;br&gt;Estado de Pods y Deployments" vertex="1">
-          <mxGeometry height="65" width="210" x="590" y="1680" as="geometry" />
+        <mxCell id="n-kibana" parent="1" style="html=1;whiteSpace=wrap;fillColor=#FFF9C4;strokeColor=#F9A825;verticalAlign=middle;align=center;fontSize=9;rounded=1;arcSize=8;" value="&lt;b&gt;Kibana&lt;/b&gt; (Docker) :5601&lt;br&gt;Dashboards de auditoría" vertex="1">
+          <mxGeometry height="45" width="240" x="1615" y="1579" as="geometry" />
         </mxCell>
-        <mxCell id="n-stackdriver" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#FCE4EC;strokeColor=#C62828;verticalAlign=middle;align=center;fontSize=10;fontStyle=0;" value="&amp;lt;&amp;lt;Pod&amp;gt;&amp;gt;&lt;br&gt;&lt;b&gt;Stackdriver Exporter&lt;/b&gt;&lt;br&gt;Métricas Cloud SQL / Redis" vertex="1">
-          <mxGeometry height="65" width="220" x="830" y="1680" as="geometry" />
+        <mxCell id="e-ls-es" edge="1" parent="1" source="n-logstash" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#F9A825;" target="n-elasticsearch">
+          <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="n-grafana" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#FCE4EC;strokeColor=#C62828;verticalAlign=middle;align=center;fontSize=10;fontStyle=0;" value="&amp;lt;&amp;lt;Pod&amp;gt;&amp;gt;&lt;br&gt;&lt;b&gt;Grafana&lt;/b&gt;&lt;br&gt;Dashboards de métricas" vertex="1">
-          <mxGeometry height="65" width="190" x="1080" y="1680" as="geometry" />
+        <mxCell id="e-kibana-es" edge="1" parent="1" source="n-kibana" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#F9A825;" target="n-elasticsearch">
+          <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <!-- ===== FASE 3: Edges nuevos ===== -->
+        <!-- Redis log_audit_queue -> ELK VM -->
+        <mxCell id="e-redis-elk" edge="1" parent="1" source="n-redis" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#E65100;dashed=1;dashPattern=6 4;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="n-elk-vm">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="l-redis-elk" connectable="0" parent="e-redis-elk" style="edgeLabel;html=1;align=center;verticalAlign=middle;fontSize=8;fontColor=#E65100;" value="log_audit_queue&lt;br&gt;TCP/6379" vertex="1">
+          <mxGeometry relative="1" as="geometry"><mxPoint as="offset" /></mxGeometry>
+        </mxCell>
+                <!-- ===== FASE 3: Edges nuevos ===== -->
         <!-- api-gateway → recommendation-service (gRPC) -->
         <mxCell id="e-gw-recommendation" edge="1" parent="1" source="n-apigw" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#388E3C;" target="n-recommendation">
           <mxGeometry relative="1" as="geometry" />
@@ -356,49 +362,6 @@
         </mxCell>
         <mxCell id="l-cron-iddb" connectable="0" parent="e-cron-iddb" style="edgeLabel;html=1;align=center;verticalAlign=middle;fontSize=8;fontColor=#B71C1C;" value="TCP/5432" vertex="1">
           <mxGeometry relative="1" x="0.8" as="geometry"><mxPoint as="offset" /></mxGeometry>
-        </mxCell>
-        <!-- Filebeat → Logstash -->
-        <mxCell id="e-fb-ls" edge="1" parent="1" source="n-filebeat" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#F9A825;" target="n-logstash">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="l-fb-ls" connectable="0" parent="e-fb-ls" style="edgeLabel;html=1;align=center;verticalAlign=middle;fontSize=8;fontColor=#F9A825;" value="TCP/5044" vertex="1">
-          <mxGeometry relative="1" as="geometry"><mxPoint as="offset" /></mxGeometry>
-        </mxCell>
-        <!-- Logstash → Elasticsearch -->
-        <mxCell id="e-ls-es" edge="1" parent="1" source="n-logstash" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#F9A825;" target="n-elasticsearch">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="l-ls-es" connectable="0" parent="e-ls-es" style="edgeLabel;html=1;align=center;verticalAlign=middle;fontSize=8;fontColor=#F9A825;" value="TCP/9200" vertex="1">
-          <mxGeometry relative="1" as="geometry"><mxPoint as="offset" /></mxGeometry>
-        </mxCell>
-        <!-- Kibana → Elasticsearch -->
-        <mxCell id="e-kibana-es" edge="1" parent="1" source="n-kibana" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#F9A825;" target="n-elasticsearch">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="l-kibana-es" connectable="0" parent="e-kibana-es" style="edgeLabel;html=1;align=center;verticalAlign=middle;fontSize=8;fontColor=#F9A825;" value="TCP/9200" vertex="1">
-          <mxGeometry relative="1" as="geometry"><mxPoint as="offset" /></mxGeometry>
-        </mxCell>
-        <!-- Prometheus → Node Exporter -->
-        <mxCell id="e-prom-ne" edge="1" parent="1" source="n-prometheus" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#C62828;dashed=1;dashPattern=4 4;" target="n-node-exporter">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="l-prom-ne" connectable="0" parent="e-prom-ne" style="edgeLabel;html=1;align=center;verticalAlign=middle;fontSize=8;fontColor=#C62828;" value="scrape /metrics" vertex="1">
-          <mxGeometry relative="1" as="geometry"><mxPoint as="offset" /></mxGeometry>
-        </mxCell>
-        <!-- Prometheus → Kube-State-Metrics -->
-        <mxCell id="e-prom-ks" edge="1" parent="1" source="n-prometheus" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#C62828;dashed=1;dashPattern=4 4;" target="n-kube-state">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <!-- Prometheus → Stackdriver Exporter -->
-        <mxCell id="e-prom-sd" edge="1" parent="1" source="n-prometheus" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#C62828;dashed=1;dashPattern=4 4;" target="n-stackdriver">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <!-- Grafana → Prometheus -->
-        <mxCell id="e-grafana-prom" edge="1" parent="1" source="n-grafana" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#C62828;" target="n-prometheus">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="l-grafana-prom" connectable="0" parent="e-grafana-prom" style="edgeLabel;html=1;align=center;verticalAlign=middle;fontSize=8;fontColor=#C62828;" value="TCP/9090" vertex="1">
-          <mxGeometry relative="1" as="geometry"><mxPoint as="offset" /></mxGeometry>
         </mxCell>
       </root>
     </mxGraphModel>

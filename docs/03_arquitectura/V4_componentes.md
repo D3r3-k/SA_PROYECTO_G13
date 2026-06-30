@@ -2,7 +2,7 @@
 
 ## V4 — Vista de Componentes
 
-![Diagrama de Componentes](../00_assets/diagrams/04_diagramas/componentesactualizado.drawio.png)
+![Diagrama de Componentes](../00_assets/diagrams/04_diagramas/f3componentes.drawio.png)
 
 * **Archivo editable:** [VistaComponentes.drawio](../00_assets/raw/Vista4+1/VistaComponentes.drawio)
 
@@ -101,4 +101,4 @@ El API Gateway incorporó dos módulos nuevos en Fase 3 que extienden sus respon
 
 ### CronJob `purge-inactive-users` *(Fase 3)*
 
-Componente autónomo que no forma parte del grafo de microservicios gRPC. Es un **Pod efímero** activado por el Kubernetes Scheduler que ejecuta un soft delete sobre cuentas inactivas en `identity_db`. Se despliega como `<<CronJob>>` con `backoffLimit: 3` y genera alertas en el namespace `observability` si agota los reintentos. No expone ningún puerto ni interfaz gRPC.
+Componente autónomo que no forma parte del grafo de microservicios gRPC. Es un **Pod efímero** activado por el Kubernetes Scheduler que ejecuta un soft delete sobre cuentas inactivas en `identity_db`. Se despliega como `<<CronJob>>` con `backoffLimit: 3` y publica el evento de error en la cola de auditoría Redis para registro en ELK si agota los reintentos. No expone ningún puerto ni interfaz gRPC.
