@@ -396,6 +396,9 @@ jobs:
           - image: payment-gateway-service
             context: .
             dockerfile: ./services/payment-gateway-service/Dockerfile
+          - image: logstash-pubsub
+            context: ./deploy/release/docker/logstash
+            dockerfile: ./deploy/release/docker/logstash/Dockerfile
 
     steps:
       - name: Checkout repository
@@ -751,17 +754,6 @@ jobs:
               exit 1
             fi
           done
-
-      - name: Build and Push Custom Logstash Image
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          echo "${GITHUB_TOKEN}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-          echo "FROM docker.elastic.co/logstash/logstash:8.15.0" > Dockerfile.logstash
-          echo "RUN bin/logstash-plugin install logstash-input-google_pubsub" >> Dockerfile.logstash
-          docker build -t ${{ env.IMAGE_NAMESPACE }}/logstash-pubsub:latest -f Dockerfile.logstash .
-          docker push ${{ env.IMAGE_NAMESPACE }}/logstash-pubsub:latest
-
       - name: Deploy Observability Stack (Helm)
         env:
           GCP_PROJECT_ID: ${{ env.GCP_PROJECT_ID }}
