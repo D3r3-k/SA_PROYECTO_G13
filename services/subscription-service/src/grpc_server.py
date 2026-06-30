@@ -147,13 +147,6 @@ class SubscriptionServiceServicer(subscription_pb2_grpc.SubscriptionServiceServi
 
         try:
             plan = update_plan(request.id, request.name.strip(), request.price_usd, request.actor_user_id, request.actor_email)
-            
-            push_audit_log("subscription-service", "update_plan", request.actor_user_id, {
-                "plan_id": request.id, 
-                "new_name": request.name.strip(), 
-                "new_price": request.price_usd
-            })
-
             return subscription_pb2.UpdatePlanResponse(
                 success=True,
                 message="plan updated successfully",
@@ -261,11 +254,6 @@ class SubscriptionServiceServicer(subscription_pb2_grpc.SubscriptionServiceServi
                 request.user_id
             )
 
-            push_audit_log("subscription-service", "update_subscription", request.user_id, {
-                "subscription_id": request.subscription_id, 
-                "new_plan_id": request.plan_id
-            })
-
             try:
                 await _publish_subscription_notification(
                     subscription,
@@ -339,10 +327,6 @@ class SubscriptionServiceServicer(subscription_pb2_grpc.SubscriptionServiceServi
                     message="subscription not found",
                     subscription_id=request.subscription_id
                 )
-
-            push_audit_log("subscription-service", "cancel_subscription", "user", {
-                "subscription_id": request.subscription_id
-            })
 
             return subscription_pb2.BasicSubscriptionResponse(
                 success=True,

@@ -8,7 +8,6 @@ from google.protobuf.timestamp_pb2 import Timestamp
 
 import engagement_pb2
 import engagement_pb2_grpc
-from src.audit_logger import push_audit_log
 
 from src.db import apply_migrations, get_connection
 from src.repository import (
@@ -70,10 +69,6 @@ class EngagementServiceServicer(engagement_pb2_grpc.EngagementServiceServicer):
             return engagement_pb2.RateContentResponse(success=False, message="rating must be THUMBS_UP or THUMBS_DOWN")
         try:
             save_rating(request.profile_id, request.content_id, int(request.rating))
-            push_audit_log("engagement-service", "rate_content", request.profile_id, {
-                "content_id": request.content_id,
-                "rating": request.rating
-            })
             return engagement_pb2.RateContentResponse(success=True, message="rating saved successfully")
         except Exception:
             logger.exception("failed to save rating")

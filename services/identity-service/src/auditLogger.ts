@@ -25,7 +25,7 @@ export function getRedisClient(): Redis {
 export function logAudit(action: string, userId: string | null, details: any = {}) {
   const payload = {
     timestamp: new Date().toISOString(),
-    service: "identity-service",
+    service: "api-gateway",
     action,
     user_id: userId || "anonymous",
     details,
