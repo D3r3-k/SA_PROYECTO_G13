@@ -166,13 +166,45 @@ module "gke" {
   services_range_name           = "prod-gke-services"
   services_range_cidr           = "10.20.0.0/20"
   master_ipv4_cidr_block        = "172.16.0.0/28"
-  node_machine_type             = "e2-standard-4"
-  initial_node_count            = 2
-  min_node_count                = 2
-  max_node_count                = 4
+  node_machine_type             = "e2-medium"
+  initial_node_count            = 1
+  min_node_count                = 1
+  max_node_count                = 2
   master_authorized_cidr_blocks = var.gke_master_authorized_cidr_blocks
 
   depends_on = [module.network]
+}
+
+resource "google_container_node_pool" "observability" {
+  project        = var.project_id
+  name           = "prod-observability-pool"
+  location       = var.region
+  cluster        = module.gke.cluster_name
+  node_locations = [var.zone]
+
+  node_count = 1
+
+  node_config {
+    machine_type = "e2-standard-4"
+    disk_size_gb = 50
+    disk_type    = "pd-standard"
+
+    oauth_scopes = [
+      "https://www.googleapis.com/auth/cloud-platform"
+    ]
+
+    labels = {
+      workload = "observability"
+    }
+
+    taint {
+      key    = "workload"
+      value  = "observability"
+      effect = "NO_SCHEDULE"
+    }
+  }
+
+  depends_on = [module.gke]
 }
 
 module "firewall" {
@@ -196,18 +228,6 @@ data "google_project" "project" {}
 resource "google_project_iam_member" "gke_monitoring_viewer" {
   project = var.project_id
   role    = "roles/monitoring.viewer"
-  member  = "serviceAccount:${data.google_project.project.number}-compute@developer.gserviceaccount.com"
-}
-
-resource "google_project_iam_member" "gke_pubsub_subscriber" {
-  project = var.project_id
-  role    = "roles/pubsub.subscriber"
-  member  = "serviceAccount:${data.google_project.project.number}-compute@developer.gserviceaccount.com"
-}
-
-resource "google_project_iam_member" "gke_pubsub_viewer" {
-  project = var.project_id
-  role    = "roles/pubsub.viewer"
   member  = "serviceAccount:${data.google_project.project.number}-compute@developer.gserviceaccount.com"
 }
 
