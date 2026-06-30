@@ -1,3 +1,5 @@
+[← Regresar](../../README.md)
+
 # Casos de Uso
 
 ## Core
@@ -464,3 +466,163 @@ Quetxal TV es una plataforma de streaming de video bajo demanda diseñada para u
 | **Flujo de Excepción** | Si la consulta a `catalog_db` falla, el servicio retorna `success=false` con mensaje "could not fetch catalog" sin consultar `engagement_db`. |
 | **Flujo de Excepción** | Si la consulta a `engagement_db` falla, el servicio retorna `success=false` con mensaje "could not fetch watch history". |
 | **Flujo de Excepción** | Si el `recommendation-service` no está disponible, el API Gateway absorbe el fallo retornando HTTP 503 únicamente en `GET /api/recommendations` sin afectar ninguna otra ruta del sistema. |
+
+---
+
+### Control Parental (F3)
+
+![CDU Control Parental](../00_assets/diagrams/02_casos_de_uso/cdu/controlparental.drawio.png)
+
+| Campo | Detalle |
+| :------------ | :------------------------------------------------------------------------------------- |
+| **Nombre** | Control Parental |
+| **Actores** | Usuario (autenticado), Perfil, Identity Service, API Gateway |
+| **Propósito** | Permitir al usuario configurar un PIN de 4 dígitos sobre perfiles específicos para restringir la reproducción de contenido clasificado como no apto (PG-13 o R), y garantizar que el sistema bloquee dicha reproducción hasta que se ingrese el PIN correcto. |
+| **Resumen** | El caso de uso tiene dos flujos principales. En el primero, el usuario autenticado accede a la configuración de un perfil y activa el control parental definiendo un PIN de 4 dígitos numéricos; el sistema almacena el PIN hasheado en el `identity-service` asociado al `profile_id`. En el segundo flujo, cuando un perfil con control parental activo intenta reproducir contenido clasificado como PG-13 o R, el API Gateway intercepta la solicitud mediante el interceptor gRPC de políticas parentales, detecta que el perfil tiene restricción activa, y exige el ingreso del PIN antes de autorizar la reproducción. Si el PIN es correcto, el sistema concede acceso temporal a ese contenido. El administrador es responsable de clasificar cada contenido del catálogo con su rating (G, PG-13 o R) al momento de crearlo o editarlo. |
+
+#### Curso Normal de Eventos
+
+| \# | Acción del Actor | Respuesta del Sistema |
+| :-- | :--------------- | :-------------------- |
+| 1 | El usuario accede a la configuración del perfil y activa el control parental. | El sistema solicita que el usuario defina un PIN de exactamente 4 dígitos numéricos. |
+| 2 | El usuario ingresa y confirma el PIN de 4 dígitos. | El sistema valida que ambas entradas coincidan y que sean exactamente 4 dígitos numéricos. |
+| 3 | | El sistema hashea el PIN y lo almacena en el `identity-service` asociado al `profile_id` (`sp_set_parental_pin`). Retorna confirmación de activación. |
+| 4 | El perfil con control parental activo selecciona un contenido clasificado como PG-13 o R para reproducir. | El API Gateway intercepta la solicitud de reproducción y llama al interceptor gRPC de parental control. |
+| 5 | | El interceptor consulta al `identity-service` si el `profile_id` tiene control parental activo y verifica el rating del contenido en el `catalog-service`. |
+| 6 | | El sistema detecta que el perfil tiene restricción activa y el contenido supera el rating permitido. Retorna HTTP 403 con código `PARENTAL_PIN_REQUIRED` al frontend. |
+| 7 | El perfil ingresa el PIN de 4 dígitos en el modal de verificación. | El sistema envía el PIN al `identity-service` para validación (`sp_verify_parental_pin`). |
+| 8 | | El sistema compara el hash del PIN ingresado con el almacenado. Si coinciden, concede acceso temporal a la reproducción del contenido y retorna HTTP 200. |
+
+#### Flujos Alternativos y de Excepción
+
+| Tipo | Descripción |
+| :--- | :---------- |
+| **Flujo Alternativo** | Si el perfil intenta reproducir contenido clasificado como G (apta para todo público), el interceptor no exige PIN independientemente de si el control parental está activo. |
+| **Flujo Alternativo** | Si el usuario desea desactivar el control parental, debe ingresar el PIN actual para confirmar la desactivación. El sistema elimina el hash almacenado y desactiva la restricción en el perfil. |
+| **Flujo Alternativo** | Si el usuario desea cambiar el PIN, debe ingresar el PIN actual, luego definir y confirmar el nuevo PIN de 4 dígitos. El sistema actualiza el hash almacenado. |
+| **Flujo de Excepción** | Si el PIN ingresado no coincide con el almacenado, el sistema retorna HTTP 401 con mensaje "PIN incorrecto" e incrementa un contador de intentos fallidos. Tras 5 intentos fallidos consecutivos el sistema bloquea el perfil temporalmente por 15 minutos. |
+| **Flujo de Excepción** | Si los dos campos de confirmación del PIN no coinciden al momento de configurarlo, el sistema retorna error de validación y no almacena ningún valor. |
+| **Flujo de Excepción** | Si el `identity-service` no está disponible al verificar el PIN, el API Gateway retorna 503: "Identity Service unavailable" y bloquea la reproducción por precaución. |
+
+---
+
+### Watch Party (F3)
+
+![CDU Watch Party](../00_assets/diagrams/02_casos_de_uso/cdu/watchparty.drawio.png)
+
+| Campo | Detalle |
+| :------------ | :------------------------------------------------------------------------------------- |
+| **Nombre** | Watch Party |
+| **Actores** | Usuario Premium (host), Usuario invitado (Básico / Estándar / Premium), API Gateway (WebSocket) |
+| **Propósito** | Permitir a un usuario con Plan Premium crear una sala de reproducción sincronizada en tiempo real mediante WebSockets, generar un código de invitación para compartir con otros usuarios y coordinar la experiencia de visualización colectiva con control centralizado en el host. |
+| **Resumen** | El caso de uso inicia cuando un usuario Premium solicita crear una Watch Party para un contenido específico. El API Gateway valida mediante el interceptor gRPC que el `plan_type` del JWT sea `premium` antes de procesar la solicitud. Si la validación es exitosa, el sistema crea una sala en memoria con un código único alfanumérico de 6 caracteres y establece una conexión WebSocket persistente con el host. El host comparte el código con otros usuarios. Cualquier usuario (Básico, Estándar o Premium) puede unirse a la sala usando el código mediante su propio WebSocket. El host controla la reproducción (play, pause, seek) y el sistema propaga el estado en tiempo real a todos los participantes de la sala. |
+
+#### Curso Normal de Eventos — Creación de sala (Host Premium)
+
+| \# | Acción del Actor | Respuesta del Sistema |
+| :-- | :--------------- | :-------------------- |
+| 1 | El usuario Premium solicita crear una Watch Party para un contenido (`POST /api/watch-party`). | El API Gateway intercepta la solicitud y el interceptor gRPC valida que el JWT contenga `plan_type = premium`. |
+| 2 | | El sistema crea una sala en el módulo `rooms.ts` con un `room_id` único (código alfanumérico de 6 caracteres) y registra al host como primer participante. |
+| 3 | | El sistema establece una conexión WebSocket persistente con el host y retorna el `room_id` como código de invitación. |
+| 4 | El host comparte el código de invitación con otros usuarios por cualquier medio externo. | El sistema mantiene la sala activa y en espera de participantes. |
+| 5 | El host inicia la reproducción del contenido. | El sistema emite el evento `play` con el `content_id` y el `timestamp` actual a todos los participantes conectados a la sala. |
+| 6 | El host pausa, reanuda o hace seek en la reproducción. | El sistema propaga el evento (`pause`, `resume`, `seek`) con el timestamp exacto a todos los WebSockets activos en la sala en tiempo real. |
+| 7 | El host cierra la Watch Party o abandona la sala. | El sistema desconecta todos los WebSockets de la sala, notifica a los participantes y destruye la sala en memoria. |
+
+#### Curso Normal de Eventos — Unirse a sala (Invitado)
+
+| \# | Acción del Actor | Respuesta del Sistema |
+| :-- | :--------------- | :-------------------- |
+| 1 | El usuario invitado ingresa el código de sala y solicita unirse (`POST /api/watch-party/join`). | El sistema valida que el JWT del usuario sea válido (cualquier plan). Busca la sala por `room_id`. |
+| 2 | | El sistema registra al invitado como participante en la sala y establece una conexión WebSocket con él. |
+| 3 | | El sistema sincroniza al invitado con el estado actual de la sala: `content_id`, `timestamp` actual y estado de reproducción (playing / paused). |
+| 4 | El invitado recibe eventos de reproducción en tiempo real. | El sistema replica los eventos de play, pause y seek del host al WebSocket del invitado de forma inmediata. |
+| 5 | El invitado abandona la sala voluntariamente. | El sistema desconecta su WebSocket y lo elimina de la lista de participantes. La sala continúa activa para el resto. |
+
+#### Flujos Alternativos y de Excepción
+
+| Tipo | Descripción |
+| :--- | :---------- |
+| **Flujo Alternativo** | Si el host se desconecta inesperadamente, el sistema espera 30 segundos antes de destruir la sala. Si el host reconecta dentro de ese tiempo con el mismo `room_id`, la sala se restaura con los participantes activos. |
+| **Flujo Alternativo** | Si un participante invitado pierde conexión y reconecta con el mismo código, el sistema lo reintegra a la sala y sincroniza su estado con el timestamp actual. |
+| **Flujo de Excepción** | Si el usuario que intenta crear la Watch Party tiene `plan_type` distinto de `premium`, el interceptor gRPC retorna HTTP 403: "Watch Party is exclusive to Premium plan" y no crea la sala. |
+| **Flujo de Excepción** | Si el código de sala ingresado por el invitado no existe o ya fue destruida, el sistema retorna HTTP 404: "Room not found or expired". |
+| **Flujo de Excepción** | Si la sala alcanza el límite máximo de participantes simultáneos, el sistema retorna HTTP 409: "Room is full" al nuevo invitado sin desconectar a los existentes. |
+| **Flujo de Excepción** | Si la conexión WebSocket falla durante la sesión por error de red, el sistema registra el evento en logs y el cliente frontend reintenta la conexión automáticamente. |
+
+---
+
+### Descarga de Contenido (F3)
+
+
+![CDU Descargar Contenido](../00_assets/diagrams/02_casos_de_uso/cdu/descargarcontenido.drawio.png)
+
+
+| Campo | Detalle |
+| :------------ | :------------------------------------------------------------------------------------- |
+| **Nombre** | Descarga de Contenido |
+| **Actores** | Usuario Estándar, API Gateway, Catalog Service |
+| **Propósito** | Permitir exclusivamente a los usuarios con Plan Estándar descargar contenido multimedia para visualización offline mediante almacenamiento cifrado del navegador o Service Workers, bloqueando la funcionalidad para usuarios con Plan Básico y Plan Premium. |
+| **Resumen** | El caso de uso inicia cuando un usuario autenticado solicita descargar un contenido desde la vista de detalle. El API Gateway intercepta la solicitud y el interceptor gRPC valida que el `plan_type` en el JWT sea estrictamente `standard`. Si la validación es exitosa, el sistema obtiene la URL firmada del archivo de video desde GCS a través del `catalog-service` y la entrega al frontend. El frontend utiliza un Service Worker para descargar el archivo y almacenarlo en el almacenamiento cifrado del navegador (`IndexedDB` / Cache API). El contenido descargado queda disponible para reproducción offline. Los usuarios con Plan Básico y Plan Premium reciben un error de autorización al intentar acceder a esta funcionalidad. |
+
+#### Curso Normal de Eventos
+
+| \# | Acción del Actor | Respuesta del Sistema |
+| :-- | :--------------- | :-------------------- |
+| 1 | El usuario Estándar selecciona "Descargar" en la vista de detalle de un contenido. | El frontend envía `POST /api/catalog/:content_id/download` con la cookie de sesión. |
+| 2 | | El API Gateway intercepta la solicitud y el interceptor gRPC valida que el JWT contenga `plan_type = standard`. |
+| 3 | | El API Gateway llama al `catalog-service` vía gRPC (`GetDownloadUrl`) para obtener la URL firmada del archivo en GCS con tiempo de expiración. |
+| 4 | | El sistema retorna la URL firmada al frontend junto con los metadatos del contenido (título, duración, tipo). |
+| 5 | | El Service Worker del frontend intercepta la URL firmada e inicia la descarga del archivo de video. |
+| 6 | | El Service Worker almacena el archivo descargado en el almacenamiento cifrado del navegador (`IndexedDB` / Cache API) junto con los metadatos del contenido. |
+| 7 | | El sistema notifica al usuario que la descarga fue completada exitosamente y el contenido está disponible offline. |
+| 8 | El usuario accede a la sección "Mis descargas" sin conexión. | El frontend consulta el Service Worker, recupera el contenido almacenado localmente y lo reproduce directamente desde el almacenamiento cifrado del navegador. |
+
+#### Flujos Alternativos y de Excepción
+
+| Tipo | Descripción |
+| :--- | :---------- |
+| **Flujo Alternativo** | Si el usuario ya tiene el contenido descargado previamente, el sistema detecta el registro en el almacenamiento local y muestra la opción "Eliminar descarga" en lugar de "Descargar". |
+| **Flujo Alternativo** | Si el usuario elimina una descarga, el Service Worker borra el archivo del almacenamiento cifrado del navegador y actualiza el estado del contenido a no descargado. |
+| **Flujo Alternativo** | Si la descarga se interrumpe por pérdida de conexión, el Service Worker registra el progreso parcial y permite reanudar la descarga desde donde se interrumpió al recuperar la conexión. |
+| **Flujo de Excepción** | Si el usuario tiene Plan Básico o Plan Premium, el interceptor gRPC retorna HTTP 403: "Content download is exclusive to Standard plan" y no genera la URL firmada. |
+| **Flujo de Excepción** | Si la URL firmada de GCS expira antes de que el Service Worker complete la descarga, el sistema retorna HTTP 403 desde GCS. El frontend solicita automáticamente una nueva URL firmada al backend y reanuda la descarga. |
+| **Flujo de Excepción** | Si el almacenamiento del navegador está lleno, el Service Worker retorna error de almacenamiento y notifica al usuario que debe liberar espacio antes de continuar con la descarga. |
+| **Flujo de Excepción** | Si el `catalog-service` no está disponible, el API Gateway retorna 503: "Catalog Service unavailable" y no genera la URL firmada. |
+
+---
+
+### Cronjob de Depuración — Purga de Cuentas Inactivas (F3)
+
+
+![CDU Cronjob](../00_assets/diagrams/02_casos_de_uso/cdu/cronjob.drawio.png)
+
+| Campo | Detalle |
+| :------------ | :------------------------------------------------------------------------------------- |
+| **Nombre** | Cronjob de Depuración — Purga de Cuentas Inactivas |
+| **Actores** | Kubernetes (CronJob), Identity Service, Base de datos (`identity_db`) |
+| **Propósito** | Ejecutar de forma automática y programada un proceso de auditoría sobre la base de datos de usuarios que detecte y elimine lógicamente aquellas cuentas que hayan permanecido inactivas sin registros de inicio de sesión durante un período prefijado, manteniendo la integridad y limpieza de los datos operacionales. |
+| **Resumen** | El caso de uso no es iniciado por ningún usuario sino por el orquestador Kubernetes según el schedule definido en el manifiesto `purge-inactive-users.yml`. En cada ejecución, el CronJob lanza un Pod efímero que conecta al `identity-service` y ejecuta el procedimiento `sp_purge_inactive_users`, el cual identifica todas las cuentas cuyo campo `last_login_at` supere el umbral de inactividad configurado (90 días). El procedimiento realiza un soft delete actualizando el campo `deleted_at` con el timestamp actual y el campo `status` a `purged`, sin eliminar físicamente los registros para preservar la trazabilidad de auditoría. Al finalizar, el Pod registra en logs el número de cuentas procesadas y se destruye automáticamente. |
+
+#### Curso Normal de Eventos
+
+| \# | Acción del Actor | Respuesta del Sistema |
+| :-- | :--------------- | :-------------------- |
+| 1 | Kubernetes ejecuta el CronJob según el schedule configurado en `purge-inactive-users.yml`. | Kubernetes lanza un Pod efímero con la imagen del job de depuración en el namespace `quetxal-tv-prod`. |
+| 2 | | El Pod establece conexión con el `identity_db` usando las credenciales inyectadas desde Kubernetes Secrets. |
+| 3 | | El proceso ejecuta el procedimiento almacenado `sp_purge_inactive_users` pasando como parámetro el umbral de inactividad (90 días). |
+| 4 | | El procedimiento construye la query: busca cuentas donde `last_login_at < NOW() - INTERVAL '90 days'` y `status = 'active'` y `deleted_at IS NULL`. |
+| 5 | | El procedimiento realiza el soft delete: actualiza `deleted_at = NOW()` y `status = 'purged'` en todas las cuentas que cumplen el criterio. |
+| 6 | | El trigger `trg_audit_account_purge` registra automáticamente cada cuenta purga en la tabla de auditoría con el timestamp y el motivo `'inactivity_purge'`. |
+| 7 | | El proceso registra en `stdout` el número total de cuentas procesadas: `"Purge completed: X accounts marked as purged"`. |
+| 8 | | Kubernetes destruye el Pod efímero al finalizar la ejecución y registra el estado del job (`Succeeded` o `Failed`) en el historial del CronJob. |
+
+#### Flujos Alternativos y de Excepción
+
+| Tipo | Descripción |
+| :--- | :---------- |
+| **Flujo Alternativo** | Si no existen cuentas que superen el umbral de inactividad en la ejecución actual, el procedimiento retorna `0` cuentas afectadas y el Pod registra `"Purge completed: 0 accounts marked as purged"` sin realizar ninguna modificación en la base de datos. |
+| **Flujo Alternativo** | Si una cuenta inactiva tiene una suscripción activa al momento de la purga, el procedimiento la excluye del proceso y la registra en un log separado para revisión manual del administrador, ya que puede representar un caso de pago activo sin uso. |
+| **Flujo de Excepción** | Si la conexión a `identity_db` falla al iniciar el Pod, el proceso termina con código de error y Kubernetes marca el job como `Failed`. Kubernetes reintenta la ejecución según la política `backoffLimit` definida en el manifiesto (máximo 3 reintentos). |
+| **Flujo de Excepción** | Si el procedimiento `sp_purge_inactive_users` lanza una excepción durante la transacción (ej. deadlock, timeout), la transacción se revierte completamente (`ROLLBACK`) para garantizar consistencia y el Pod termina con código de error. |
+| **Flujo de Excepción** | Si el CronJob falla en 3 ejecuciones consecutivas, Kubernetes genera un evento de tipo `Warning` en el namespace que puede ser capturado por el stack de observabilidad (ELK / Prometheus) para alertar al equipo de operaciones. |

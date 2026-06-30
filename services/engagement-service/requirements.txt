@@ -2,3 +2,5 @@ grpcio>=1.76.0
 grpcio-tools>=1.76.0
 psycopg2-binary==2.9.12
 python-dotenv==1.0.1
+
+redis>=5.0.0

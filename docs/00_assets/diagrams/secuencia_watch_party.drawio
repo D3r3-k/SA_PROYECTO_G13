@@ -1,0 +1,173 @@
+<mxGraphModel dx="3114" dy="1324" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+  <root>
+    <mxCell id="0" />
+    <mxCell id="1" parent="0" />
+    <mxCell id="title" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;fontStyle=1;fontSize=13;" value="Secuencia: Watch Party" vertex="1">
+      <mxGeometry height="30" width="450" x="190" y="80" as="geometry" />
+    </mxCell>
+
+    <mxCell id="p_host" parent="1" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;newEdgeStyle={&quot;curved&quot;:0,&quot;rounded&quot;:0};participant=umlActor;" value="Usuario Premium (host)" vertex="1">
+      <mxGeometry height="1050" width="20" x="20" y="160" as="geometry" />
+    </mxCell>
+    <mxCell id="p_gw" parent="1" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;newEdgeStyle={&quot;curved&quot;:0,&quot;rounded&quot;:0};participant=umlBoundary;" value="API Gateway" vertex="1">
+      <mxGeometry height="1050" width="50" x="130" y="150" as="geometry" />
+    </mxCell>
+    <mxCell id="p_rooms" parent="1" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;newEdgeStyle={&quot;curved&quot;:0,&quot;rounded&quot;:0};participant=umlControl;" value="rooms.ts (WebSocket)" vertex="1">
+      <mxGeometry height="1050" width="80" x="265" y="150" as="geometry" />
+    </mxCell>
+    <mxCell id="p_sub" parent="1" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;newEdgeStyle={&quot;curved&quot;:0,&quot;rounded&quot;:0};participant=umlControl;" value="subscription-service" vertex="1">
+      <mxGeometry height="1050" width="80" x="445" y="150" as="geometry" />
+    </mxCell>
+    <mxCell id="p_invitado" parent="1" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;newEdgeStyle={&quot;curved&quot;:0,&quot;rounded&quot;:0};participant=umlActor;" value="Usuario Invitado" vertex="1">
+      <mxGeometry height="1050" width="20" x="640" y="160" as="geometry" />
+    </mxCell>
+
+    <mxCell id="a_host" parent="1" style="html=1;points=[[0,0,0,0,5],[0,1,0,0,-5],[1,0,0,0,5],[1,1,0,0,-5]];perimeter=orthogonalPerimeter;outlineConnect=0;targetShapes=umlLifeline;portConstraint=eastwest;" value="" vertex="1">
+      <mxGeometry height="860" width="10" x="25" y="280" as="geometry" />
+    </mxCell>
+    <mxCell id="a_gw" parent="1" style="html=1;points=[[0,0,0,0,5],[0,1,0,0,-5],[1,0,0,0,5],[1,1,0,0,-5]];perimeter=orthogonalPerimeter;outlineConnect=0;targetShapes=umlLifeline;portConstraint=eastwest;" value="" vertex="1">
+      <mxGeometry height="860" width="10" x="150" y="280" as="geometry" />
+    </mxCell>
+    <mxCell id="a_rooms" parent="1" style="html=1;points=[[0,0,0,0,5],[0,1,0,0,-5],[1,0,0,0,5],[1,1,0,0,-5]];perimeter=orthogonalPerimeter;outlineConnect=0;targetShapes=umlLifeline;portConstraint=eastwest;" value="" vertex="1">
+      <mxGeometry height="860" width="10" x="300" y="280" as="geometry" />
+    </mxCell>
+    <mxCell id="a_sub" parent="1" style="html=1;points=[[0,0,0,0,5],[0,1,0,0,-5],[1,0,0,0,5],[1,1,0,0,-5]];perimeter=orthogonalPerimeter;outlineConnect=0;targetShapes=umlLifeline;portConstraint=eastwest;" value="" vertex="1">
+      <mxGeometry height="860" width="10" x="480" y="280" as="geometry" />
+    </mxCell>
+    <mxCell id="a_invitado" parent="1" style="html=1;points=[[0,0,0,0,5],[0,1,0,0,-5],[1,0,0,0,5],[1,1,0,0,-5]];perimeter=orthogonalPerimeter;outlineConnect=0;targetShapes=umlLifeline;portConstraint=eastwest;" value="" vertex="1">
+      <mxGeometry height="860" width="10" x="645" y="280" as="geometry" />
+    </mxCell>
+
+    <mxCell id="lbl1" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;rounded=0;" value="&lt;b&gt;[ Crear sala Watch Party ]&lt;/b&gt;" vertex="1">
+      <mxGeometry height="25" width="240" x="20" y="258" as="geometry" />
+    </mxCell>
+    <mxCell id="m1" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;curved=0;rounded=0;" value="1: Crear nueva sala Watch Party">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="35" y="295" as="sourcePoint" />
+        <mxPoint x="150" y="295" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="m2" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;curved=0;rounded=0;" value="2: Crear sala para el perfil del host">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="160" y="333" as="sourcePoint" />
+        <mxPoint x="300" y="333" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="m3" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;curved=0;rounded=0;" value="3: Verificar que el usuario tiene plan Premium">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="310" y="371" as="sourcePoint" />
+        <mxPoint x="480" y="371" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="m4" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=open;curved=0;rounded=0;dashed=1;" value="4: Plan Premium confirmado ✓">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="480" y="409" as="sourcePoint" />
+        <mxPoint x="310" y="409" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="m5" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=open;curved=0;rounded=0;dashed=1;" value="5: Sala creada con identificador y código de invitación">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="300" y="447" as="sourcePoint" />
+        <mxPoint x="160" y="447" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="m6" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=open;curved=0;rounded=0;dashed=1;" value="6: Sala lista — compartir código de invitación">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="150" y="485" as="sourcePoint" />
+        <mxPoint x="35" y="485" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="m7" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;curved=0;rounded=0;" value="7: Conectar al canal de la sala (host)">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="35" y="523" as="sourcePoint" />
+        <mxPoint x="150" y="523" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="m8" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;curved=0;rounded=0;" value="8: Registrar conexión del host en la sala">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="160" y="561" as="sourcePoint" />
+        <mxPoint x="300" y="561" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="m9" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=open;curved=0;rounded=0;dashed=1;" value="9: Canal de la sala registrado para el host ✓">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="300" y="599" as="sourcePoint" />
+        <mxPoint x="160" y="599" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="m10" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=open;curved=0;rounded=0;dashed=1;" value="10: Conexión en tiempo real establecida">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="150" y="637" as="sourcePoint" />
+        <mxPoint x="35" y="637" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+
+    <mxCell id="lbl2" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;rounded=0;" value="&lt;b&gt;[ Unirse a sala — invitado ]&lt;/b&gt;" vertex="1">
+      <mxGeometry height="25" width="260" x="20" y="665" as="geometry" />
+    </mxCell>
+    <mxCell id="m11" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;curved=0;rounded=0;" value="11: Unirse a sala con código de invitación">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="655" y="703" as="sourcePoint" />
+        <mxPoint x="160" y="703" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="m12" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;curved=0;rounded=0;" value="12: Buscar sala con el código de invitación">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="160" y="741" as="sourcePoint" />
+        <mxPoint x="300" y="741" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="m13" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=open;curved=0;rounded=0;dashed=1;" value="13: Sala activa encontrada ✓">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="300" y="779" as="sourcePoint" />
+        <mxPoint x="160" y="779" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="m14" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;curved=0;rounded=0;" value="14: Conectar al canal de la sala (invitado)">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="655" y="817" as="sourcePoint" />
+        <mxPoint x="160" y="817" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="m15" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;curved=0;rounded=0;" value="15: Registrar invitado en la sala activa">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="160" y="855" as="sourcePoint" />
+        <mxPoint x="300" y="855" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="m16" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=open;curved=0;rounded=0;dashed=1;" value="16: invitado añadido ✓">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="300" y="893" as="sourcePoint" />
+        <mxPoint x="160" y="893" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+
+    <mxCell id="lbl3" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;rounded=0;" value="&lt;b&gt;[ Sincronización en tiempo real ]&lt;/b&gt;" vertex="1">
+      <mxGeometry height="25" width="280" x="20" y="921" as="geometry" />
+    </mxCell>
+    <mxCell id="m17" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;curved=0;rounded=0;" value="17: Enviar evento de reproducción (play 00:12:34)">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="35" y="958" as="sourcePoint" />
+        <mxPoint x="150" y="958" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="m18" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;curved=0;rounded=0;" value="18: Difundir evento de reproducción a todos los miembros">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="160" y="996" as="sourcePoint" />
+        <mxPoint x="300" y="996" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="m19" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=open;curved=0;rounded=0;dashed=1;" value="19: Evento de reproducción enviado a los invitados">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="300" y="1034" as="sourcePoint" />
+        <mxPoint x="160" y="1034" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="m20" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=open;curved=0;rounded=0;dashed=1;" value="20: Reproducción sincronizada (play 00:12:34)">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="160" y="1072" as="sourcePoint" />
+        <mxPoint x="655" y="1072" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+  </root>
+</mxGraphModel>

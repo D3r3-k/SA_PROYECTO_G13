@@ -1,3 +1,5 @@
+[← Regresar](../../README.md)
+
 # Diagrama de Componentes
 
 ![Diagrama de Componentes](../00_assets/diagrams/04_diagramas/diagrama_componentesfull.png)

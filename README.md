@@ -59,27 +59,19 @@ La solucion utiliza un API Gateway como punto unico de entrada, comunicacion int
 - [6. Decisiones de Diseño y Justificaciones](docs/06_justificaciones/justificacion_y_decision.md)
 
 - [7. Pruebas](docs/pruebas.md)
+  - [7.1 Pruebas de Carga - Locust](docs/Testing/locust.md)
 
 - [8. Infraestructura](docs/07_kubernetes/entorno_kubernetes.md)
   - [8.1 Configuración de Entorno Local y Cloud](docs/configuraciones.md)
   - [8.2 Entorno Kubernetes](docs/07_kubernetes/entorno_kubernetes.md)
+  - [8.3 Observabilidad y Monitoreo (Métricas)](docs/08_observabilidad/grafana_prometeus.md)
+  - [8.4 Observabilidad de Logs (ELK Stack)](docs/08_observabilidad/elk_stack.md)
+  - [8.5 Guía de Infraestructura y Despliegue - Release](infra/release/README.md)
+  - [8.6 Guía de Infraestructura y Despliegue - Develop](infra/develop/README.md)
+  - [8.7 Infraestructura como Código - Terraform](docs/terraform.md)
+  - [8.8 Gestión de Configuración - Ansible](docs/ansible.md)
 
-- [9. Contratos gRPC](proto)
-
-- [10. Microservicios (Backend)](services)
-  - [10.1 Identity Service](services/identity-service/README.md)
-  - [10.2 Catalog Service](services/catalog-service/README.md)
-  - [10.3 Subscription Service](services/subscription-service/README.md)
-  - [10.4 FX Service](services/fx-service/README.md)
-  - [10.5 Engagement Service](services/engagement-service/README.md)
-  - [10.6 Notification Service](services/notification-service/README.md)
-
-- [11. Aplicaciones (Gateway/Frontend)](apps)
-  - [11.1 API Gateway](apps/api-gateway/README.md)
-
-- [12. Guías de Flujo y Desarrollo]()
-  - [12.1 Flujo de Trabajo (Git Flow)](docs/instrucciones_flow_git.md)
-  - [12.2 Integración de Identity](docs/instrucciones_integracion_identity.md)
+- [9. Motor de Recomendación (Fase 3)](docs/08_recomendaciones/justificacion_recomendacion.md)
 
 ## Conclusiones
 
@@ -88,4 +80,9 @@ La solucion utiliza un API Gateway como punto unico de entrada, comunicacion int
 - Redis cumple un rol clave como cache para tasas de cambio y como cola asincrona para notificaciones, evitando bloquear los flujos principales del sistema.
 - El API Gateway centraliza el acceso externo, la validacion de sesion y la traduccion de solicitudes HTTP a llamadas internas gRPC.
 - La documentacion y los diagramas permiten mantener trazabilidad entre requerimientos, arquitectura, despliegue, flujos y modelo de datos.
+- La infraestructura como codigo mediante Terraform y Ansible garantiza que todo el entorno de GCP sea reproducible, versionable y libre de configuracion manual, eliminando la deriva de configuracion entre entornos.
+- El motor de recomendacion basado en Content-Based Filtering con similitud del coseno permite generar sugerencias personalizadas por perfil sin requerir datos de otros usuarios ni infraestructura de almacenamiento adicional.
+- El stack ELK en VM externa desacopla la centralizacion de logs de auditoria del ciclo de vida del cluster GKE, garantizando que los registros persistan incluso ante fallos del entorno de computo.
+- Prometheus y Grafana dentro del namespace de produccion permiten monitorear CPU, memoria y red por Pod en tiempo real aprovechando cAdvisor nativo de GKE, sin agentes adicionales.
+- El CronJob de depuracion automatiza la purga de cuentas inactivas como proceso autonomo de infraestructura, manteniendo la base de datos saneada sin intervención manual ni impacto en los microservicios de negocio.
 

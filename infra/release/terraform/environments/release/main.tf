@@ -169,7 +169,7 @@ module "gke" {
   node_machine_type             = "e2-medium"
   initial_node_count            = 1
   min_node_count                = 1
-  max_node_count                = 2
+  max_node_count                = 4
   master_authorized_cidr_blocks = var.gke_master_authorized_cidr_blocks
 
   depends_on = [module.network]
@@ -190,3 +190,12 @@ module "firewall" {
     }
   }
 }
+
+resource "local_file" "ansible_vars" {
+  filename = "${path.module}/../../../ansible/inventories/release/group_vars/all.yml"
+  content  = <<-EOT
+db_host: "${module.cloud_sql.private_ip_address}"
+db_password: "${var.subscription_db_password}"
+EOT
+}
+

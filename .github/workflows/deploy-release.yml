@@ -47,7 +47,7 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event.pull_request.merged == true &&
-       contains(github.event.pull_request.labels.*.name, 'deploy:release'))
+       contains(github.event.pull_request.labels.*.name, 'deploy'))
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -60,7 +60,7 @@ jobs:
       - name: Instalar dependencias de prueba
         run: |
           pip install --upgrade pip
-          pip install pytest pytest-asyncio>=0.21 pytest-cov grpcio python-dotenv
+          pip install pytest pytest-asyncio>=0.21 pytest-cov grpcio python-dotenv "redis>=5.0.0"
       - name: Ejecutar pruebas
         run: pytest tests/ --cov=src --cov-report=term-missing --cov-report=xml --cov-fail-under=75 -v
       - uses: actions/upload-artifact@v4
@@ -74,7 +74,7 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event.pull_request.merged == true &&
-       contains(github.event.pull_request.labels.*.name, 'deploy:release'))
+       contains(github.event.pull_request.labels.*.name, 'deploy'))
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -101,7 +101,7 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event.pull_request.merged == true &&
-       contains(github.event.pull_request.labels.*.name, 'deploy:release'))
+       contains(github.event.pull_request.labels.*.name, 'deploy'))
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -114,7 +114,7 @@ jobs:
       - name: Instalar dependencias de prueba
         run: |
           pip install --upgrade pip
-          pip install pytest pytest-asyncio>=0.21 pytest-cov grpcio psycopg2-binary python-dotenv protobuf
+          pip install pytest pytest-asyncio>=0.21 pytest-cov grpcio psycopg2-binary python-dotenv protobuf "redis>=5.0.0"
       - name: Ejecutar pruebas
         run: pytest tests/ --cov=src --cov-report=term-missing --cov-report=xml --cov-fail-under=75 -v
       - uses: actions/upload-artifact@v4
@@ -128,7 +128,7 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event.pull_request.merged == true &&
-       contains(github.event.pull_request.labels.*.name, 'deploy:release'))
+       contains(github.event.pull_request.labels.*.name, 'deploy'))
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -151,7 +151,7 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event.pull_request.merged == true &&
-       contains(github.event.pull_request.labels.*.name, 'deploy:release'))
+       contains(github.event.pull_request.labels.*.name, 'deploy'))
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -178,7 +178,7 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event.pull_request.merged == true &&
-       contains(github.event.pull_request.labels.*.name, 'deploy:release'))
+       contains(github.event.pull_request.labels.*.name, 'deploy'))
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -205,7 +205,7 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event.pull_request.merged == true &&
-       contains(github.event.pull_request.labels.*.name, 'deploy:release'))
+       contains(github.event.pull_request.labels.*.name, 'deploy'))
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -232,7 +232,7 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event.pull_request.merged == true &&
-       contains(github.event.pull_request.labels.*.name, 'deploy:release'))
+       contains(github.event.pull_request.labels.*.name, 'deploy'))
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -259,7 +259,7 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event.pull_request.merged == true &&
-       contains(github.event.pull_request.labels.*.name, 'deploy:release'))
+       contains(github.event.pull_request.labels.*.name, 'deploy'))
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -293,7 +293,7 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event.pull_request.merged == true &&
-       contains(github.event.pull_request.labels.*.name, 'deploy:release'))
+       contains(github.event.pull_request.labels.*.name, 'deploy'))
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -590,12 +590,16 @@ jobs:
           echo "TLS_SECRET_NAME=quetxal-tv-tls" >> "${GITHUB_ENV}"
 
           mkdir -p runtime-k8s
-          cp deploy/release/k8s/tls/cluster-issuers.yml runtime-k8s/cluster-issuers.yml
+          sed \
+            -e "s|__ACME_EMAIL__|${ACME_EMAIL}|g" \
+            deploy/release/k8s/tls/cluster-issuers.yml > runtime-k8s/cluster-issuers.yml
+          
           sed \
             -e "s|__INGRESS_IP__|${INGRESS_IP}|g" \
+            -e "s|__ACME_ENVIRONMENT__|${ACME_ENVIRONMENT}|g" \
             deploy/release/k8s/tls/certificate.yml > runtime-k8s/certificate.yml
           sed \
-            -e "s|__TLS_SECRET_NAME__|quetxal-tv-tls|g" \
+            -e "s|__TLS_SECRET_NAME__|quetxal-tv-tls-production|g" \
             deploy/release/k8s/ingress.yml > runtime-k8s/ingress.yml
 
 
@@ -606,7 +610,7 @@ jobs:
             --namespace="${GKE_NAMESPACE}" \
             --from-literal=NODE_ENV=production \
             --from-literal=RUN_MIGRATIONS=false \
-            --from-literal=FRONTEND_URL=https://${INGRESS_IP}.nip.io \
+            --from-literal=FRONTEND_URL=https://${INGRESS_IP} \
             --from-literal=API_GATEWAY_PORT=3000 \
             --from-literal=WEB_PORT=80 \
             --from-literal=API_GATEWAY_UPSTREAM=api-gateway:3000 \
@@ -724,6 +728,9 @@ jobs:
           kubectl apply -f deploy/release/k8s/services/
           kubectl apply -f deploy/release/k8s/deployments/
           kubectl apply -f deploy/release/k8s/cronjobs/
+          kubectl apply -f deploy/release/k8s/observability/prometheus.yml
+          kubectl apply -f deploy/release/k8s/observability/grafana.yml
+          kubectl apply -f deploy/release/k8s/observability/filebeat.yml
 
           if ! kubectl get ingress quetxal-tv-ingress --namespace="${GKE_NAMESPACE}" >/dev/null 2>&1; then
             kubectl apply -f deploy/release/k8s/ingress-bootstrap.yml

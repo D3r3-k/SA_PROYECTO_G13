@@ -1,0 +1,156 @@
+---
+- name: Deploy ELK Stack via Docker
+  hosts: elk_server
+  become: yes
+  tasks:
+    - name: Install dependencies
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - software-properties-common
+        state: present
+        update_cache: yes
+
+    - name: Add Docker GPG key
+      apt_key:
+        url: https://download.docker.com/linux/debian/gpg
+        state: present
+
+    - name: Add Docker repository
+      apt_repository:
+        repo: "deb [arch=amd64] https://download.docker.com/linux/debian {{ ansible_distribution_release }} stable"
+        state: present
+
+    - name: Install Docker and Compose plugin
+      apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-compose-plugin
+        state: present
+        update_cache: yes
+
+    - name: Ensure ELK directories exist
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - /opt/elk/logstash/pipeline
+        - /opt/elk/logstash/jdbc
+
+    - name: Download PostgreSQL JDBC Driver
+      get_url:
+        url: https://jdbc.postgresql.org/download/postgresql-42.7.3.jar
+        dest: /opt/elk/logstash/jdbc/postgresql.jar
+
+    - name: Copy Logstash configuration
+      copy:
+        dest: /opt/elk/logstash/pipeline/logstash.conf
+        content: |
+          input {
+            beats {
+              port => 5044
+            }
+            jdbc {
+              jdbc_driver_library => "/usr/share/logstash/jdbc/postgresql.jar"
+              jdbc_driver_class => "org.postgresql.Driver"
+              jdbc_connection_string => "jdbc:postgresql://{{ db_host }}:5432/subscription_db"
+              jdbc_user => "subscription_user"
+              jdbc_password => "{{ db_password }}"
+              schedule => "* * * * *"
+              statement => "SELECT * FROM audit_log WHERE created_at > :sql_last_value"
+              use_column_value => true
+              tracking_column => "created_at"
+              tracking_column_type => "timestamp"
+              type => "transactional_audit"
+            }
+          }
+          filter {
+            if [type] == "transactional_audit" {
+              mutate {
+                remove_field => ["@version"]
+              }
+            }
+          }
+          output {
+            if [type] == "transactional_audit" {
+              elasticsearch {
+                hosts => ["http://elasticsearch:9200"]
+                index => "audit-transactional-%{+YYYY.MM.dd}"
+              }
+            } else {
+              elasticsearch {
+                hosts => ["http://elasticsearch:9200"]
+                index => "system-logs-%{+YYYY.MM.dd}"
+              }
+            }
+          }
+
+    - name: Create docker-compose.yml
+      copy:
+        dest: /opt/elk/docker-compose.yml
+        content: |
+          version: '3.8'
+          services:
+            elasticsearch:
+              image: docker.elastic.co/elasticsearch/elasticsearch:8.10.2
+              container_name: elasticsearch
+              environment:
+                - discovery.type=single-node
+                - xpack.security.enabled=false
+                - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
+              ports:
+                - "9200:9200"
+              networks:
+                - elk
+              ulimits:
+                memlock:
+                  soft: -1
+                  hard: -1
+            
+            kibana:
+              image: docker.elastic.co/kibana/kibana:8.10.2
+              container_name: kibana
+              environment:
+                - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+              ports:
+                - "5601:5601"
+              depends_on:
+                - elasticsearch
+              networks:
+                - elk
+
+            logstash:
+              image: docker.elastic.co/logstash/logstash:8.10.2
+              container_name: logstash
+              environment:
+                - "LS_JAVA_OPTS=-Xms512m -Xmx512m"
+              volumes:
+                - ./logstash/pipeline:/usr/share/logstash/pipeline
+                - ./logstash/jdbc:/usr/share/logstash/jdbc
+              ports:
+                - "5044:5044"
+              depends_on:
+                - elasticsearch
+              networks:
+                - elk
+
+          networks:
+            elk:
+              driver: bridge
+
+    - name: Ensure vm.max_map_count is set for Elasticsearch (OS Level)
+      sysctl:
+        name: vm.max_map_count
+        value: 262144
+        state: present
+        sysctl_set: yes
+
+    - name: Start ELK Stack via Docker Compose
+      command: docker compose up -d
+      args:
+        chdir: /opt/elk

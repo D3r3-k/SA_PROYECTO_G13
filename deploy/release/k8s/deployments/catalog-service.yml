@@ -19,47 +19,47 @@ spec:
         app: catalog-service
     spec:
       imagePullSecrets:
-        - name: ghcr-pull-secret
+      - name: ghcr-pull-secret
       volumes:
-        - name: gcs-credentials
-          secret:
-            secretName: gcs-service-account
+      - name: gcs-credentials
+        secret:
+          secretName: gcs-service-account
       containers:
-        - name: catalog-service
-          image: ghcr.io/d3r3-k/sa_proyecto_g13/catalog-service:latest
-          ports:
-            - containerPort: 50055
-          resources:
-            requests:
-              cpu: "100m"
-              memory: "128Mi"
-            limits:
-              cpu: "500m"
-              memory: "512Mi"
-          env:
-            - name: DATABASE_URL
-              valueFrom:
-                secretKeyRef:
-                  name: connection-secrets
-                  key: CATALOG_DATABASE_URL
-          envFrom:
-            - configMapRef:
-                name: app-config
-            - secretRef:
-                name: app-secrets
-            - secretRef:
-                name: connection-secrets
-          volumeMounts:
-            - name: gcs-credentials
-              mountPath: /app/secrets
-              readOnly: true
-          readinessProbe:
-            tcpSocket:
-              port: 50055
-            initialDelaySeconds: 10
-            periodSeconds: 10
-          livenessProbe:
-            tcpSocket:
-              port: 50055
-            initialDelaySeconds: 30
-            periodSeconds: 20
+      - name: catalog-service
+        image: ghcr.io/d3r3-k/sa_proyecto_g13/catalog-service:latest
+        ports:
+        - containerPort: 50055
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: connection-secrets
+              key: CATALOG_DATABASE_URL
+        envFrom:
+        - configMapRef:
+            name: app-config
+        - secretRef:
+            name: app-secrets
+        - secretRef:
+            name: connection-secrets
+        volumeMounts:
+        - name: gcs-credentials
+          mountPath: /app/secrets
+          readOnly: true
+        readinessProbe:
+          tcpSocket:
+            port: 50055
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        livenessProbe:
+          tcpSocket:
+            port: 50055
+          initialDelaySeconds: 30
+          periodSeconds: 20
