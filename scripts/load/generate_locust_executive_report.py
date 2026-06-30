@@ -309,7 +309,7 @@ def build_report(args: argparse.Namespace) -> str:
       <h2>Datos de ejecución</h2>
       <p><strong>Host objetivo:</strong> <code>{html.escape(args.target or 'No especificado')}</code></p>
       <p><strong>Usuarios:</strong> {html.escape(str(args.users))} · <strong>Spawn rate:</strong> {html.escape(str(args.spawn_rate))} usuarios/segundo · <strong>Duración:</strong> {html.escape(str(args.run_time))}</p>
-      <p class="footer">Este reporte resume los CSV generados por Locust. El HTML oficial de Locust se conserva como evidencia técnica completa.</p>
+      <p class="footer">Para detalles tecnicos y graficos, valide el resumen tecnico de la prueba</p>
     </div>
   </main>
 </body>
