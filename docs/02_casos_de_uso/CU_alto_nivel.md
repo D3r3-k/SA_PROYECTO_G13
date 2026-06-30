@@ -1,3 +1,5 @@
+[← Regresar](../../README.md)
+
 # Casos de Uso
 
 ## Core
