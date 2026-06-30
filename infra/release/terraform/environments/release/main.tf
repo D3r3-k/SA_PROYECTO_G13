@@ -55,10 +55,10 @@ module "network" {
   name_prefix           = local.name_prefix
   region                = var.region
   vpc_name              = "prod-vpc"
-  public_subnet_name    = "prod-subnet-public"
-  public_subnet_cidr    = "10.0.1.0/24"
-  private_subnet_name   = "prod-subnet-private"
-  private_subnet_cidr   = "10.0.2.0/24"
+  public_subnet_name    = "prod-subnet-public-ca"
+  public_subnet_cidr    = "10.0.10.0/24"
+  private_subnet_name   = "prod-subnet-private-ca"
+  private_subnet_cidr   = "10.0.20.0/24"
   router_name           = "prod-router"
   nat_name              = "prod-nat"
   private_google_access = true
@@ -159,13 +159,13 @@ module "gke" {
   node_locations                = [var.zone]
   cluster_name                  = "prod-gke-release"
   network_id                    = module.network.network_id
-  subnetwork_name               = "prod-subnet-gke-release"
-  subnetwork_cidr               = "10.0.3.0/24"
-  pods_range_name               = "prod-gke-pods"
-  pods_range_cidr               = "10.10.0.0/16"
-  services_range_name           = "prod-gke-services"
-  services_range_cidr           = "10.20.0.0/20"
-  master_ipv4_cidr_block        = "172.16.0.0/28"
+  subnetwork_name               = "prod-subnet-gke-ca"
+  subnetwork_cidr               = "10.0.30.0/24"
+  pods_range_name               = "prod-gke-pods-ca"
+  pods_range_cidr               = "10.100.0.0/16"
+  services_range_name           = "prod-gke-services-ca"
+  services_range_cidr           = "10.200.0.0/20"
+  master_ipv4_cidr_block        = "172.16.1.0/28"
   node_machine_type             = "e2-medium"
   initial_node_count            = 1
   min_node_count                = 1
@@ -185,7 +185,7 @@ module "firewall" {
       name          = "prod-allow-internal"
       protocol      = "all"
       ports         = []
-      source_ranges = ["10.0.1.0/24", "10.0.2.0/24", "10.0.3.0/24", "10.10.0.0/16", "10.20.0.0/20"]
+      source_ranges = ["10.0.10.0/24", "10.0.20.0/24", "10.0.30.0/24", "10.100.0.0/16", "10.200.0.0/20"]
       target_tags   = []
     }
   }
